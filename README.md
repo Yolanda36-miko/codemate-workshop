@@ -142,9 +142,73 @@ codemate-workshop/
 ## 开发阶段
 
 - [x] 阶段 1：项目骨架搭建（左侧导航 + 6 页面路由 + Mock 数据联通）
-- [ ] 阶段 2：首页与整体 UI 风格
-- [ ] 阶段 3：CodeBuddy 学习画像页
-- [ ] 阶段 4：课程中心页
-- [ ] 阶段 5：资源生成页
-- [ ] 阶段 6：学习路径页
-- [ ] 阶段 7：辅导评估页与演示优化
+- [x] 阶段 2：数据库与数据模型建设（SQLAlchemy 模型、Pydantic schemas、种子数据）
+- [ ] 阶段 3：首页与整体 UI 风格
+- [ ] 阶段 4：CodeBuddy 学习画像页
+- [ ] 阶段 5：课程中心页
+- [ ] 阶段 6：资源生成页
+- [ ] 阶段 7：学习路径页
+- [ ] 阶段 8：辅导评估页与演示优化
+
+## 数据库
+
+### 数据库初始化
+
+Phase 2 已完成数据库基础建设，包括 SQLAlchemy 数据模型、Pydantic schemas 和种子数据。
+
+**1. 初始化数据库表：**
+
+```bash
+cd backend
+python -m scripts.init_db
+```
+
+**2. 填充种子数据：**
+
+```bash
+cd backend
+python -m scripts.seed_db
+```
+
+种子数据包括：
+- 5 门课程（Python 编程基础、数据结构与算法、Web 开发入门、数据库原理与应用、面向对象程序设计）
+- 10 个知识点（每门课程 2-3 个核心知识点）
+- 8 个徽章（初学者、进阶学习者、学习大师、勤奋学习者等）
+- 演示用户（demo_user, local_user）
+- 学生画像和成长值记录
+
+**3. 检查数据库状态：**
+
+```bash
+cd backend
+python -m scripts.check_db
+```
+
+**4. 数据库文档：**
+
+详细数据库设计文档见 [`docs/database_schema.md`](docs/database_schema.md)
+
+### 数据库表结构
+
+当前系统包含以下核心表：
+
+| 表名 | 说明 |
+|------|------|
+| users | 用户表 |
+| student_profiles | 学生画像表 |
+| courses | 课程表 |
+| knowledge_points | 知识点表 |
+| resources | 学习资源表 |
+| resource_packages | 资源包表 |
+| learning_paths | 学习路径表 |
+| path_nodes | 学习路径节点表 |
+| assessments | 评估表 |
+| assessment_records | 评估记录表 |
+| growth_values | 成长值表 |
+| badges | 徽章表 |
+| user_badges | 用户徽章表 |
+
+### 开发分支
+
+- **基础分支**: `real-system-upgrade`
+- **数据库工作分支**: `phase2-database-schema`

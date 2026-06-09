@@ -1,0 +1,97 @@
+[
+  {
+    "name": "初学者",
+    "description": "完成第一个课程的学习",
+    "icon_url": "https://example.com/badges/beginner.png",
+    "badge_type": "achievement",
+    "requirement": {
+      "type": "course_completed",
+      "count": 1
+    },
+    "order_index": 1,
+    "is_active": true
+  },
+  {
+    "name": "进阶学习者",
+    "description": "完成三个课程的学习",
+    "icon_url": "https://example.com/badges/intermediate.png",
+    "badge_type": "achievement",
+    "requirement": {
+      "type": "course_completed",
+      "count": 3
+    },
+    "order_index": 2,
+    "is_active": true
+  },
+  {
+    "name": "学习大师",
+    "description": "完成所有课程的学习",
+    "icon_url": "https://example.com/badges/master.png",
+    "badge_type": "special",
+    "requirement": {
+      "type": "all_courses_completed"
+    },
+    "order_index": 3,
+    "is_active": true
+  },
+  {
+    "name": "勤奋学习者",
+    "description": "连续学习 7 天",
+    "icon_url": "https://example.com/badges/diligent.png",
+    "badge_type": "milestone",
+    "requirement": {
+      "type": "consecutive_days",
+      "count": 7
+    },
+    "order_index": 4,
+    "is_active": true
+  },
+  {
+    "name": "周冠军",
+    "description": "单周学习时长超过 20 小时",
+    "icon_url": "https://example.com/badges/weekly_champion.png",
+    "badge_type": "achievement",
+    "requirement": {
+      "type": "weekly_study_hours",
+      "hours": 20
+    },
+    "order_index": 5,
+    "is_active": true
+  },
+  {
+    "name": "知识点收集者",
+    "description": "掌握 50 个知识点",
+    "icon_url": "https://example.com/badges/knowledge_collector.png",
+    "badge_type": "achievement",
+    "requirement": {
+      "type": "knowledge_points_mastered",
+      "count": 50
+    },
+    "order_index": 6,
+    "is_active": true
+  },
+  {
+    "name": "满分达人",
+    "description": "在评估中获得满分",
+    "icon_url": "https://example.com/badges/perfect_score.png",
+    "badge_type": "special",
+    "requirement": {
+      "type": "assessment_perfect_score",
+      "count": 1
+    },
+    "order_index": 7,
+    "is_active": true
+  },
+  {
+    "name": "坚持就是胜利",
+    "description": "连续学习 30 天",
+    "icon_url": "https://example.com/badges/persistence.png",
+    "badge_type": "milestone",
+    "requirement": {
+      "type": "consecutive_days",
+      "count": 30
+    },
+    "order_index": 8,
+    "is_active": true
+  }
+]

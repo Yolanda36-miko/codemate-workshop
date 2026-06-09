@@ -1,0 +1,201 @@
+[
+  {
+    "course_id": 1,
+    "title": "Python 简介与环境搭建",
+    "description": "了解 Python 的历史、特点和应用领域，学习如何安装 Python 和配置开发环境。",
+    "content": "Python 是一种高级、解释型、通用的编程语言，由 Guido van Rossum 于 1991 年创建。Python 的设计哲学强调代码的可读性和简洁的语法...",
+    "order_index": 1,
+    "difficulty": "beginner",
+    "estimated_minutes": 45,
+    "prerequisites": [],
+    "learning_objectives": [
+      "了解 Python 的发展历史",
+      "掌握 Python 的主要特点",
+      "能够安装 Python 解释器",
+      "配置开发环境"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/python-intro",
+      "slides_url": "https://example.com/slides/python-intro.pdf"
+    }
+  },
+  {
+    "course_id": 1,
+    "title": "Python 基础语法",
+    "description": "学习 Python 的基础语法，包括变量、数据类型、运算符和基本的输入输出。",
+    "content": "Python 的语法简洁明了，使用缩进来表示代码块。本章将学习变量命名规则、基本数据类型（整数、浮点数、字符串、布尔值）、运算符的使用等...",
+    "order_index": 2,
+    "difficulty": "beginner",
+    "estimated_minutes": 60,
+    "prerequisites": [1],
+    "learning_objectives": [
+      "掌握变量的定义和使用",
+      "理解 Python 的数据类型",
+      "熟练使用运算符",
+      "掌握输入输出函数"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/python-basics",
+      "exercises": ["exercise1.py", "exercise2.py"]
+    }
+  },
+  {
+    "course_id": 1,
+    "title": "流程控制语句",
+    "description": "学习条件语句和循环语句，掌握程序的流程控制方法。",
+    "content": "流程控制是编程的核心概念之一。Python 提供了 if-elif-else 条件语句、for 循环、while 循环等流程控制结构...",
+    "order_index": 3,
+    "difficulty": "beginner",
+    "estimated_minutes": 75,
+    "prerequisites": [1, 2],
+    "learning_objectives": [
+      "掌握 if 条件语句的使用",
+      "理解 for 循环的工作原理",
+      "熟练使用 while 循环",
+      "掌握 break 和 continue 的用法"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/control-flow",
+      "project": "calculator.py"
+    }
+  },
+  {
+    "course_id": 1,
+    "title": "函数与模块",
+    "description": "学习如何定义和使用函数，理解模块化编程的思想。",
+    "content": "函数是组织好的、可重复使用的代码块。Python 支持自定义函数、lambda 表达式、递归函数等。模块是包含 Python 代码的文件，可以包含函数、类和变量...",
+    "order_index": 4,
+    "difficulty": "intermediate",
+    "estimated_minutes": 90,
+    "prerequisites": [1, 2, 3],
+    "learning_objectives": [
+      "掌握函数的定义和调用",
+      "理解参数传递机制",
+      "学习使用标准库模块",
+      "创建自定义模块"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/functions-modules",
+      "examples": ["my_module.py", "utils.py"]
+    }
+  },
+  {
+    "course_id": 2,
+    "title": "数据结构概述",
+    "description": "了解数据结构的基本概念、分类和重要性。",
+    "content": "数据结构是计算机存储、组织数据的方式。良好的数据结构可以提高程序的效率和可维护性。常见的数据结构包括线性结构（数组、链表、栈、队列）和非线性结构（树、图）...",
+    "order_index": 1,
+    "difficulty": "intermediate",
+    "estimated_minutes": 60,
+    "prerequisites": [],
+    "learning_objectives": [
+      "理解数据结构的定义",
+      "掌握数据结构的分类",
+      "了解时间复杂度和空间复杂度"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/ds-intro",
+      "reading": "chapter1.pdf"
+    }
+  },
+  {
+    "course_id": 2,
+    "title": "数组与链表",
+    "description": "深入学习数组和链表的实现原理、操作和应用场景。",
+    "content": "数组是相同类型元素的有序集合，支持随机访问。链表通过指针连接节点，插入删除操作更高效。本章将对比两种数据结构的优缺点...",
+    "order_index": 2,
+    "difficulty": "intermediate",
+    "estimated_minutes": 90,
+    "prerequisites": [5],
+    "learning_objectives": [
+      "掌握数组的基本操作",
+      "理解链表的节点结构",
+      "能够实现单链表和双链表",
+      "比较数组和链表的性能"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/array-linkedlist",
+      "code": ["array_impl.py", "linkedlist_impl.py"]
+    }
+  },
+  {
+    "course_id": 2,
+    "title": "栈与队列",
+    "description": "学习栈和队列这两种特殊的线性表，理解它们的特点和应用。",
+    "content": "栈是后进先出（LIFO）的数据结构，队列是先进先出（FIFO）的数据结构。它们在算法和系统设计中有着广泛的应用...",
+    "order_index": 3,
+    "difficulty": "intermediate",
+    "estimated_minutes": 75,
+    "prerequisites": [5, 6],
+    "learning_objectives": [
+      "理解栈的 LIFO 特性",
+      "掌握队列的 FIFO 特性",
+      "实现栈和队列的基本操作",
+      "了解栈和队列的应用场景"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/stack-queue",
+      "applications": ["parentheses_matching.py", "bfs.py"]
+    }
+  },
+  {
+    "course_id": 3,
+    "title": "HTML 基础",
+    "description": "学习 HTML 的基本语法和常用标签，构建网页的骨架。",
+    "content": "HTML（超文本标记语言）是网页的标准标记语言。本章学习 HTML 文档结构、常用标签（标题、段落、链接、图片、列表、表格、表单等）...",
+    "order_index": 1,
+    "difficulty": "beginner",
+    "estimated_minutes": 60,
+    "prerequisites": [],
+    "learning_objectives": [
+      "理解 HTML 文档结构",
+      "掌握常用 HTML 标签",
+      "能够创建基本的网页",
+      "了解 HTML5 新特性"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/html-basics",
+      "demo": "sample_page.html"
+    }
+  },
+  {
+    "course_id": 3,
+    "title": "CSS 样式设计",
+    "description": "学习 CSS 语法和选择器，美化网页样式。",
+    "content": "CSS（层叠样式表）用于控制网页的外观和布局。本章学习 CSS 选择器、盒模型、布局技术（浮动、定位、Flexbox、Grid）等...",
+    "order_index": 2,
+    "difficulty": "beginner",
+    "estimated_minutes": 90,
+    "prerequisites": [8],
+    "learning_objectives": [
+      "掌握 CSS 选择器",
+      "理解盒模型",
+      "熟练使用 Flexbox 布局",
+      "了解响应式设计"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/css-styling",
+      "demo": "responsive_layout.html"
+    }
+  },
+  {
+    "course_id": 3,
+    "title": "JavaScript 编程",
+    "description": "学习 JavaScript 基础语法和 DOM 操作，实现网页交互功能。",
+    "content": "JavaScript 是一种脚本语言，用于实现网页的动态功能。本章学习变量、函数、事件处理、DOM 操作、AJAX 等...",
+    "order_index": 3,
+    "difficulty": "intermediate",
+    "estimated_minutes": 120,
+    "prerequisites": [8, 9],
+    "learning_objectives": [
+      "掌握 JavaScript 基础语法",
+      "理解 DOM 树结构",
+      "能够处理用户事件",
+      "实现 AJAX 异步请求"
+    ],
+    "extra_data": {
+      "video_url": "https://example.com/videos/javascript",
+      "project": "interactive_todo.html"
+    }
+  }
+]
