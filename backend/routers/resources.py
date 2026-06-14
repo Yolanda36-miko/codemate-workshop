@@ -1,10 +1,15 @@
 """
-资源生成与资源库 API 路由
+资源生成、资源库与用户资源包 API 路由
 """
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
 from services import resource_service
+from schemas.resource import (
+    UserResourcePackageCreate,
+    UserResourcePackageUpdate,
+    UserResourcePackageResponse,
+)
 
 router = APIRouter()
 
@@ -50,9 +55,6 @@ def list_library_resources(
     )
 
 
-# ⚠️ /resources/library/stats MUST be defined before /resources/library/{resource_id}
-# to prevent "stats" from being captured as a resource_id path parameter.
-
 @router.get("/resources/library/stats")
 def get_library_stats():
     """资源库统计 — 按课程、类型、难度分组计数"""
@@ -69,3 +71,39 @@ def get_library_resource(resource_id: str):
             detail=f"Resource '{resource_id}' not found in library",
         )
     return result
+
+
+# ===================== 用户资源包（Phase 4B） =====================
+
+@router.get("/resources/packages/{user_id}")
+def get_user_packages(user_id: int):
+    """获取用户的资源包列表"""
+    packages = resource_service.get_user_packages(user_id)
+    return {"packages": packages, "user_id": user_id, "total": len(packages)}
+
+
+@router.post("/resources/packages")
+def add_to_package(req: UserResourcePackageCreate, user_id: int = Query(..., description="用户 ID")):
+    """添加资源到用户资源包"""
+    result = resource_service.add_to_package(user_id, req.model_dump())
+    if result is None:
+        raise HTTPException(status_code=500, detail="Failed to add to package")
+    return result
+
+
+@router.put("/resources/packages/{package_id}")
+def update_package_item(package_id: int, req: UserResourcePackageUpdate, user_id: int = Query(..., description="用户 ID")):
+    """更新资源包条目"""
+    result = resource_service.update_package_item(package_id, user_id, req.model_dump(exclude_unset=True))
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Package #{package_id} not found")
+    return result
+
+
+@router.delete("/resources/packages/{package_id}")
+def delete_package_item(package_id: int, user_id: int = Query(..., description="用户 ID")):
+    """删除资源包条目"""
+    ok = resource_service.delete_package_item(package_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Package #{package_id} not found")
+    return {"detail": "deleted", "package_id": package_id}

@@ -2,11 +2,15 @@
 Resource Service
 - generate_resources: Mock 资源生成（保留原有行为）
 - 资源库索引读取、详情、搜索、统计 (Phase 4A)
+- 用户资源包 CRUD (Phase 4B)
 """
 import json
 import logging
 from pathlib import Path
 from typing import Optional
+
+from database import SessionLocal
+from models.resource import UserResourcePackage
 
 from services import profile_service
 
@@ -64,7 +68,7 @@ def _read_content_file(content_path: str) -> tuple[Optional[str], Optional[str]]
         elif suffix in (".md", ".txt"):
             return "markdown", raw
         else:
-            return "markdown", raw  # 默认按 markdown 处理
+            return "markdown", raw
     except OSError as e:
         logger.warning("Failed to read content file %s: %s", full_path, e)
         return None, None
@@ -105,7 +109,7 @@ def _filter_resources(
     return result
 
 
-# ---- Public API ----
+# ---- Public API: Resource Library (Phase 4A) ----
 
 def list_library_resources(
     course_code: Optional[str] = None,
@@ -130,7 +134,6 @@ def list_library_resources(
         difficulty, language, tags, search,
     )
 
-    # 返回元数据（不含 contentPath 减少响应体积）
     items = []
     for r in filtered:
         items.append({
@@ -156,10 +159,7 @@ def list_library_resources(
 
 
 def get_library_resource_detail(resource_id: str) -> Optional[dict]:
-    """
-    资源详情 — 元数据 + 正文内容
-    返回 None 表示未找到，返回 dict 含 content_type、content 或 content_json
-    """
+    """资源详情 — 元数据 + 正文内容"""
     index = _load_index()
     if index is None:
         return None
@@ -247,3 +247,162 @@ def get_library_stats() -> dict:
         "by_difficulty": dict(sorted(by_difficulty.items())),
         "source": "resource_library_index",
     }
+
+
+# ---- Phase 4B: User Resource Package CRUD ----
+
+def get_user_packages(user_id: int) -> list[dict]:
+    """获取用户的资源包列表"""
+    db = None
+    try:
+        db = SessionLocal()
+        packages = db.query(UserResourcePackage).filter(
+            UserResourcePackage.user_id == user_id
+        ).order_by(UserResourcePackage.created_at.desc()).all()
+        return [
+            {
+                "id": p.id,
+                "user_id": p.user_id,
+                "resource_id": p.resource_id,
+                "library_resource_id": None,
+                "custom_title": p.custom_title,
+                "topic": p.topic,
+                "course_name": p.course_name,
+                "resource_type": p.resource_type,
+                "estimated_time": p.estimated_time,
+                "purpose": p.purpose,
+                "priority": p.priority,
+                "note": p.note,
+                "status": p.status,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            }
+            for p in packages
+        ]
+    except Exception as e:
+        logger.warning("Failed to get packages for user %d: %s", user_id, e)
+        return []
+    finally:
+        if db:
+            db.close()
+
+
+def add_to_package(user_id: int, data: dict) -> Optional[dict]:
+    """添加资源到用户资源包"""
+    db = None
+    try:
+        db = SessionLocal()
+        pkg = UserResourcePackage(
+            user_id=user_id,
+            resource_id=data.get("resource_id"),
+            custom_title=data.get("custom_title"),
+            topic=data.get("topic"),
+            course_name=data.get("course_name"),
+            resource_type=data.get("resource_type"),
+            estimated_time=data.get("estimated_time"),
+            purpose=data.get("purpose"),
+            priority=data.get("priority"),
+            note=data.get("note"),
+            status="saved",
+        )
+        db.add(pkg)
+        db.commit()
+        db.refresh(pkg)
+        return {
+            "id": pkg.id,
+            "user_id": pkg.user_id,
+            "resource_id": pkg.resource_id,
+            "library_resource_id": data.get("library_resource_id"),
+            "custom_title": pkg.custom_title,
+            "topic": pkg.topic,
+            "course_name": pkg.course_name,
+            "resource_type": pkg.resource_type,
+            "estimated_time": pkg.estimated_time,
+            "purpose": pkg.purpose,
+            "priority": pkg.priority,
+            "note": pkg.note,
+            "status": pkg.status,
+            "created_at": pkg.created_at.isoformat() if pkg.created_at else None,
+            "updated_at": pkg.updated_at.isoformat() if pkg.updated_at else None,
+        }
+    except Exception as e:
+        logger.warning("Failed to add package for user %d: %s", user_id, e)
+        if db:
+            db.rollback()
+        return None
+    finally:
+        if db:
+            db.close()
+
+
+def update_package_item(package_id: int, user_id: int, data: dict) -> Optional[dict]:
+    """更新用户资源包条目"""
+    db = None
+    try:
+        db = SessionLocal()
+        pkg = db.query(UserResourcePackage).filter(
+            UserResourcePackage.id == package_id,
+            UserResourcePackage.user_id == user_id,
+        ).first()
+        if not pkg:
+            return None
+
+        updatable = [
+            "custom_title", "topic", "course_name", "resource_type",
+            "estimated_time", "purpose", "priority", "note", "status",
+        ]
+        for field in updatable:
+            if field in data:
+                setattr(pkg, field, data[field])
+
+        db.commit()
+        db.refresh(pkg)
+        return {
+            "id": pkg.id,
+            "user_id": pkg.user_id,
+            "resource_id": pkg.resource_id,
+            "library_resource_id": None,
+            "custom_title": pkg.custom_title,
+            "topic": pkg.topic,
+            "course_name": pkg.course_name,
+            "resource_type": pkg.resource_type,
+            "estimated_time": pkg.estimated_time,
+            "purpose": pkg.purpose,
+            "priority": pkg.priority,
+            "note": pkg.note,
+            "status": pkg.status,
+            "created_at": pkg.created_at.isoformat() if pkg.created_at else None,
+            "updated_at": pkg.updated_at.isoformat() if pkg.updated_at else None,
+        }
+    except Exception as e:
+        logger.warning("Failed to update package #%d: %s", package_id, e)
+        if db:
+            db.rollback()
+        return None
+    finally:
+        if db:
+            db.close()
+
+
+def delete_package_item(package_id: int, user_id: int) -> bool:
+    """删除用户资源包条目"""
+    db = None
+    try:
+        db = SessionLocal()
+        pkg = db.query(UserResourcePackage).filter(
+            UserResourcePackage.id == package_id,
+            UserResourcePackage.user_id == user_id,
+        ).first()
+        if not pkg:
+            return False
+        db.delete(pkg)
+        db.commit()
+        return True
+    except Exception as e:
+        logger.warning("Failed to delete package #%d: %s", package_id, e)
+        if db:
+            db.rollback()
+        return False
+    finally:
+        if db:
+            db.close()

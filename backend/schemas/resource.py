@@ -128,3 +128,54 @@ class ResourceLibraryStats(BaseModel):
     by_type: Dict[str, int]
     by_difficulty: Dict[str, int]
     source: str
+
+
+# ---- User Resource Package schemas (Phase 4B) ----
+
+class UserResourcePackageCreate(BaseModel):
+    """添加资源到用户资源包"""
+    resource_id: Optional[int] = None
+    library_resource_id: Optional[str] = None   # Phase 3 资源库字符串 ID
+    custom_title: Optional[str] = None
+    topic: Optional[str] = None
+    course_name: Optional[str] = None
+    resource_type: Optional[str] = None
+    estimated_time: Optional[str] = None
+    purpose: Optional[str] = None
+    priority: Optional[str] = None
+    note: Optional[str] = None
+
+
+class UserResourcePackageUpdate(BaseModel):
+    """更新资源包条目 — 所有字段可选"""
+    custom_title: Optional[str] = None
+    topic: Optional[str] = None
+    course_name: Optional[str] = None
+    resource_type: Optional[str] = None
+    estimated_time: Optional[str] = None
+    purpose: Optional[str] = None
+    priority: Optional[str] = None
+    note: Optional[str] = None
+    status: Optional[str] = None
+
+
+class UserResourcePackageResponse(BaseModel):
+    """资源包条目响应"""
+    id: int
+    user_id: int
+    resource_id: Optional[int] = None
+    library_resource_id: Optional[str] = None
+    custom_title: Optional[str] = None
+    topic: Optional[str] = None
+    course_name: Optional[str] = None
+    resource_type: Optional[str] = None
+    estimated_time: Optional[str] = None
+    purpose: Optional[str] = None
+    priority: Optional[str] = None
+    note: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

@@ -2,7 +2,8 @@
 Profile schemas - 用户画像相关的 Pydantic 模型
 """
 from datetime import datetime
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class StudentProfileBase(BaseModel):
@@ -46,3 +47,39 @@ class ProfileConversationResponse(ProfileConversationBase):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ---- Phase 4B: Profile CRUD schemas ----
+
+class ProfileUpdate(BaseModel):
+    """更新画像 — 所有字段可选，不做必填校验"""
+    knowledge_base_score: Optional[int] = None
+    practice_ability_score: Optional[int] = None
+    cognitive_styles: Optional[str] = None
+    error_patterns: Optional[str] = None
+    learning_goals: Optional[str] = None
+    resource_preferences: Optional[str] = None
+    profile_summary: Optional[str] = None
+    diagnosis_status: Optional[str] = None
+
+
+class ConversationCreateRequest(BaseModel):
+    """追加对话消息"""
+    role: str = Field(..., pattern="^(buddy|user)$")
+    message: str = Field(..., min_length=1)
+    extracted_fields: Optional[str] = None
+    missing_fields: Optional[str] = None
+
+
+class ConversationItem(BaseModel):
+    """对话消息返回项"""
+    id: int
+    user_id: int
+    role: str
+    message: str
+    extracted_fields: Optional[str] = None
+    missing_fields: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
