@@ -1,0 +1,61 @@
+{
+  "resourceId": "pb_debugging_exercises_001",
+  "title": "基础调试练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "错误类型识别",
+      "question": "以下代码会产生哪种错误？\n\nprint('Hello world")",
+      "options": ["SyntaxError", "IndexError", "TypeError", "NameError"],
+      "answer": "SyntaxError",
+      "explanation": "字符串的引号没有配对，属于语法错误，Python 在解析时就会报错。"
+    },
+    {
+      "id": "q2",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "错误信息解读",
+      "question": "错误信息 \"IndexError: list index out of range\" 表示什么问题？",
+      "options": [
+        "列表未定义",
+        "访问了不存在的列表索引",
+        "列表为空",
+        "列表类型错误"
+      ],
+      "answer": "访问了不存在的列表索引",
+      "explanation": "IndexError 表示尝试访问的索引超出了列表的有效范围。"
+    },
+    {
+      "id": "q3",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "定位错误",
+      "question": "以下代码运行后会报错，请指出错误发生在哪一行？\n\n1. def greet(name):\n2.     print(\"Hello, \" + name\n3. \n4. greet(\"Alice\")",
+      "options": [],
+      "answer": "第 2 行",
+      "explanation": "第 2 行缺少右括号，导致 SyntaxError。"
+    },
+    {
+      "id": "q4",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "逻辑错误",
+      "question": "以下代码想计算 1 到 5 的和，但结果不正确。问题在哪里？\n\nresult = 0\nfor i in range(1, 5):\n    result += i\nprint(result)",
+      "options": [],
+      "answer": "循环范围应该是 range(1, 6)，当前只计算了 1+2+3+4=10",
+      "explanation": "range(1, 5) 生成的是 [1, 2, 3, 4]，不包含 5。应该改为 range(1, 6)。"
+    },
+    {
+      "id": "q5",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "调试技巧",
+      "question": "在调试时，为了检查变量 x 的值，应该添加什么代码？\n\nx = 10\n______\nif x > 5:\n    print(\"x 大于 5\")",
+      "options": [],
+      "answer": "print(x)",
+      "explanation": "使用 print(x) 可以输出变量 x 的值，帮助确认其内容是否符合预期。"
+    }
+  ]
+}

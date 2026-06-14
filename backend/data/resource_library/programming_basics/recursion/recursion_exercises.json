@@ -1,0 +1,61 @@
+{
+  "resourceId": "pb_recursion_exercises_001",
+  "title": "递归调用栈练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "递归出口条件",
+      "question": "关于递归函数，以下哪个说法是正确的？",
+      "options": [
+        "递归函数不需要出口条件",
+        "递归函数必须有出口条件，否则会导致栈溢出",
+        "递归函数只能调用自身一次",
+        "递归函数的效率总是高于迭代"
+      ],
+      "answer": "递归函数必须有出口条件，否则会导致栈溢出",
+      "explanation": "递归函数必须包含出口条件（base case）来终止递归，否则会无限调用自身导致栈溢出错误。"
+    },
+    {
+      "id": "q2",
+      "type": "code_output",
+      "difficulty": "基础",
+      "knowledgePoint": "递归执行过程",
+      "question": "以下代码的输出是什么？\n\ndef countdown(n):\n    if n == 0:\n        print('Go!')\n        return\n    print(n)\n    countdown(n - 1)\n\ncountdown(3)",
+      "options": [],
+      "answer": "3\n2\n1\nGo!",
+      "explanation": "递归从 3 开始，每次递减 1 并打印，直到 n=0 时打印 'Go!' 并返回。"
+    },
+    {
+      "id": "q3",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "递归调用栈",
+      "question": "执行 factorial(4) 时，调用栈的最大深度是多少？",
+      "options": ["3", "4", "5", "6"],
+      "answer": "4",
+      "explanation": "factorial(4) -> factorial(3) -> factorial(2) -> factorial(1)，共 4 层栈帧。"
+    },
+    {
+      "id": "q4",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "递归返回过程",
+      "question": "以下代码的输出是什么？\n\ndef mystery(n):\n    if n <= 1:\n        return n\n    return mystery(n-1) + mystery(n-2)\n\nprint(mystery(5))",
+      "options": [],
+      "answer": "5",
+      "explanation": "这是斐波那契数列，mystery(5) = mystery(4) + mystery(3) = 3 + 2 = 5。"
+    },
+    {
+      "id": "q5",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "递归函数定义",
+      "question": "补全递归函数，计算列表元素之和：\n\ndef sum_recursive(lst):\n    if not lst:\n        ______\n    return lst[0] + sum_recursive(lst[1:])",
+      "options": [],
+      "answer": "return 0",
+      "explanation": "空列表的和为 0，这是递归的出口条件。"
+    }
+  ]
+}

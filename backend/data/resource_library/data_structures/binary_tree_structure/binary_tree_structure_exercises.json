@@ -1,0 +1,71 @@
+{
+  "resourceId": "ds_binary_tree_structure_exercises_001",
+  "title": "二叉树结构练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "二叉树性质",
+      "question": "深度为 4 的满二叉树共有多少个节点？",
+      "options": ["15", "16", "7", "8"],
+      "answer": "15",
+      "explanation": "满二叉树节点总数公式：2^k - 1，其中 k 为深度。2^4 - 1 = 16 - 1 = 15。"
+    },
+    {
+      "id": "q2",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "节点度的关系",
+      "question": "一个二叉树有 15 个叶子节点，那么度为 2 的节点有多少个？",
+      "options": ["14", "15", "16", "不确定"],
+      "answer": "14",
+      "explanation": "根据二叉树性质：叶子节点数 = 度为2的节点数 + 1，所以度为2的节点数 = 15 - 1 = 14。"
+    },
+    {
+      "id": "q3",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "数组存储索引",
+      "question": "使用数组存储完全二叉树时，索引为 5 的节点的左子节点索引是多少？",
+      "options": ["10", "11", "12", "13"],
+      "answer": "11",
+      "explanation": "左子节点索引 = 2 * i + 1 = 2 * 5 + 1 = 11。"
+    },
+    {
+      "id": "q4",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "二叉树分类",
+      "question": "以下关于二叉树的说法，哪个是正确的？",
+      "options": [
+        "满二叉树一定是完全二叉树",
+        "完全二叉树一定是满二叉树",
+        "二叉搜索树一定是满二叉树",
+        "所有二叉树都可以用数组高效存储"
+      ],
+      "answer": "满二叉树一定是完全二叉树",
+      "explanation": "满二叉树满足完全二叉树的定义，但完全二叉树不一定是满二叉树。"
+    },
+    {
+      "id": "q5",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "TreeNode 定义",
+      "question": "补全 TreeNode 类的定义：\n\nclass TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        ______\n        self.right = right",
+      "options": [],
+      "answer": "self.left = left",
+      "explanation": "TreeNode 类需要三个属性：val（值）、left（左子节点）、right（右子节点）。"
+    },
+    {
+      "id": "q6",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "二叉树结构",
+      "question": "根据以下数组表示的完全二叉树，根节点的右子节点的值是多少？\n\ntree = [10, 20, 30, 40, 50, 60]\n\n树结构：\n      10\n     /  \n    20   30\n   / \\  /\n  40 50 60",
+      "options": [],
+      "answer": "30",
+      "explanation": "根节点是索引 0，值为 10。右子节点索引 = 2*0 + 2 = 2，对应值为 30。"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "resourceId": "ds_sorting_exercises_001",
+  "title": "排序算法练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "时间复杂度",
+      "question": "冒泡排序、选择排序、插入排序的平均时间复杂度是多少？",
+      "options": ["O(n)", "O(n log n)", "O(n^2)", "O(log n)"],
+      "answer": "O(n^2)",
+      "explanation": "这三种都是基础排序算法，平均情况下需要进行 O(n^2) 次比较操作。"
+    },
+    {
+      "id": "q2",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "排序过程模拟",
+      "question": "对数组 [5, 3, 8, 3, 2] 进行冒泡排序，第一轮排序后的数组是什么？",
+      "options": [],
+      "answer": "[3, 5, 3, 2, 8]",
+      "explanation": "第一轮冒泡：比较(5,3)交换→[3,5,8,3,2]，比较(5,8)不交换，比较(8,3)交换→[3,5,3,8,2]，比较(8,2)交换→[3,5,3,2,8]。最大元素 8 冒泡到最后。"
+    },
+    {
+      "id": "q3",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "稳定性判断",
+      "question": "以下哪种排序算法是稳定的？",
+      "options": ["选择排序", "快速排序", "归并排序", "堆排序"],
+      "answer": "归并排序",
+      "explanation": "稳定排序指相等元素的相对顺序在排序后保持不变。归并排序在合并过程中保持相等元素的顺序，因此是稳定的。"
+    },
+    {
+      "id": "q4",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "复杂度分析",
+      "question": "以下哪种排序算法的最坏时间复杂度是 O(n^2)？",
+      "options": ["归并排序", "快速排序", "堆排序", "以上都不是"],
+      "answer": "快速排序",
+      "explanation": "快速排序在最坏情况下（如数组已有序），每次划分只能减少一个元素，时间复杂度退化为 O(n^2)。"
+    },
+    {
+      "id": "q5",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "冒泡排序代码",
+      "question": "补全冒泡排序代码：\n\ndef bubble_sort(arr):\n    n = len(arr)\n    for i in range(n - 1):\n        swapped = False\n        for j in range(n - 1 - i):\n            if arr[j] > arr[j + 1]:\n                ______\n                swapped = True\n        if not swapped:\n            break\n    return arr",
+      "options": [],
+      "answer": "arr[j], arr[j + 1] = arr[j + 1], arr[j]",
+      "explanation": "当 arr[j] > arr[j + 1] 时，需要交换这两个相邻元素的位置。"
+    },
+    {
+      "id": "q6",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "排序过程模拟",
+      "question": "对数组 [4, 1, 3, 2] 进行选择排序，第一轮排序后的数组是什么？",
+      "options": [],
+      "answer": "[1, 4, 3, 2]",
+      "explanation": "第一轮选择排序：找到最小元素 1（索引1），与第一个元素 4 交换，得到 [1, 4, 3, 2]。"
+    },
+    {
+      "id": "q7",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "稳定性判断",
+      "question": "有数组 [(2, 'a'), (1, 'b'), (2, 'c')]，按第一个元素升序排序后，以下哪个结果符合稳定排序？",
+      "options": [
+        "[(1, 'b'), (2, 'c'), (2, 'a')]",
+        "[(1, 'b'), (2, 'a'), (2, 'c')]",
+        "[(2, 'a'), (1, 'b'), (2, 'c')]",
+        "[(2, 'c'), (1, 'b'), (2, 'a')]"
+      ],
+      "answer": "[(1, 'b'), (2, 'a'), (2, 'c')]",
+      "explanation": "稳定排序保持相等元素的相对顺序，原始数组中 (2, 'a') 在 (2, 'c') 前面，排序后也应该保持这个顺序。"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "resourceId": "pb_array_boundary_exercises_001",
+  "title": "数组边界练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "下标范围",
+      "question": "有一个列表 arr = [1,2,3,4,5]，下面哪个下标访问会引发 IndexError？",
+      "options": ["arr[0]", "arr[4]", "arr[5]", "arr[-1]"],
+      "answer": "arr[5]",
+      "explanation": "有效下标是 0 到 4，arr[5] 越界。"
+    },
+    {
+      "id": "q2",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "负数下标",
+      "question": "arr = ['a','b','c']，arr[-2] 的值是什么？",
+      "options": ["'a'", "'b'", "'c'", "报错"],
+      "answer": "'b'",
+      "explanation": "-1 是 'c'，-2 是 'b'。"
+    },
+    {
+      "id": "q3",
+      "type": "code_output",
+      "difficulty": "基础",
+      "knowledgePoint": "循环边界",
+      "question": "以下代码输出什么？\n\narr = [10,20,30]\nfor i in range(len(arr)+1):\n    if i < len(arr):\n        print(arr[i])\n    else:\n        print('done')",
+      "options": [],
+      "answer": "10\n20\n30\ndone",
+      "explanation": "循环 i=0,1,2 打印数组元素，i=3 打印 'done'，没有越界。"
+    }
+  ]
+}

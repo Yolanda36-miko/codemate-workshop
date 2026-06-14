@@ -1,0 +1,76 @@
+{
+  "resourceId": "ds_recursion_thinking_exercises_001",
+  "title": "递归思想练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "递归三要素",
+      "question": "递归函数必须包含哪三个要素？",
+      "options": [
+        "循环、条件、返回",
+        "出口条件、递推关系、规模缩小",
+        "输入、输出、处理",
+        "变量、函数、类"
+      ],
+      "answer": "出口条件、递推关系、规模缩小",
+      "explanation": "递归三要素：1) 出口条件（终止递归）；2) 递推关系（分解问题）；3) 规模缩小（确保到达出口）。"
+    },
+    {
+      "id": "q2",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "汉诺塔步数",
+      "question": "汉诺塔问题中，移动 n 个盘子最少需要多少步？",
+      "options": ["n", "2n-1", "2^n-1", "n^2"],
+      "answer": "2^n-1",
+      "explanation": "汉诺塔递推公式：f(n) = 2*f(n-1) + 1，解得 f(n) = 2^n - 1。"
+    },
+    {
+      "id": "q3",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "递归vs迭代选择",
+      "question": "以下哪种场景更适合使用递归？",
+      "options": [
+        "计算 1 到 100 的和",
+        "遍历二叉树",
+        "数组元素逆序",
+        "计算阶乘（n很大）"
+      ],
+      "answer": "遍历二叉树",
+      "explanation": "树结构天然适合递归处理，代码更简洁直观。其他选项用迭代更高效。"
+    },
+    {
+      "id": "q4",
+      "type": "single_choice",
+      "difficulty": "进阶",
+      "knowledgePoint": "递归复杂度",
+      "question": "递归实现的斐波那契数列（无记忆化）的时间复杂度是多少？",
+      "options": ["O(n)", "O(n log n)", "O(2^n)", "O(n^2)"],
+      "answer": "O(2^n)",
+      "explanation": "无记忆化的斐波那契递归会产生大量重复计算，时间复杂度为指数级 O(2^n)。"
+    },
+    {
+      "id": "q5",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "递归过程",
+      "question": "执行以下代码，输出结果是什么？\n\ndef countdown(n):\n    if n == 0:\n        return\n    print(n)\n    countdown(n - 1)\n    print(n)\n\ncountdown(2)",
+      "options": [],
+      "answer": "2\n1\n1\n2",
+      "explanation": "先递推打印 2, 1，到达出口后回溯打印 1, 2。"
+    },
+    {
+      "id": "q6",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "递归出口",
+      "question": "补全递归求幂函数：\n\ndef power(base, exponent):\n    if ______:\n        return 1\n    return base * power(base, exponent - 1)",
+      "options": [],
+      "answer": "exponent == 0",
+      "explanation": "任何数的 0 次幂等于 1，这是递归的出口条件。"
+    }
+  ]
+}

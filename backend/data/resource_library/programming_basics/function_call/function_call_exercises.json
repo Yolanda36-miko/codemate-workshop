@@ -1,0 +1,36 @@
+{
+  "resourceId": "pb_function_call_exercises_001",
+  "title": "函数调用分层练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "函数返回值",
+      "question": "在 Python 中，如果一个函数没有 return 语句，它返回什么？",
+      "options": ["0", "None", "空字符串", "报错"],
+      "answer": "None",
+      "explanation": "没有 return 语句的函数默认返回 None。"
+    },
+    {
+      "id": "q2",
+      "type": "code_output",
+      "difficulty": "基础",
+      "knowledgePoint": "参数传递",
+      "question": "执行以下代码后，输出是什么？\n\ndef change(x):\n    x = x + [4]\n    return x\n\ny = [1,2,3]\nz = change(y)\nprint(y)\nprint(z)",
+      "options": [],
+      "answer": "[1,2,3]\n[1,2,3,4]",
+      "explanation": "函数内 x = x + [4] 创建了新列表，不影响原列表 y。"
+    },
+    {
+      "id": "q3",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "函数定义",
+      "question": "补全下面的函数，使其返回两个数的乘积：\n\ndef multiply(a, b):\n    ______",
+      "options": [],
+      "answer": "return a * b",
+      "explanation": "使用 return 语句返回乘积。"
+    }
+  ]
+}

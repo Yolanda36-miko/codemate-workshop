@@ -1,0 +1,46 @@
+{
+  "resourceId": "ds_tree_traversal_exercises_001",
+  "title": "二叉树遍历分层练习题",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "前序遍历",
+      "question": "对于二叉树：\n      1\n     / \n    2   3\n   / \\n  4   5\n\n前序遍历的结果是什么？",
+      "options": ["1, 2, 4, 5, 3", "4, 2, 5, 1, 3", "1, 3, 2, 5, 4", "4, 5, 2, 3, 1"],
+      "answer": "1, 2, 4, 5, 3",
+      "explanation": "前序遍历顺序：根 -> 左 -> 右"
+    },
+    {
+      "id": "q2",
+      "type": "single_choice",
+      "difficulty": "基础",
+      "knowledgePoint": "中序遍历",
+      "question": "对于二叉树：\n      1\n     / \n    2   3\n   / \\n  4   5\n\n中序遍历的结果是什么？",
+      "options": ["1, 2, 4, 5, 3", "4, 2, 5, 1, 3", "1, 3, 2, 5, 4", "4, 5, 2, 3, 1"],
+      "answer": "4, 2, 5, 1, 3",
+      "explanation": "中序遍历顺序：左 -> 根 -> 右"
+    },
+    {
+      "id": "q3",
+      "type": "code_output",
+      "difficulty": "进阶",
+      "knowledgePoint": "递归遍历代码",
+      "question": "以下代码的输出是什么？\n\nclass TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\nroot = TreeNode(1)\nroot.left = TreeNode(2)\nroot.right = TreeNode(3)\n\ndef postorder(node):\n    if not node:\n        return []\n    return postorder(node.left) + postorder(node.right) + [node.val]\n\nprint(postorder(root))",
+      "options": [],
+      "answer": "[2, 3, 1]",
+      "explanation": "后序遍历顺序：左 -> 右 -> 根"
+    },
+    {
+      "id": "q4",
+      "type": "code_fill",
+      "difficulty": "基础",
+      "knowledgePoint": "前序遍历代码",
+      "question": "补全前序遍历函数：\n\ndef preorder(node):\n    if not node:\n        return []\n    return ______",
+      "options": [],
+      "answer": "[node.val] + preorder(node.left) + preorder(node.right)",
+      "explanation": "前序遍历：先访问根节点，再递归左子树，最后递归右子树"
+    }
+  ]
+}
