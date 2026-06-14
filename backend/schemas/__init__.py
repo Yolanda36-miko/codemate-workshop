@@ -12,15 +12,65 @@ from .profile import (
     ProfileConversationCreate,
     ProfileConversationResponse,
 )
+from .course import (
+    CourseBase,
+    CourseListItem,
+    CourseResponse,
+    KnowledgePointListItem,
+    KnowledgePointDetail,
+    KnowledgePointResponse,
+    KnowledgePointRelationItem,
+    CourseRelationItem,
+)
+from .knowledge import (
+    KnowledgePointListItem,
+    KnowledgePointDetail,
+    KnowledgePointResponse,
+    KnowledgePointRelationItem,
+)
+from .resource import (
+    ResourceBase,
+    ResourceCreate,
+    ResourceUpdate,
+    ResourceResponse,
+    ResourcePackageBase,
+    ResourcePackageCreate,
+    ResourcePackageResponse,
+    ResourceLibraryItem,
+    ResourceLibraryDetail,
+    ResourceLibraryStats,
+)
 
 __all__ = [
+    # User
     "UserBase",
     "UserCreate",
     "UserResponse",
+    # Profile
     "StudentProfileBase",
     "StudentProfileCreate",
     "StudentProfileResponse",
     "ProfileConversationBase",
     "ProfileConversationCreate",
     "ProfileConversationResponse",
+    # Course & Knowledge
+    "CourseBase",
+    "CourseListItem",
+    "CourseResponse",
+    "KnowledgePointListItem",
+    "KnowledgePointDetail",
+    "KnowledgePointResponse",
+    "KnowledgePointRelationItem",
+    "CourseRelationItem",
+    # Resource
+    "ResourceBase",
+    "ResourceCreate",
+    "ResourceUpdate",
+    "ResourceResponse",
+    "ResourcePackageBase",
+    "ResourcePackageCreate",
+    "ResourcePackageResponse",
+    "ResourceLibraryItem",
+    "ResourceLibraryDetail",
+    "ResourceLibraryStats",
 ]

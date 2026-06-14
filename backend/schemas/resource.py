@@ -70,6 +70,61 @@ class ResourcePackageResponse(ResourcePackageBase):
     resource_id: Optional[int] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+# ---- Resource Library schemas (Phase 4A) ----
+
+
+class ResourceLibraryItem(BaseModel):
+    """资源库列表项 — 对应 index.json 中单条资源的元数据（不含正文）"""
+    id: str = Field(..., min_length=1, max_length=100)
+    title: str
+    course: str
+    courseCode: str
+    topic: str
+    topicCode: str
+    type: str
+    difficulty: Optional[str] = None
+    language: Optional[str] = None
+    tags: Optional[List[str]] = None
+    estimatedTime: Optional[str] = None
+    summary: Optional[str] = None
+    contentPath: Optional[str] = None
+    source: Optional[str] = None
+    version: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class ResourceLibraryDetail(BaseModel):
+    """资源详情 — 元数据 + 正文内容（按 content_type 区分布局）"""
+    id: str
+    title: str
+    course: str
+    courseCode: str
+    topic: str
+    topicCode: str
+    type: str
+    difficulty: Optional[str] = None
+    language: Optional[str] = None
+    tags: Optional[List[str]] = None
+    estimatedTime: Optional[str] = None
+    summary: Optional[str] = None
+    contentPath: Optional[str] = None
+    source: Optional[str] = None
+    version: Optional[str] = None
+    updatedAt: Optional[str] = None
+    content_type: str  # "markdown" | "json"
+    content: Optional[str] = None        # markdown 正文
+    content_json: Optional[Any] = None   # JSON 正文（练习题等）
+
+
+class ResourceLibraryStats(BaseModel):
+    """资源库统计"""
+    total_resources: int
+    by_course: Dict[str, int]
+    by_type: Dict[str, int]
+    by_difficulty: Dict[str, int]
+    source: str
