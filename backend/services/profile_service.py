@@ -22,11 +22,127 @@ def load_mock(name: str):
     return data.get(name, {})
 
 
-# ---- Existing Mock endpoints (unchanged) ----
+# ---- Role normalization for LLM provider compatibility ----
+
+_ROLE_MAP = {
+    "buddy": "assistant",
+    "agent": "assistant",
+    "assistant": "assistant",
+    "user": "user",
+    "student": "user",
+    "system": "system",
+}
+
+
+def _normalize_role(role: str) -> str:
+    """Normalize frontend role values to LLM-compatible roles (assistant/user/system)."""
+    return _ROLE_MAP.get(role.lower().strip(), "user")
+
+
+# ---- Profile Chat (Phase 5B: LLM-integrated) ----
 
 def chat(message: str, history: list[dict] | None = None):
-    """Mock profile chat — returns next question and extracted/missing fields."""
+    """
+    Profile chat — next-question generation for learning profile diagnosis.
+
+    LLM_PROVIDER=mock:
+      Returns the original mock response from mock_responses.json directly.
+
+    LLM_PROVIDER=openai | anthropic:
+      Renders chat_profile.txt prompt with current context, calls the real LLM,
+      and validates the JSON response. Falls back to mock on any failure.
+    """
+    from services.llm_service import get_llm, MockProvider
+
+    llm = get_llm()
+
+    # Mock mode: keep original behavior unchanged
+    if isinstance(llm, MockProvider):
+        return load_mock("profile_chat")
+
+    # Real provider: render prompt, call LLM, validate + fallback
+    try:
+        result = _chat_via_llm(llm, message, history)
+        if result is not None:
+            return result
+    except Exception as e:
+        logger.warning("LLM chat call failed: %s — falling back to mock", e)
+
     return load_mock("profile_chat")
+
+
+def _chat_via_llm(llm, message: str, history: list[dict] | None) -> dict | None:
+    """
+    Build messages from prompt template + history, call LLM, validate response.
+
+    Returns the chat result dict on success, or None if anything fails
+    (prompt rendering, LLM error, JSON parse failure, type validation).
+    """
+    from services.prompt_service import render_template
+
+    missing_fields = [
+        "current_courses",
+        "completed_courses",
+        "knowledge_basis",
+        "learning_difficulty",
+        "programming_languages",
+        "learning_style",
+        "learning_goals",
+        "resource_preference",
+    ]
+
+    rendered = render_template(
+        "chat_profile",
+        student_name="",
+        student_background="",
+        extracted_fields={},
+        missing_fields=missing_fields,
+    )
+
+    if not rendered:
+        logger.warning("chat_profile template render returned empty — falling back to mock")
+        return None
+
+    # Build message list with role normalization
+    messages: list[dict] = [{"role": "system", "content": rendered}]
+    if history:
+        for h in history:
+            role = _normalize_role(h.get("role", ""))
+            content = h.get("content", "")
+            if role and content:
+                messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message})
+
+    result = llm.chat_json(messages, temperature=0.7)
+
+    if not isinstance(result, dict):
+        logger.warning(
+            "LLM chat_json returned non-dict (type=%s) — falling back to mock",
+            type(result).__name__,
+        )
+        return None
+
+    # Strict type validation
+    msg = result.get("message")
+    if not isinstance(msg, str) or not msg.strip():
+        logger.warning("LLM response missing or empty 'message' field — falling back to mock")
+        return None
+
+    extracted = result.get("extracted_fields", {})
+    if not isinstance(extracted, dict):
+        logger.warning("LLM response 'extracted_fields' is not a dict — falling back to mock")
+        return None
+
+    missing = result.get("missing_fields", [])
+    if not isinstance(missing, list):
+        logger.warning("LLM response 'missing_fields' is not a list — falling back to mock")
+        return None
+
+    return {
+        "message": msg.strip(),
+        "extracted_fields": extracted,
+        "missing_fields": missing,
+    }
 
 
 def generate_profile(profile_data: dict | None = None):
