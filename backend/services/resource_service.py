@@ -21,7 +21,7 @@ LIBRARY_DIR = DATA_DIR / "resource_library"
 INDEX_PATH = LIBRARY_DIR / "index.json"
 
 
-# ---- Existing Mock generator (unchanged) ----
+# ---- Resource Generation (Phase 7A: LLM-integrated) ----
 
 def generate_resources(
     course_id: str,
@@ -30,8 +30,130 @@ def generate_resources(
     language: str = "Python",
     resource_types: list[str] | None = None,
 ):
-    """Mock resource generation — returns preset resource cards."""
+    """
+    Generate personalized learning resources.
+
+    LLM_PROVIDER=mock:
+      Returns the original mock response from mock_responses.json directly.
+
+    LLM_PROVIDER=openai | anthropic:
+      Renders generate_resources.txt prompt, calls the real LLM,
+      validates + enriches the JSON response. Falls back to mock on any failure.
+    """
+    from services.llm_service import get_llm, MockProvider
+
+    llm = get_llm()
+
+    # Mock mode: keep original behavior unchanged
+    if isinstance(llm, MockProvider):
+        return profile_service.load_mock("resources")
+
+    # Real provider: render prompt, call LLM, validate + fallback
+    try:
+        result = _generate_via_llm(llm, course_id, knowledge_point, difficulty, language, resource_types)
+        if result is not None:
+            return result
+    except Exception as e:
+        logger.warning("LLM generate_resources failed: %s — falling back to mock", e)
+
     return profile_service.load_mock("resources")
+
+
+def _generate_via_llm(
+    llm,
+    course_id: str,
+    knowledge_point: str,
+    difficulty: str = "入门",
+    language: str = "Python",
+    resource_types: list[str] | None = None,
+) -> dict | None:
+    """
+    Render prompt, call LLM, validate response, enrich resource cards.
+
+    Returns {"resource_cards": [...]} on success, or None if anything fails
+    (prompt rendering, LLM error, JSON parse failure, structural validation).
+    """
+    from services.prompt_service import render_template
+
+    effective_types = resource_types if resource_types else ["讲解文档", "代码示例", "练习题"]
+
+    rendered = render_template(
+        "generate_resources",
+        course_id=course_id,
+        knowledge_point=knowledge_point,
+        difficulty=difficulty,
+        language=language,
+        resource_types=effective_types,
+    )
+
+    if not rendered:
+        logger.warning("generate_resources template render returned empty — falling back to mock")
+        return None
+
+    messages: list[dict] = [
+        {"role": "system", "content": rendered},
+        {
+            "role": "user",
+            "content": (
+                f"请为以下学习需求生成资源推荐：\n"
+                f"课程：{course_id}\n"
+                f"知识点：{knowledge_point}\n"
+                f"难度：{difficulty}\n"
+                f"语言：{language}\n"
+                f"偏好类型：{', '.join(effective_types)}"
+            ),
+        },
+    ]
+
+    result = llm.chat_json(messages, temperature=0.7)
+
+    if not isinstance(result, dict):
+        logger.warning(
+            "LLM chat_json returned non-dict (type=%s) — falling back to mock",
+            type(result).__name__,
+        )
+        return None
+
+    cards = result.get("resource_cards")
+    if not isinstance(cards, list) or len(cards) == 0:
+        logger.warning(
+            "LLM response missing or empty 'resource_cards' list — falling back to mock"
+        )
+        return None
+
+    # Validate, filter, and enrich each card
+    enriched_cards: list[dict] = []
+    for i, card in enumerate(cards):
+        if not isinstance(card, dict):
+            continue
+        title = card.get("title")
+        res_type = card.get("type")
+        summary = card.get("summary", "")
+
+        # Skip cards missing required LLM-generated fields
+        if not isinstance(title, str) or not title.strip():
+            continue
+        if not isinstance(res_type, str) or not res_type.strip():
+            continue
+        if not isinstance(summary, str):
+            summary = ""
+
+        enriched_cards.append({
+            "id": f"res-llm-{i + 1:03d}",
+            "title": title.strip(),
+            "type": res_type.strip(),
+            "course": course_id,
+            "knowledge_point": knowledge_point,
+            "difficulty": difficulty,
+            "language": language,
+            "summary": summary.strip(),
+        })
+
+    if not enriched_cards:
+        logger.warning("All LLM-generated resource cards were invalid — falling back to mock")
+        return None
+
+    return {"resource_cards": enriched_cards}
 
 
 # ---- Internal helpers ----

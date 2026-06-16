@@ -2,7 +2,7 @@
 资源生成、资源库与用户资源包 API 路由
 """
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional, List
 from services import resource_service
 from schemas.resource import (
@@ -14,14 +14,31 @@ from schemas.resource import (
 router = APIRouter()
 
 
-# ===================== 资源生成（保留 Mock） =====================
+# ===================== 资源生成（Mock + LLM） =====================
 
 class ResourceGenerateRequest(BaseModel):
     course_id: str
     knowledge_point: str
+    learning_topic: str = ""       # frontend compat alias
     difficulty: str = "入门"
     language: str = "Python"
     resource_types: list[str] | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data):
+        if isinstance(data, dict):
+            kp = data.get('knowledge_point', '')
+            lt = data.get('learning_topic', '')
+            if not kp and lt:
+                data = {**data, 'knowledge_point': lt}
+        return data
+
+    @model_validator(mode='after')
+    def check_knowledge_point(self):
+        if not self.knowledge_point.strip():
+            raise ValueError('knowledge_point 或 learning_topic 至少需要提供一个非空值')
+        return self
 
 
 @router.post("/resources/generate")
