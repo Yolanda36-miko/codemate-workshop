@@ -14,9 +14,9 @@ export function isDemoMode(): boolean {
 
 /** Demo student — used only in Demo Mode */
 export const demoCurrentUser = {
-  name: '李同学',
-  role: '计科 · 大二',
-  avatarText: '李',
+  name: '当前用户',
+  role: '学习者',
+  avatarText: '学',
 }
 
 /** Get current user display info. Returns demo data in Demo Mode, placeholder otherwise. */
@@ -26,10 +26,10 @@ export function getCurrentUserDisplay(): {
   avatarText: string
 } {
   if (isDemoMode()) return demoCurrentUser
-  return { name: '未登录', role: '请先构建画像', avatarText: '?' }
+  return { name: '当前用户', role: '画像待完善', avatarText: '?' }
 }
 
 /** Get the student name for display in resource/agent copy. */
 export function getStudentDisplayName(): string {
-  return isDemoMode() ? '李同学' : '当前学习者'
+  return '当前学习者'
 }

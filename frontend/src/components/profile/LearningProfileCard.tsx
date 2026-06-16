@@ -67,6 +67,8 @@ export default function LearningProfileCard({ profile }: LearningProfileCardProp
 }
 
 function DimensionCard({ dim, index }: { dim: ProfileDimension; index: number }) {
+  const hasScore = dim.score !== undefined && dim.score !== null
+
   return (
     <motion.div
       className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 hover:shadow-card-hover transition-shadow"
@@ -77,7 +79,7 @@ function DimensionCard({ dim, index }: { dim: ProfileDimension; index: number })
       <h4 className="text-sm font-semibold text-gray-800 mb-3">{dim.label}</h4>
 
       {/* Stars + Score for quantifiable dimensions */}
-      {dim.stars !== undefined && (
+      {dim.stars !== undefined && dim.stars !== null ? (
         <div className="flex items-center gap-1 mb-2">
           {[1, 2, 3, 4, 5].map((s) => (
             <Star
@@ -85,21 +87,31 @@ function DimensionCard({ dim, index }: { dim: ProfileDimension; index: number })
               className={`w-4 h-4 ${s <= dim.stars! ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
             />
           ))}
-          {dim.score !== undefined && (
+          {hasScore && (
             <span className="ml-2 text-sm font-semibold text-gray-700">
               {dim.score}<span className="text-xs text-gray-400 font-normal">/{dim.max_score}</span>
             </span>
           )}
         </div>
+      ) : hasScore ? (
+        /* Score without stars */
+        <div className="mb-2">
+          <span className="text-sm font-semibold text-gray-700">
+            {dim.score}<span className="text-xs text-gray-400 font-normal">/{dim.max_score}</span>
+          </span>
+        </div>
+      ) : (
+        /* No score available */
+        <p className="text-xs text-gray-400 mb-2">暂未评估</p>
       )}
 
       {/* Progress bar for scored dimensions */}
-      {dim.score !== undefined && dim.max_score !== undefined && (
+      {hasScore && dim.max_score !== undefined && (
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{
-              width: `${(dim.score / dim.max_score) * 100}%`,
+              width: `${(dim.score! / dim.max_score) * 100}%`,
               background: dim.stars && dim.stars >= 4
                 ? 'linear-gradient(90deg, #8b5cf6, #7c3aed)'
                 : 'linear-gradient(90deg, #a78bfa, #8b5cf6)',

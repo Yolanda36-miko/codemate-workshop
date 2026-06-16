@@ -12,8 +12,45 @@
  *   generateFinalProfileMock → generateFinalProfileWithLLM
  */
 
-import type { DiagnosisQuestion, StudentProfile, ProfileDimension } from '../types'
+import type { DiagnosisQuestion, StudentProfile, ProfileDimension, BackendProfile, ProfileUpdatePayload } from '../types'
+import { USE_MOCK } from './api'
 import { mockDiagnosisQuestions, mockStudentProfile } from '../mock/profile'
+
+const NEUTRAL_STUDENT = {
+  name: '当前用户',
+  grade: '待完善',
+  major: '待完善',
+  background: '基于对话与诊断生成的综合学习画像。',
+}
+
+const NEUTRAL_PROFILE_DIMENSIONS: Record<string, ProfileDimension> = {
+  knowledge_base: {
+    label: '知识基础',
+    max_score: 100,
+    note: '暂未评估',
+  },
+  practice_ability: {
+    label: '实践能力',
+    max_score: 100,
+    note: '暂未评估',
+  },
+  cognitive_style: {
+    label: '认知风格',
+    tags: [],
+  },
+  weak_points: {
+    label: '易错点特征',
+    tags: [],
+  },
+  learning_goals: {
+    label: '学习目标',
+    tags: [],
+  },
+  resource_preferences: {
+    label: '资源偏好',
+    tags: [],
+  },
+}
 
 // ---- Types ----
 
@@ -248,38 +285,41 @@ export function generateFinalProfileMock(
   collectedFields: Record<string, string>,
   diagnosisResults: DiagnosisResult | null,
 ): StudentProfile {
-  const base = { ...mockStudentProfile }
-  const profile = { ...base.profile }
+  const baseStudent = USE_MOCK ? mockStudentProfile.student : NEUTRAL_STUDENT
+  const baseProfile = USE_MOCK ? { ...mockStudentProfile.profile } : structuredClone(NEUTRAL_PROFILE_DIMENSIONS)
 
   // Adjust knowledge_base based on diagnosis
-  if (profile.knowledge_base && diagnosisResults) {
-    const kb = profile.knowledge_base
-    const newScore = Math.max(30, Math.min(100, (kb.score ?? 0) + diagnosisResults.knowledgeBaseAdjust))
+  if (baseProfile.knowledge_base && diagnosisResults) {
+    const kb = baseProfile.knowledge_base
+    const baseScore = USE_MOCK ? (kb.score ?? 0) : 50
+    const minScore = USE_MOCK ? 30 : 0
+    const newScore = Math.max(minScore, Math.min(100, baseScore + diagnosisResults.knowledgeBaseAdjust))
     kb.score = newScore
     kb.stars = scoreToStars(newScore)
     kb.note = diagnosisResults.note
-    profile.knowledge_base = kb
+    baseProfile.knowledge_base = kb
   }
 
   // Adjust practice_ability based on diagnosis
-  if (profile.practice_ability && diagnosisResults) {
-    const pa = profile.practice_ability
-    const newScore = Math.max(30, Math.min(100, (pa.score ?? 0) + diagnosisResults.practiceAbilityAdjust))
+  if (baseProfile.practice_ability && diagnosisResults) {
+    const pa = baseProfile.practice_ability
+    const baseScore = USE_MOCK ? (pa.score ?? 0) : 50
+    const minScore = USE_MOCK ? 30 : 0
+    const newScore = Math.max(minScore, Math.min(100, baseScore + diagnosisResults.practiceAbilityAdjust))
     pa.score = newScore
     pa.stars = scoreToStars(newScore)
     pa.note = diagnosisResults.note
-    profile.practice_ability = pa
+    baseProfile.practice_ability = pa
   }
 
   // Add weak points from diagnosis
-  if (profile.weak_points && diagnosisResults && diagnosisResults.weakPointsAdded.length > 0) {
-    const existing = profile.weak_points.tags || []
+  if (baseProfile.weak_points && diagnosisResults && diagnosisResults.weakPointsAdded.length > 0) {
+    const existing = baseProfile.weak_points.tags || []
     const merged = [...new Set([...existing, ...diagnosisResults.weakPointsAdded])]
-    profile.weak_points = { ...profile.weak_points, tags: merged }
+    baseProfile.weak_points = { ...baseProfile.weak_points, tags: merged }
   }
 
-  base.profile = profile
-  return base
+  return { student: baseStudent, profile: baseProfile }
 }
 
 function scoreToStars(score: number): number {
@@ -433,4 +473,100 @@ export function applyDemoFill(state: InterviewState): InterviewState {
     stage: 'ready_for_diagnosis',
     nextQuestion: null,
   }
+}
+
+// =====================================================================
+// Profile mapping: Backend <-> Frontend (Phase 6A)
+// =====================================================================
+
+function safeJsonParse(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Convert backend DB profile to frontend StudentProfile format.
+ * Used when loading an existing profile to skip the interview.
+ */
+export function mapBackendProfileToStudentProfile(backend: BackendProfile, studentName?: string): StudentProfile {
+  const kbScore = backend.knowledge_base_score ?? 0
+  const paScore = backend.practice_ability_score ?? 0
+
+  return {
+    student: {
+      name: studentName || '当前用户',
+      grade: '待完善',
+      major: '待完善',
+      background: backend.profile_summary || '',
+    },
+    profile: {
+      knowledge_base: {
+        label: '知识基础',
+        stars: scoreToStars(kbScore),
+        score: kbScore,
+        max_score: 100,
+        note: backend.diagnosis_status || '',
+      },
+      practice_ability: {
+        label: '实践能力',
+        stars: scoreToStars(paScore),
+        score: paScore,
+        max_score: 100,
+        note: backend.diagnosis_status || '',
+      },
+      cognitive_style: {
+        label: '认知风格',
+        tags: safeJsonParse(backend.cognitive_styles),
+      },
+      weak_points: {
+        label: '易错点特征',
+        tags: safeJsonParse(backend.error_patterns),
+      },
+      learning_goals: {
+        label: '学习目标',
+        tags: safeJsonParse(backend.learning_goals),
+      },
+      resource_preferences: {
+        label: '资源偏好',
+        tags: safeJsonParse(backend.resource_preferences),
+      },
+    },
+  }
+}
+
+/**
+ * Convert frontend StudentProfile to backend ProfileUpdatePayload for PUT.
+ */
+export function mapStudentProfileToBackend(profile: StudentProfile): ProfileUpdatePayload {
+  return {
+    knowledge_base_score: profile.profile.knowledge_base?.score ?? undefined,
+    practice_ability_score: profile.profile.practice_ability?.score ?? undefined,
+    cognitive_styles: profile.profile.cognitive_style?.tags?.length
+      ? JSON.stringify(profile.profile.cognitive_style.tags)
+      : undefined,
+    error_patterns: profile.profile.weak_points?.tags?.length
+      ? JSON.stringify(profile.profile.weak_points.tags)
+      : undefined,
+    learning_goals: profile.profile.learning_goals?.tags?.length
+      ? JSON.stringify(profile.profile.learning_goals.tags)
+      : undefined,
+    resource_preferences: profile.profile.resource_preferences?.tags?.length
+      ? JSON.stringify(profile.profile.resource_preferences.tags)
+      : undefined,
+    profile_summary: profile.student?.background || undefined,
+    diagnosis_status: profile.profile.knowledge_base?.note || undefined,
+  }
+}
+
+/**
+ * Check if a backend profile is complete enough to skip the interview.
+ * Requires at minimum knowledge_base_score and practice_ability_score to be set.
+ */
+export function isProfileComplete(backend: BackendProfile): boolean {
+  return backend.knowledge_base_score != null && backend.practice_ability_score != null
 }

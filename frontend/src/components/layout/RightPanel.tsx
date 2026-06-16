@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageCircle, Sparkles, FileText, GitBranch, ClipboardCheck } from 'lucide-react'
-import { generateProfile } from '../../services/api'
+import { generateProfile, getUserProfile, USE_MOCK } from '../../services/api'
+import { mapBackendProfileToStudentProfile, isProfileComplete } from '../../services/profileInterview'
 import type { StudentProfile } from '../../types'
 
 const agents = [
@@ -16,10 +17,23 @@ export default function RightPanel() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    generateProfile()
-      .then((p) => setProfile(p))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    if (!USE_MOCK) {
+      // Real mode: load profile from backend, show neutral placeholder if empty
+      getUserProfile(1)
+        .then((backend) => {
+          if (backend && isProfileComplete(backend)) {
+            setProfile(mapBackendProfileToStudentProfile(backend))
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    } else {
+      // Mock mode: use demo student
+      generateProfile()
+        .then((p) => setProfile(p))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
   }, [])
 
   return (
@@ -107,7 +121,7 @@ export default function RightPanel() {
                 <span className="text-xs text-gray-400">
                   {'★'.repeat(profile.profile.knowledge_base.stars || 0)}
                   {'☆'.repeat(5 - (profile.profile.knowledge_base.stars || 0))}
-                  {' '}{profile.profile.knowledge_base.score}/{profile.profile.knowledge_base.max_score}
+                  {' '}{profile.profile.knowledge_base.score ?? '--'}/{profile.profile.knowledge_base.max_score}
                 </span>
               </div>
               <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -125,7 +139,7 @@ export default function RightPanel() {
                 <span className="text-xs text-gray-400">
                   {'★'.repeat(profile.profile.practice_ability.stars || 0)}
                   {'☆'.repeat(5 - (profile.profile.practice_ability.stars || 0))}
-                  {' '}{profile.profile.practice_ability.score}/{profile.profile.practice_ability.max_score}
+                  {' '}{profile.profile.practice_ability.score ?? '--'}/{profile.profile.practice_ability.max_score}
                 </span>
               </div>
               <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">

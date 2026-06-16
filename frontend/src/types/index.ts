@@ -27,6 +27,52 @@ export interface ProfileChatResponse {
   missing_fields: string[]
 }
 
+// ========== Backend Profile (Phase 6A) ==========
+
+export interface BackendProfile {
+  id: number | null
+  user_id: number
+  knowledge_base_score: number | null
+  practice_ability_score: number | null
+  cognitive_styles: string | null   // JSON-encoded array of tags
+  error_patterns: string | null     // JSON-encoded array of tags
+  learning_goals: string | null     // JSON-encoded array of tags
+  resource_preferences: string | null // JSON-encoded array of tags
+  profile_summary: string | null
+  diagnosis_status: string | null
+  created_at: string | null
+  updated_at: string | null
+  source: string
+}
+
+export interface ProfileUpdatePayload {
+  knowledge_base_score?: number
+  practice_ability_score?: number
+  cognitive_styles?: string
+  error_patterns?: string
+  learning_goals?: string
+  resource_preferences?: string
+  profile_summary?: string
+  diagnosis_status?: string
+}
+
+export interface ConversationItem {
+  id: number
+  user_id: number
+  role: string
+  message: string
+  extracted_fields: string | null
+  missing_fields: string | null
+  created_at: string | null
+}
+
+export interface ConversationCreateRequest {
+  role: string
+  message: string
+  extracted_fields?: string
+  missing_fields?: string
+}
+
 // ========== Courses ==========
 
 export interface Course {

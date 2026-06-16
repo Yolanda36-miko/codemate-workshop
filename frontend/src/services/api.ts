@@ -8,15 +8,19 @@ import type {
   DiagnosisQuestion,
   AssessmentResult,
   TutorChatResponse,
+  BackendProfile,
+  ProfileUpdatePayload,
+  ConversationItem,
+  ConversationCreateRequest,
 } from '../types'
-import { mockProfileChat, mockStudentProfile } from '../mock/profile'
+import { mockProfileChat, mockStudentProfile, mockBackendProfile, mockConversations } from '../mock/profile'
 import { mockCourses } from '../mock/courses'
 import { mockResources, generateResourcesMock } from '../mock/resources'
 import type { ResourceGenerateParams } from '../types'
 import { mockLearningPath } from '../mock/path'
 import { mockQuestions, mockAssessmentResult, mockTutorResponse } from '../mock/assessment'
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -45,11 +49,61 @@ export async function generateProfile() {
   return request<StudentProfile>('/profile/generate', { method: 'POST', body: '{}' })
 }
 
+// ========== Profile CRUD (Phase 6A) ==========
+
+export async function getUserProfile(userId: number) {
+  if (USE_MOCK) return mockBackendProfile
+  return request<BackendProfile>(`/profile/${userId}`)
+}
+
+export async function updateUserProfile(userId: number, data: ProfileUpdatePayload) {
+  if (USE_MOCK) return { ...mockBackendProfile, ...data, user_id: userId, id: 1, source: 'local_cache' }
+  return request<BackendProfile>(`/profile/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getProfileConversations(userId: number) {
+  if (USE_MOCK) return { conversations: mockConversations, user_id: userId }
+  return request<{ conversations: ConversationItem[]; user_id: number }>(`/profile/${userId}/conversations`)
+}
+
+export async function addProfileConversation(userId: number, data: ConversationCreateRequest) {
+  if (USE_MOCK) {
+    return {
+      id: Date.now(),
+      user_id: userId,
+      role: data.role,
+      message: data.message,
+      extracted_fields: data.extracted_fields ?? null,
+      missing_fields: data.missing_fields ?? null,
+      created_at: new Date().toISOString(),
+    } as ConversationItem
+  }
+  return request<ConversationItem>(`/profile/${userId}/conversations`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 // ========== Courses ==========
+
+function normalizeCourse(c: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...c,
+    knowledge_points: Array.isArray(c.knowledge_points) ? c.knowledge_points : [],
+    prerequisites: Array.isArray(c.prerequisites) ? c.prerequisites : [],
+    related_courses: Array.isArray(c.related_courses) ? c.related_courses : [],
+    progress: typeof c.progress === 'number' ? c.progress : 0,
+    difficulty: c.difficulty ?? 'medium',
+  }
+}
 
 export async function getCourses() {
   if (USE_MOCK) return mockCourses
-  return request<CourseListResponse>('/courses')
+  const res = await request<CourseListResponse>('/courses')
+  return { courses: res.courses.map((c) => normalizeCourse(c as unknown as Record<string, unknown>) as unknown as typeof c) }
 }
 
 export async function getCourseById(courseId: string) {

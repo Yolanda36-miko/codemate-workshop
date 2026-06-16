@@ -152,7 +152,7 @@ export default function Dashboard() {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-400">
-                    {c.knowledge_points.length} 个核心知识点
+                    {(c.knowledge_points ?? []).length} 个核心知识点
                   </span>
                   {isFirst && (
                     <span className="text-[10px] text-primary-500 font-medium flex items-center gap-0.5">
@@ -269,13 +269,13 @@ export default function Dashboard() {
           <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl p-6 border border-primary-100/50">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                李
+                学
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-800">
-                  李同学
+                  当前学习者
                   <span className="text-xs text-gray-400 font-normal ml-2">
-                    计算机科学与技术专业 · 大二
+                    画像待完善
                   </span>
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -284,7 +284,7 @@ export default function Dashboard() {
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed mb-4">
-              李同学正从<strong className="text-gray-800">程序设计基础</strong>过渡到
+              当前学习者正从<strong className="text-gray-800">程序设计基础</strong>过渡到
               <strong className="text-gray-800">数据结构与算法</strong>的学习，
               她对<strong className="text-primary-600">函数调用</strong>、
               <strong className="text-primary-600">递归</strong>、

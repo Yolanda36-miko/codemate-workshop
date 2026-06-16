@@ -31,7 +31,7 @@ function getAgentSteps(): AgentStep[] {
       key: 'resource', label: '资源生成', agent: 'Resource Agent',
       icon: FileText,
       color: 'text-primary-500',
-      description: `根据${student === '李同学' ? student + '的画像' : '画像'}与风格定制学习资源...`,
+      description: `根据${student}的画像与风格定制学习资源...`,
     },
     {
       key: 'code-practice', label: '代码练习', agent: 'Code Practice Agent',

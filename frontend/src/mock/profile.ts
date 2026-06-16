@@ -1,9 +1,9 @@
-import type { StudentProfile, ProfileChatResponse, DiagnosisQuestion } from '../types'
+import type { StudentProfile, ProfileChatResponse, DiagnosisQuestion, BackendProfile, ConversationItem } from '../types'
 
 // ========== Original mock data (kept for backward compatibility) ==========
 
 export const mockProfileChat: ProfileChatResponse = {
-  message: '李同学你好！我是你的学习伙伴 CodeBuddy 🎓 让我们从了解你开始吧～你目前在学哪几门课程呢？',
+  message: '你好！我是你的学习伙伴 CodeBuddy 🎓 让我们从了解你开始吧～你目前在学哪几门课程呢？',
   extracted_fields: {},
   missing_fields: [
     'current_courses', 'completed_courses', 'knowledge_basis',
@@ -12,28 +12,44 @@ export const mockProfileChat: ProfileChatResponse = {
   ],
 }
 
+// ========== Backend Profile API mocks (Phase 6A) ==========
+
+export const mockBackendProfile: BackendProfile = {
+  id: null,
+  user_id: 1,
+  knowledge_base_score: null,
+  practice_ability_score: null,
+  cognitive_styles: null,
+  error_patterns: null,
+  learning_goals: null,
+  resource_preferences: null,
+  profile_summary: null,
+  diagnosis_status: null,
+  created_at: null,
+  updated_at: null,
+  source: 'local_cache',
+}
+
+export const mockConversations: ConversationItem[] = []
+
 export const mockStudentProfile: StudentProfile = {
   student: {
-    name: '李同学',
-    grade: '大二',
-    major: '计算机科学与技术',
+    name: '当前用户',
+    grade: '待完善',
+    major: '暂未绑定专业',
     background:
-      '正在学习程序设计基础和数据结构与算法，会一些 Python 和 C 语言基础，但对函数调用过程、递归、数组操作和二叉树遍历理解不够清晰。',
+      '基于对话与诊断生成的综合学习画像。',
   },
   profile: {
     knowledge_base: {
       label: '知识基础',
-      stars: 3,
-      score: 62,
       max_score: 100,
-      note: '待诊断题校准',
+      note: '暂未评估',
     },
     practice_ability: {
       label: '实践能力',
-      stars: 3,
-      score: 58,
       max_score: 100,
-      note: '待代码练习校准',
+      note: '暂未评估',
     },
     cognitive_style: {
       label: '认知风格',
