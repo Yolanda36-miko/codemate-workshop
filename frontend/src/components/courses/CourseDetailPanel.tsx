@@ -39,7 +39,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-400">{course.stage} · {course.knowledge_points.length} 个核心知识点</p>
+                <p className="text-xs text-gray-400">{course.stage} · {(course.knowledge_points ?? []).length} 个核心知识点</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed mt-2">{course.description}</p>
@@ -52,7 +52,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
               <span className="text-xs font-semibold text-gray-700">核心知识点</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {course.knowledge_points.map((kp) => (
+              {(course.knowledge_points ?? []).map((kp) => (
                 <span key={kp} className="px-2.5 py-1 bg-gray-50 rounded-full text-xs text-gray-700 border border-gray-100">
                   {kp}
                 </span>
@@ -89,8 +89,8 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 shrink-0">先修课程</span>
             <div className="flex flex-wrap gap-1">
-              {course.prerequisites.length > 0
-                ? course.prerequisites.map((p) => {
+              {(course.prerequisites ?? []).length > 0
+                ? (course.prerequisites ?? []).map((p) => {
                     const c = allCourses.find((x) => x.id === p)
                     return (
                       <button
@@ -110,7 +110,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 shrink-0">关联课程</span>
             <div className="flex flex-wrap gap-1">
-              {course.related_courses.map((r) => {
+              {(course.related_courses ?? []).map((r) => {
                 const c = allCourses.find((x) => x.id === r)
                 return (
                   <button
@@ -132,11 +132,13 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
               <span className="text-xs font-semibold text-gray-700">可生成资源</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {course.resource_types.map((rt) => (
-                <span key={rt} className="px-2 py-1 bg-gray-50 rounded-full text-xs text-gray-600 border border-gray-100">
-                  {rt}
-                </span>
-              ))}
+              {(course.resource_types ?? []).length > 0
+                ? (course.resource_types ?? []).map((rt) => (
+                    <span key={rt} className="px-2 py-1 bg-gray-50 rounded-full text-xs text-gray-600 border border-gray-100">
+                      {rt}
+                    </span>
+                  ))
+                : <span className="text-xs text-gray-400">暂无</span>}
             </div>
           </div>
 

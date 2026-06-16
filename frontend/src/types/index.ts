@@ -142,6 +142,33 @@ export interface ResourceGenerateParams {
   resource_types?: string[]
 }
 
+export interface SaveResourcePayload {
+  custom_title: string
+  topic: string
+  course_name: string
+  resource_type: string
+  estimated_time: string
+  note: string
+  purpose: string
+  priority: string
+}
+
+export interface SavedPackageItem {
+  id: number
+  user_id: number
+  custom_title: string
+  topic: string
+  course_name: string
+  resource_type: string
+  estimated_time: string
+  purpose: string
+  priority: string
+  note: string
+  status: string
+  detail?: string
+  created_at?: string
+}
+
 // ========== Learning Path ==========
 
 export interface PathResourceItem {

@@ -1,13 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, Clock, Target, BookOpen, Lightbulb, User, ArrowRight, Check, Plus,
+  X, Clock, Target, BookOpen, Lightbulb, User, ArrowRight, Bookmark, XCircle,
 } from 'lucide-react'
 import type { ResourceCard } from '../../types'
 
 interface ResourceDetailPanelProps {
   resource: ResourceCard | null
   onClose: () => void
-  onAddToPath: (id: string) => void
+  onSaveToPackage?: (id: string) => void
+  savedToPackage?: boolean
 }
 
 const typeBadgeColors: Record<string, string> = {
@@ -19,7 +20,7 @@ const typeBadgeColors: Record<string, string> = {
   '项目式学习案例': 'bg-rose-50 text-rose-700 border-rose-100',
 }
 
-export default function ResourceDetailPanel({ resource, onClose, onAddToPath }: ResourceDetailPanelProps) {
+export default function ResourceDetailPanel({ resource, onClose, onSaveToPackage, savedToPackage }: ResourceDetailPanelProps) {
   return (
     <AnimatePresence>
       {resource && (
@@ -92,18 +93,17 @@ export default function ResourceDetailPanel({ resource, onClose, onAddToPath }: 
               )}
 
               {/* Section 2: Core content */}
-              {(resource.sections?.length || resource.detailed_content) && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <BookOpen className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-semibold text-gray-700">核心内容</span>
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BookOpen className="w-4 h-4 text-primary-500" />
+                  <span className="text-xs font-semibold text-gray-700">核心内容</span>
+                </div>
+                {resource.detailed_content ? (
+                  <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-3">
+                    {resource.detailed_content}
                   </div>
-                  {resource.detailed_content && (
-                    <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-3">
-                      {resource.detailed_content}
-                    </div>
-                  )}
-                  {resource.sections?.map((s, i) => (
+                ) : resource.sections?.length ? (
+                  resource.sections.map((s, i) => (
                     <div key={i} className="mb-3">
                       <h3 className="text-sm font-semibold text-gray-800 mb-1">{s.heading}</h3>
                       <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-1.5">{s.content}</p>
@@ -113,18 +113,25 @@ export default function ResourceDetailPanel({ resource, onClose, onAddToPath }: 
                         </div>
                       )}
                     </div>
-                  ))}
-                  {resource.key_concepts && resource.key_concepts.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {resource.key_concepts.map((kc) => (
-                        <span key={kc} className="px-2 py-0.5 bg-primary-50 rounded-full text-[11px] text-primary-700 border border-primary-100">
-                          {kc}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                  ))
+                ) : (
+                  <div>
+                    {resource.summary && (
+                      <p className="text-sm text-gray-600 leading-relaxed mb-2">{resource.summary}</p>
+                    )}
+                    <p className="text-xs text-gray-400">暂无更详细内容，可参考上方摘要信息。</p>
+                  </div>
+                )}
+                {resource.key_concepts && resource.key_concepts.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {resource.key_concepts.map((kc) => (
+                      <span key={kc} className="px-2 py-0.5 bg-primary-50 rounded-full text-[11px] text-primary-700 border border-primary-100">
+                        {kc}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Section 3: Recommended usage */}
               {resource.recommended_usage && (
@@ -175,28 +182,30 @@ export default function ResourceDetailPanel({ resource, onClose, onAddToPath }: 
               )}
 
               {/* Action buttons */}
-              <div className="pt-2 space-y-2">
-                <button
-                  onClick={() => onAddToPath(resource.id)}
-                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all ${
-                    resource.added_to_path
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                      : 'bg-gradient-to-r from-primary-500 to-purple-600 text-white hover:shadow-glow hover:-translate-y-0.5'
-                  }`}
-                >
-                  {resource.added_to_path ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      已加入：从程序设计基础到数据结构入门的成长路径
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      加入学习路径
-                    </>
-                  )}
-                </button>
-              </div>
+              {onSaveToPackage && (
+                <div className="pt-2 space-y-2">
+                  <button
+                    onClick={() => onSaveToPackage(resource.id)}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all ${
+                      savedToPackage
+                        ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+                        : 'bg-gradient-to-r from-amber-400 to-amber-600 text-white hover:shadow-glow hover:-translate-y-0.5'
+                    }`}
+                  >
+                    {savedToPackage ? (
+                      <>
+                        <XCircle className="w-4 h-4" />
+                        取消加入
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-4 h-4" />
+                        加入资源包
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         </motion.div>

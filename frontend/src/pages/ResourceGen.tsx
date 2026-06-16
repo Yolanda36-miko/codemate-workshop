@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { FileText } from 'lucide-react'
-import { generateResources } from '../services/api'
+import { generateResources, saveResourceToPackage, getUserPackages, deleteResourceFromPackage } from '../services/api'
 import type { ResourceCard, PathResourceItem } from '../types'
 import ResourceWorkbench from '../components/resources/ResourceWorkbench'
 import type { WorkbenchParams } from '../components/resources/ResourceWorkbench'
@@ -11,7 +11,7 @@ import PathResourcePackage from '../components/resources/PathResourcePackage'
 import AnimatedSection from '../components/common/AnimatedSection'
 import {
   loadPathResources, addPathResource, removePathResource,
-  updatePathResource, clearPathResources,
+  updatePathResource, clearPathResources, savePathResources,
 } from '../utils/pathResources'
 
 type Phase = 'config' | 'generating' | 'done'
@@ -23,6 +23,45 @@ export default function ResourceGen() {
   const [pendingParams, setPendingParams] = useState<WorkbenchParams | null>(null)
   const [pathItems, setPathItems] = useState<PathResourceItem[]>(() => loadPathResources())
   const [toast, setToast] = useState<string | null>(null)
+  // saveKey → packageId for resources saved to the API
+  const [packageIdMap, setPackageIdMap] = useState<Map<string, number>>(new Map())
+
+  // Derive savedKeys from packageIdMap for rendering
+  const savedKeys = new Set(packageIdMap.keys())
+
+  // On mount: load saved packages from API, build packageIdMap, merge into pathItems
+  useEffect(() => {
+    getUserPackages()
+      .then((res) => {
+        const map = new Map<string, number>()
+        const apiItems: PathResourceItem[] = (res.packages ?? []).map((pkg) => {
+          const saveKey = `${pkg.course_name}|${pkg.topic}|${pkg.custom_title}`
+          map.set(saveKey, pkg.id)
+          return {
+            resourceId: `pkg-${pkg.id}`,
+            title: pkg.custom_title,
+            type: pkg.resource_type,
+            estimatedTime: pkg.estimated_time || '未估计',
+            topic: pkg.topic,
+            course: pkg.course_name,
+            language: '',
+            note: pkg.note || '',
+            purpose: (pkg.purpose as PathResourceItem['purpose']) || '',
+            priority: (pkg.priority as PathResourceItem['priority']) || '',
+          } as PathResourceItem
+        })
+        setPackageIdMap(map)
+        setPathItems((prev) => {
+          const existing = new Set(prev.map((i) => `${i.course}|${i.topic}|${i.title}`))
+          const newItems = apiItems.filter((i) => !existing.has(`${i.course}|${i.topic}|${i.title}`))
+          if (newItems.length === 0) return prev
+          const merged = [...prev, ...newItems]
+          savePathResources(merged)
+          return merged
+        })
+      })
+      .catch(() => {})
+  }, [])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -44,40 +83,67 @@ export default function ResourceGen() {
       language: p?.language ?? 'Python',
       resource_types: p?.selectedTypes ?? [],
     })
-    // Sync added_to_path with current localStorage state
-    const pathIds = new Set(pathItems.map((i) => i.resourceId))
+    // Sync added_to_path using stable saveKey from packageIdMap
     const synced = res.resource_cards.map((r) => ({
       ...r,
-      added_to_path: pathIds.has(r.id),
+      added_to_path: packageIdMap.has(`${r.course}|${r.knowledge_point}|${r.title}`),
     }))
     setResources(synced)
     setPhase('done')
   }
 
-  const handleAddToPath = useCallback((id: string) => {
+  // Toggle: add to or remove from resource package
+  const handleSaveToPackage = useCallback(async (id: string) => {
     const resource = resources.find((r) => r.id === id)
     if (!resource) return
 
-    const alreadyInPath = pathItems.some((i) => i.resourceId === id)
+    const saveKey = `${resource.course}|${resource.knowledge_point}|${resource.title}`
+    const existingPackageId = packageIdMap.get(saveKey)
 
-    if (alreadyInPath) {
-      // Remove from path
-      const updated = removePathResource(id)
-      setPathItems(updated)
-      setResources((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, added_to_path: false } : r)),
-      )
-      if (detailResource?.id === id) {
-        setDetailResource((prev) => prev ? { ...prev, added_to_path: false } : null)
+    if (existingPackageId !== undefined) {
+      // Cancel: call DELETE API
+      try {
+        await deleteResourceFromPackage(existingPackageId)
+        setPackageIdMap((prev) => {
+          const m = new Map(prev)
+          m.delete(saveKey)
+          return m
+        })
+        removePathResource(`pkg-${existingPackageId}`)
+        setPathItems((prev) => prev.filter((i) => i.resourceId !== `pkg-${existingPackageId}`))
+        setResources((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, added_to_path: false } : r)),
+        )
+        if (detailResource?.id === id) {
+          setDetailResource((prev) => prev ? { ...prev, added_to_path: false } : null)
+        }
+        showToast('已取消加入')
+      } catch {
+        showToast('取消失败，请稍后重试')
       }
-      showToast('已从资源包移除')
-    } else {
-      // Add to path
+      return
+    }
+
+    // Add: call POST API
+    const safe = (val: string | undefined, fallback: string) => val || fallback
+    try {
+      const result = await saveResourceToPackage({
+        custom_title: safe(resource.title, '未命名资源'),
+        topic: safe(resource.knowledge_point, '未指定主题'),
+        course_name: safe(resource.course, '未指定课程'),
+        resource_type: safe(resource.type, '学习资源'),
+        estimated_time: resource.estimated_time || '',
+        note: safe(resource.summary, '') + (resource.match_reason ? '\n匹配原因：' + resource.match_reason : ''),
+        purpose: 'generated',
+        priority: 'normal',
+      })
+      const pkgId = result.id
+      setPackageIdMap((prev) => new Map(prev).set(saveKey, pkgId))
       const item: PathResourceItem = {
-        resourceId: resource.id,
+        resourceId: `pkg-${pkgId}`,
         title: resource.title,
         type: resource.type,
-        estimatedTime: resource.estimated_time || '0 分钟',
+        estimatedTime: resource.estimated_time || '未估计',
         topic: resource.knowledge_point,
         course: resource.course,
         language: resource.language,
@@ -85,28 +151,52 @@ export default function ResourceGen() {
         purpose: '',
         priority: '',
       }
-      const updated = addPathResource(item)
-      setPathItems(updated)
+      addPathResource(item)
+      setPathItems((prev) => [...prev, item])
       setResources((prev) =>
         prev.map((r) => (r.id === id ? { ...r, added_to_path: true } : r)),
       )
       if (detailResource?.id === id) {
         setDetailResource((prev) => prev ? { ...prev, added_to_path: true } : null)
       }
-      showToast('已加入学习路径资源包')
+      if (result.detail !== 'already_saved') {
+        showToast('已加入资源包')
+      }
+    } catch {
+      showToast('保存失败，请稍后重试')
     }
-  }, [resources, pathItems, detailResource])
+  }, [resources, packageIdMap, detailResource])
 
+  // Remove from right panel — also calls DELETE API and syncs left side
   const handleRemoveFromPath = useCallback((resourceId: string) => {
-    const updated = removePathResource(resourceId)
-    setPathItems(updated)
-    setResources((prev) =>
-      prev.map((r) => (r.id === resourceId ? { ...r, added_to_path: false } : r)),
-    )
+    const item = pathItems.find((i) => i.resourceId === resourceId)
+    if (item) {
+      const itemSaveKey = `${item.course}|${item.topic}|${item.title}`
+      const apiPkgId = packageIdMap.get(itemSaveKey)
+      if (apiPkgId !== undefined) {
+        deleteResourceFromPackage(apiPkgId).catch(() => {})
+        setPackageIdMap((prev) => {
+          const m = new Map(prev)
+          m.delete(itemSaveKey)
+          return m
+        })
+      }
+      // Sync left-panel resource cards: if any generated resource matches this saveKey, reset it
+      setResources((prev) =>
+        prev.map((r) =>
+          `${r.course}|${r.knowledge_point}|${r.title}` === itemSaveKey
+            ? { ...r, added_to_path: false }
+            : r,
+        ),
+      )
+    }
+    // Remove from pathItems + localStorage
+    removePathResource(resourceId)
+    setPathItems((prev) => prev.filter((i) => i.resourceId !== resourceId))
     if (detailResource?.id === resourceId) {
       setDetailResource((prev) => prev ? { ...prev, added_to_path: false } : null)
     }
-  }, [detailResource])
+  }, [pathItems, packageIdMap, detailResource])
 
   const handleUpdatePathItem = useCallback((resourceId: string, updates: { note?: string; purpose?: string; priority?: string }) => {
     const cleanUpdates: { note?: string; purpose?: PathResourceItem['purpose']; priority?: PathResourceItem['priority'] } = {}
@@ -118,6 +208,11 @@ export default function ResourceGen() {
   }, [])
 
   const handleClearPath = useCallback(() => {
+    // Delete all packages from API
+    packageIdMap.forEach((pkgId) => {
+      deleteResourceFromPackage(pkgId).catch(() => {})
+    })
+    setPackageIdMap(new Map())
     clearPathResources()
     setPathItems([])
     setResources((prev) =>
@@ -126,7 +221,7 @@ export default function ResourceGen() {
     if (detailResource) {
       setDetailResource((prev) => prev ? { ...prev, added_to_path: false } : null)
     }
-  }, [detailResource])
+  }, [packageIdMap, detailResource])
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 pb-12">
@@ -175,8 +270,10 @@ export default function ResourceGen() {
                       key={r.id}
                       resource={r}
                       index={i}
-                      onAddToPath={handleAddToPath}
                       onViewDetail={setDetailResource}
+                      onSaveToPackage={handleSaveToPackage}
+                      savedToPackage={savedKeys.has(`${r.course}|${r.knowledge_point}|${r.title}`)}
+                      showSaveToPackage={true}
                     />
                   ))}
                 </div>
@@ -223,7 +320,8 @@ export default function ResourceGen() {
       <ResourceDetailPanel
         resource={detailResource}
         onClose={() => setDetailResource(null)}
-        onAddToPath={handleAddToPath}
+        onSaveToPackage={handleSaveToPackage}
+        savedToPackage={detailResource ? savedKeys.has(`${detailResource.course}|${detailResource.knowledge_point}|${detailResource.title}`) : false}
       />
     </div>
   )

@@ -4,6 +4,8 @@ import type {
   CourseListResponse,
   Course,
   ResourceGenerateResponse,
+  SaveResourcePayload,
+  SavedPackageItem,
   LearningPathResponse,
   DiagnosisQuestion,
   AssessmentResult,
@@ -95,6 +97,10 @@ function normalizeCourse(c: Record<string, unknown>): Record<string, unknown> {
     knowledge_points: Array.isArray(c.knowledge_points) ? c.knowledge_points : [],
     prerequisites: Array.isArray(c.prerequisites) ? c.prerequisites : [],
     related_courses: Array.isArray(c.related_courses) ? c.related_courses : [],
+    resource_types: Array.isArray(c.resource_types) ? c.resource_types : [],
+    projects: Array.isArray(c.projects) ? c.projects : [],
+    tools: Array.isArray(c.tools) ? c.tools : [],
+    learning_objectives: Array.isArray(c.learning_objectives) ? c.learning_objectives : [],
     progress: typeof c.progress === 'number' ? c.progress : 0,
     difficulty: c.difficulty ?? 'medium',
   }
@@ -112,7 +118,9 @@ export async function getCourseById(courseId: string) {
     if (!course) throw new Error(`Course '${courseId}' not found`)
     return course
   }
-  return request<Course>(`/courses/${courseId}`)
+  return request<Course>(`/courses/${courseId}`).then((c) =>
+    normalizeCourse(c as unknown as Record<string, unknown>) as unknown as Course,
+  )
 }
 
 // ========== Resources ==========
@@ -123,6 +131,47 @@ export async function generateResources(params: ResourceGenerateParams) {
     method: 'POST',
     body: JSON.stringify(params),
   })
+}
+
+// ========== Resource Packages (Phase 7B) ==========
+
+const CURRENT_USER_ID = 1
+
+export async function saveResourceToPackage(data: SaveResourcePayload) {
+  if (USE_MOCK) {
+    return {
+      id: Date.now(),
+      user_id: CURRENT_USER_ID,
+      ...data,
+      resource_id: null,
+      library_resource_id: null,
+      status: 'saved',
+      detail: 'already_saved',
+    } as SavedPackageItem & { detail?: string }
+  }
+  const res = await fetch(`${API_BASE}/resources/packages?user_id=${CURRENT_USER_ID}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json() as Promise<SavedPackageItem & { detail?: string }>
+}
+
+export async function getUserPackages() {
+  if (USE_MOCK) return { packages: [], user_id: CURRENT_USER_ID, total: 0 }
+  return request<{ packages: SavedPackageItem[]; user_id: number; total: number }>(
+    `/resources/packages/${CURRENT_USER_ID}`,
+  )
+}
+
+export async function deleteResourceFromPackage(packageId: number) {
+  if (USE_MOCK) return { detail: 'deleted', package_id: packageId }
+  const res = await fetch(`${API_BASE}/resources/packages/${packageId}?user_id=${CURRENT_USER_ID}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json() as Promise<{ detail: string; package_id: number }>
 }
 
 // ========== Learning Path ==========

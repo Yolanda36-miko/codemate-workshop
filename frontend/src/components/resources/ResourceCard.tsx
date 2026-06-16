@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion'
-import { Clock, Eye, Plus, Check } from 'lucide-react'
+import { Clock, Eye, Bookmark, XCircle } from 'lucide-react'
 import type { ResourceCard as ResourceCardType } from '../../types'
 
 interface ResourceCardProps {
   resource: ResourceCardType
   index: number
-  onAddToPath: (id: string) => void
   onViewDetail: (resource: ResourceCardType) => void
+  onSaveToPackage?: (id: string) => void
+  savedToPackage?: boolean
+  showSaveToPackage?: boolean
 }
 
 const typeBadgeColors: Record<string, string> = {
@@ -18,7 +20,7 @@ const typeBadgeColors: Record<string, string> = {
   '项目式学习案例': 'bg-rose-50 text-rose-700 border-rose-100',
 }
 
-export default function ResourceCard({ resource, index, onAddToPath, onViewDetail }: ResourceCardProps) {
+export default function ResourceCard({ resource, index, onViewDetail, onSaveToPackage, savedToPackage, showSaveToPackage = false }: ResourceCardProps) {
   return (
     <motion.div
       className="bg-white rounded-2xl border border-gray-100 shadow-card p-4"
@@ -64,26 +66,28 @@ export default function ResourceCard({ resource, index, onAddToPath, onViewDetai
             <Eye className="w-3 h-3" />
             查看详情
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddToPath(resource.id) }}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-              resource.added_to_path
-                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                : 'text-primary-600 border border-primary-200 hover:bg-primary-50'
-            }`}
-          >
-            {resource.added_to_path ? (
-              <>
-                <Check className="w-3 h-3" />
-                已加入
-              </>
-            ) : (
-              <>
-                <Plus className="w-3 h-3" />
-                加入路径
-              </>
-            )}
-          </button>
+          {showSaveToPackage && onSaveToPackage && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSaveToPackage(resource.id) }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                savedToPackage
+                  ? 'text-rose-600 border border-rose-200 hover:bg-rose-50'
+                  : 'text-amber-600 border border-amber-200 hover:bg-amber-50'
+              }`}
+            >
+              {savedToPackage ? (
+                <>
+                  <XCircle className="w-3 h-3" />
+                  取消加入
+                </>
+              ) : (
+                <>
+                  <Bookmark className="w-3 h-3" />
+                  加入资源包
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

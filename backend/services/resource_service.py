@@ -410,16 +410,48 @@ def get_user_packages(user_id: int) -> list[dict]:
 
 
 def add_to_package(user_id: int, data: dict) -> Optional[dict]:
-    """添加资源到用户资源包"""
+    """添加资源到用户资源包（含去重：user_id + custom_title + topic + course_name）"""
     db = None
     try:
         db = SessionLocal()
+
+        # Dedup: check if the same resource already exists for this user
+        title = data.get("custom_title", "")
+        topic = data.get("topic", "")
+        course = data.get("course_name", "")
+        existing = db.query(UserResourcePackage).filter(
+            UserResourcePackage.user_id == user_id,
+            UserResourcePackage.custom_title == title,
+            UserResourcePackage.topic == topic,
+            UserResourcePackage.course_name == course,
+        ).first()
+
+        if existing:
+            return {
+                "id": existing.id,
+                "user_id": existing.user_id,
+                "resource_id": existing.resource_id,
+                "library_resource_id": None,
+                "custom_title": existing.custom_title,
+                "topic": existing.topic,
+                "course_name": existing.course_name,
+                "resource_type": existing.resource_type,
+                "estimated_time": existing.estimated_time,
+                "purpose": existing.purpose,
+                "priority": existing.priority,
+                "note": existing.note,
+                "status": existing.status,
+                "created_at": existing.created_at.isoformat() if existing.created_at else None,
+                "updated_at": existing.updated_at.isoformat() if existing.updated_at else None,
+                "detail": "already_saved",
+            }
+
         pkg = UserResourcePackage(
             user_id=user_id,
             resource_id=data.get("resource_id"),
-            custom_title=data.get("custom_title"),
-            topic=data.get("topic"),
-            course_name=data.get("course_name"),
+            custom_title=title,
+            topic=topic,
+            course_name=course,
             resource_type=data.get("resource_type"),
             estimated_time=data.get("estimated_time"),
             purpose=data.get("purpose"),

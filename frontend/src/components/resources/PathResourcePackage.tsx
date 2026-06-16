@@ -70,7 +70,7 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
             <FolderPlus className="w-8 h-8 text-gray-300 mx-auto mb-2" />
             <p className="text-xs font-medium text-gray-500 mb-1">暂无已加入资源</p>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              从左侧资源卡片中点击"加入学习路径"，<br />即可构建你的专属资源包。
+              从左侧资源卡片中点击"加入资源包"，<br />即可构建你的专属资源包。
             </p>
           </div>
         ) : (
