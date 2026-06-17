@@ -41,7 +41,7 @@ def _normalize_role(role: str) -> str:
 
 # ---- Profile Chat (Phase 5B: LLM-integrated) ----
 
-def chat(message: str, history: list[dict] | None = None):
+def chat(message: str, history: list[dict] | None = None, extracted_fields: dict | None = None, missing_fields: list[str] | None = None):
     """
     Profile chat — next-question generation for learning profile diagnosis.
 
@@ -62,7 +62,7 @@ def chat(message: str, history: list[dict] | None = None):
 
     # Real provider: render prompt, call LLM, validate + fallback
     try:
-        result = _chat_via_llm(llm, message, history)
+        result = _chat_via_llm(llm, message, history, extracted_fields, missing_fields)
         if result is not None:
             return result
     except Exception as e:
@@ -71,22 +71,27 @@ def chat(message: str, history: list[dict] | None = None):
     return load_mock("profile_chat")
 
 
-def _chat_via_llm(llm, message: str, history: list[dict] | None) -> dict | None:
+def _chat_via_llm(llm, message: str, history: list[dict] | None, extracted_fields: dict | None = None, missing_fields: list[str] | None = None) -> dict | None:
     """
     Build messages from prompt template + history, call LLM, validate response.
+
+    Accepts extracted_fields and missing_fields from the frontend so the LLM
+    prompt reflects the actual conversation progress. Falls back to sensible
+    defaults when not provided.
 
     Returns the chat result dict on success, or None if anything fails
     (prompt rendering, LLM error, JSON parse failure, type validation).
     """
     from services.prompt_service import render_template
 
-    missing_fields = [
+    ef = extracted_fields or {}
+    mf = missing_fields or [
         "current_courses",
         "completed_courses",
-        "knowledge_basis",
         "learning_difficulty",
         "programming_languages",
-        "learning_style",
+        "coding_blockers",
+        "cognitive_style",
         "learning_goals",
         "resource_preference",
     ]
@@ -95,8 +100,8 @@ def _chat_via_llm(llm, message: str, history: list[dict] | None) -> dict | None:
         "chat_profile",
         student_name="",
         student_background="",
-        extracted_fields={},
-        missing_fields=missing_fields,
+        extracted_fields=ef,
+        missing_fields=mf,
     )
 
     if not rendered:

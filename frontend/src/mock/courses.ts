@@ -104,7 +104,7 @@ export interface RecommendedTransition {
   basedOn: string[]
 }
 
-// Default: Li student → 程序设计基础 → 数据结构与算法
+// Default: general recommendation — used as fallback when no profile available
 export const defaultTransition: RecommendedTransition = {
   from: '程序设计基础',
   to: '数据结构与算法',
@@ -139,8 +139,4 @@ export const transitionOptions: Record<string, RecommendedTransition> = {
     reason: '学习数据库系统前，建议先巩固程序设计中的逻辑思维和数据组织能力。',
     basedOn: ['SQL', '数据建模', '项目实践'],
   },
-}
-
-export function getDefaultTransition(): RecommendedTransition {
-  return defaultTransition
 }

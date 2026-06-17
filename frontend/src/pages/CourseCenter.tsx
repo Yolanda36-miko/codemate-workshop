@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getCourses, getUserProfile } from '../services/api'
-import { getRecommendedTransition } from '../mock/courses'
-import { hasUsableProfile } from '../services/personalizedPath'
+import { hasUsableProfile, buildPersonalizedTransition } from '../services/personalizedPath'
 import type { Course, BackendProfile } from '../types'
 import CourseCard from '../components/courses/CourseCard'
 import CourseDetailPanel from '../components/courses/CourseDetailPanel'
@@ -33,7 +32,7 @@ export default function CourseCenter() {
 
   const selected = courses.find((c) => c.id === selectedId) ?? null
   const usable = hasUsableProfile(profile)
-  const transition = getRecommendedTransition(profile)
+  const transition = profile ? buildPersonalizedTransition(profile, courses) : null
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 pb-12">
@@ -52,7 +51,7 @@ export default function CourseCenter() {
             <div className="h-5 bg-gray-200 rounded w-48 mb-2" />
             <div className="h-4 bg-gray-200 rounded w-96" />
           </div>
-        ) : usable ? (
+        ) : usable && transition ? (
           <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl border border-primary-100/50 px-5 py-4 flex items-center gap-4">
             <div className="flex items-center gap-3 shrink-0">
               <span className="px-3 py-1.5 rounded-xl bg-white text-sm font-semibold text-gray-800 shadow-sm border border-primary-100">

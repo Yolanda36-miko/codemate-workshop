@@ -1,7 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles } from 'lucide-react'
-import type { ChatRound } from '../../mock/profile'
 
 export interface Message {
   role: 'buddy' | 'user'

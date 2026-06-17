@@ -72,7 +72,12 @@ export default function Profile() {
     try {
       // Build history from current messages
       const history = state.messages.map((m) => ({ role: m.role, content: m.content }))
-      const response = await profileChat(text, history)
+      const response = await profileChat(
+        text,
+        history,
+        { ...state.collectedFields },
+        [...state.missingFields],
+      )
 
       // Strict field validation
       const msg = typeof response.message === 'string' ? response.message : ''

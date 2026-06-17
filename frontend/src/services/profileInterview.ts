@@ -291,11 +291,17 @@ export function generateFinalProfileMock(
   // Adjust knowledge_base based on diagnosis
   if (baseProfile.knowledge_base && diagnosisResults) {
     const kb = baseProfile.knowledge_base
-    const baseScore = USE_MOCK ? (kb.score ?? 0) : 50
-    const minScore = USE_MOCK ? 30 : 0
-    const newScore = Math.max(minScore, Math.min(100, baseScore + diagnosisResults.knowledgeBaseAdjust))
-    kb.score = newScore
-    kb.stars = scoreToStars(newScore)
+    const ratio = diagnosisResults.totalCorrect / Math.max(diagnosisResults.totalQuestions, 1)
+    if (USE_MOCK) {
+      const baseScore = kb.score ?? Math.round(30 + ratio * 50)
+      const newScore = Math.max(30, Math.min(100, baseScore + diagnosisResults.knowledgeBaseAdjust))
+      kb.score = newScore
+      kb.stars = scoreToStars(newScore)
+    } else {
+      const score = Math.round(30 + ratio * 50)
+      kb.score = score
+      kb.stars = scoreToStars(score)
+    }
     kb.note = diagnosisResults.note
     baseProfile.knowledge_base = kb
   }
@@ -303,11 +309,17 @@ export function generateFinalProfileMock(
   // Adjust practice_ability based on diagnosis
   if (baseProfile.practice_ability && diagnosisResults) {
     const pa = baseProfile.practice_ability
-    const baseScore = USE_MOCK ? (pa.score ?? 0) : 50
-    const minScore = USE_MOCK ? 30 : 0
-    const newScore = Math.max(minScore, Math.min(100, baseScore + diagnosisResults.practiceAbilityAdjust))
-    pa.score = newScore
-    pa.stars = scoreToStars(newScore)
+    const ratio = diagnosisResults.totalCorrect / Math.max(diagnosisResults.totalQuestions, 1)
+    if (USE_MOCK) {
+      const baseScore = pa.score ?? Math.round(25 + ratio * 50)
+      const newScore = Math.max(30, Math.min(100, baseScore + diagnosisResults.practiceAbilityAdjust))
+      pa.score = newScore
+      pa.stars = scoreToStars(newScore)
+    } else {
+      const score = Math.round(25 + ratio * 50)
+      pa.score = score
+      pa.stars = scoreToStars(score)
+    }
     pa.note = diagnosisResults.note
     baseProfile.practice_ability = pa
   }
@@ -494,8 +506,8 @@ function safeJsonParse(raw: string | null): string[] {
  * Used when loading an existing profile to skip the interview.
  */
 export function mapBackendProfileToStudentProfile(backend: BackendProfile, studentName?: string): StudentProfile {
-  const kbScore = backend.knowledge_base_score ?? 0
-  const paScore = backend.practice_ability_score ?? 0
+  const kbScore = backend.knowledge_base_score ?? undefined
+  const paScore = backend.practice_ability_score ?? undefined
 
   return {
     student: {
@@ -507,17 +519,15 @@ export function mapBackendProfileToStudentProfile(backend: BackendProfile, stude
     profile: {
       knowledge_base: {
         label: '知识基础',
-        stars: scoreToStars(kbScore),
-        score: kbScore,
+        ...(kbScore != null ? { stars: scoreToStars(kbScore), score: kbScore } : {}),
         max_score: 100,
-        note: backend.diagnosis_status || '',
+        note: backend.diagnosis_status || undefined,
       },
       practice_ability: {
         label: '实践能力',
-        stars: scoreToStars(paScore),
-        score: paScore,
+        ...(paScore != null ? { stars: scoreToStars(paScore), score: paScore } : {}),
         max_score: 100,
-        note: backend.diagnosis_status || '',
+        note: backend.diagnosis_status || undefined,
       },
       cognitive_style: {
         label: '认知风格',
@@ -564,9 +574,33 @@ export function mapStudentProfileToBackend(profile: StudentProfile): ProfileUpda
 }
 
 /**
- * Check if a backend profile is complete enough to skip the interview.
- * Requires at minimum knowledge_base_score and practice_ability_score to be set.
+ * Check if a backend profile has enough data to be considered usable.
+ * Mirrors hasUsableProfile() in personalizedPath.ts for consistency.
  */
 export function isProfileComplete(backend: BackendProfile): boolean {
-  return backend.knowledge_base_score != null && backend.practice_ability_score != null
+  if (!backend) return false
+
+  const hasTags = (field: string | null): boolean => {
+    if (!field) return false
+    try {
+      const arr = JSON.parse(field)
+      return Array.isArray(arr) && arr.length > 0
+    } catch {
+      return false
+    }
+  }
+
+  if (hasTags(backend.cognitive_styles)) return true
+  if (hasTags(backend.error_patterns)) return true
+  if (hasTags(backend.learning_goals)) return true
+  if (hasTags(backend.resource_preferences)) return true
+
+  if (backend.knowledge_base_score !== null && backend.knowledge_base_score !== undefined) return true
+  if (backend.practice_ability_score !== null && backend.practice_ability_score !== undefined) return true
+
+  if (backend.profile_summary && backend.profile_summary.trim().length > 0) return true
+
+  if (backend.diagnosis_status && backend.diagnosis_status !== 'not_started') return true
+
+  return false
 }

@@ -38,11 +38,21 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 // ========== Profile ==========
 
-export async function profileChat(message: string, history: Array<{ role: string; content: string }> = []) {
+export async function profileChat(
+  message: string,
+  history: Array<{ role: string; content: string }> = [],
+  extractedFields?: Record<string, unknown>,
+  missingFields?: string[],
+) {
   if (USE_MOCK) return mockProfileChat
   return request<ProfileChatResponse>('/profile/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({
+      message,
+      history,
+      extracted_fields: extractedFields,
+      missing_fields: missingFields,
+    }),
   })
 }
 
