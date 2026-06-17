@@ -1,7 +1,7 @@
 import type { LearningPathResponse } from '../types'
 
 export const mockLearningPath: LearningPathResponse = {
-  name: '从程序设计基础到数据结构入门的成长路径',
+  name: '通用参考路径',
   nodes: [
     {
       id: 'node-1',
