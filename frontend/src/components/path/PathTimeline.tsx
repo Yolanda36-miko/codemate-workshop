@@ -8,6 +8,14 @@ const statusConfig = {
   completed: { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500', card: 'border-green-100 bg-green-50/20' },
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  '基础概念': '阶段一',
+  '核心理解': '阶段二',
+  '代码实现': '阶段三',
+  '练习巩固': '阶段四',
+  '项目应用': '阶段五',
+}
+
 interface PathTimelineProps {
   nodes: PathNode[]
   selectedId: string | null
@@ -52,9 +60,16 @@ export default function PathTimeline({ nodes, selectedId, onSelect, onStatusChan
                         {index + 1}
                       </span>
                       <div>
-                        <h3 className={`font-semibold text-sm ${node.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {node.name}
-                        </h3>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <h3 className={`font-semibold text-sm ${node.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                            {node.name}
+                          </h3>
+                          {STAGE_LABELS[node.stage] && (
+                            <span className="text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                              {STAGE_LABELS[node.stage]}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-primary-500">{node.course}</span>
                       </div>
                     </div>

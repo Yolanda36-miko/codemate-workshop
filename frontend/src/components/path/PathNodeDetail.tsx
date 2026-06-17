@@ -1,7 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, BookOpen, ArrowRight, TrendingUp, Clock, Tag, Eye, Plus, Check } from 'lucide-react'
+import { Target, BookOpen, ArrowRight, TrendingUp, Clock, Tag, Eye, Plus, Check, Lightbulb } from 'lucide-react'
 import type { PathNode, PathNodeResource } from '../../types'
 import { getTypeTag } from '../../utils/pathResources'
+
+const STAGE_COLORS: Record<string, string> = {
+  '基础概念': 'bg-blue-50 text-blue-600 border-blue-100',
+  '核心理解': 'bg-purple-50 text-purple-600 border-purple-100',
+  '代码实现': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  '练习巩固': 'bg-amber-50 text-amber-600 border-amber-100',
+  '项目应用': 'bg-rose-50 text-rose-600 border-rose-100',
+}
 
 const PRIORITY_COLORS: Record<string, string> = {
   '必学': 'text-red-500 bg-red-50',
@@ -30,26 +38,37 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
           className="bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden"
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-primary-100 text-primary-600 text-xs font-bold flex items-center justify-center">
-                {node.id.split('-')[1]}
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800">{node.name}</h3>
-                <span className="text-[10px] text-primary-500">{node.course}</span>
+          <div className="px-4 py-3 border-b border-gray-50">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STAGE_COLORS[node.stage] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                  {node.stage}
+                </span>
+                <span className="text-[10px] text-gray-400">{node.course}</span>
               </div>
+              <span
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                  node.status === 'completed' ? 'bg-green-50 text-green-600' : node.status === 'in_progress' ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-400'
+                }`}
+              >
+                {node.status === 'completed' ? '已完成' : node.status === 'in_progress' ? '学习中' : '未开始'}
+              </span>
             </div>
-            <span
-              className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                node.status === 'completed' ? 'bg-green-50 text-green-600' : node.status === 'in_progress' ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-400'
-              }`}
-            >
-              {node.status === 'completed' ? '已完成' : node.status === 'in_progress' ? '学习中' : '未开始'}
-            </span>
+            <h3 className="text-sm font-semibold text-gray-800">{node.name}</h3>
           </div>
 
           <div className="p-4 space-y-4">
+            {/* Reason */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-medium text-gray-700">推荐理由</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed bg-amber-50/50 rounded-xl px-3 py-2 border border-amber-100/50">
+                {node.reason}
+              </p>
+            </div>
+
             {/* Learning objectives */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">

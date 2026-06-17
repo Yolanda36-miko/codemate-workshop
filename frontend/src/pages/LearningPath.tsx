@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { GitBranch, BookOpen } from 'lucide-react'
+import { GitBranch, BookOpen, Info } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getUserProfile, getCourses } from '../services/api'
 import { hasUsableProfile, buildPersonalizedPath } from '../services/personalizedPath'
 import { mockLearningPath } from '../mock/path'
-import type { PathNode, PathResourceItem, PathNodeResource, BackendProfile, Course } from '../types'
+import type { PathNode, PathResourceItem, PathNodeResource, BackendProfile, Course, PersonalizedPathResult } from '../types'
 import {
   loadPathResources,
   savePathResources,
@@ -41,7 +41,7 @@ export default function LearningPath() {
     setTimeout(() => setToast(null), 2000)
   }, [])
 
-  // Load profile and courses on mount
+  // ---- Load profile and courses on mount ----
   useEffect(() => {
     getUserProfile(CURRENT_USER_ID)
       .then((p) => setProfile(p))
@@ -53,24 +53,34 @@ export default function LearningPath() {
       .catch(() => setCourses([]))
   }, [])
 
-  // Generate path: personalized if profile usable, fallback to generic reference path
-  const learningPath = useMemo(() => {
+  // ---- Generate path: personalized if profile usable, else generic reference ----
+  const pathResult = useMemo<PersonalizedPathResult | null>(() => {
     if (!profileLoading && hasUsableProfile(profile) && courses.length > 0) {
       const personalized = buildPersonalizedPath(profile!, courses)
       if (personalized) return personalized
     }
-    // Fallback: generic reference path
-    return { ...mockLearningPath, name: '通用参考路径' }
+    return null
   }, [profile, profileLoading, courses])
+
+  const learningPath = useMemo(() => {
+    if (pathResult) return pathResult
+    // Fallback: generic reference path
+    return {
+      name: '通用参考路径',
+      nodes: mockLearningPath.nodes,
+      personalizedBasis: null,
+      profileFieldsUsed: [],
+    } as PersonalizedPathResult
+  }, [pathResult])
 
   const usable = !profileLoading && hasUsableProfile(profile)
 
-  // Compute nodes with statuses and matched resources
+  // ---- Compute nodes with statuses and matched resources ----
   const nodes = useMemo(() => {
     const savedStatuses = loadPathNodeStatuses()
     const withStatuses = learningPath.nodes.map((n) => ({
       ...n,
-      status: savedStatuses[n.id] || n.status,
+      status: (savedStatuses[n.id] || n.status) as 'pending' | 'in_progress' | 'completed',
     }))
     return mapResourcesToPathNodes(withStatuses)
   }, [learningPath, pathItems])
@@ -87,9 +97,17 @@ export default function LearningPath() {
     return ids
   }, [pathItems])
 
+  // Count matched resources per node
+  const totalMatched = useMemo(
+    () => nodes.reduce((sum, n) => sum + n.matchedResources.length, 0),
+    [nodes],
+  )
+
+  // ---- Handlers ----
+
   const handleStatusChange = useCallback((nodeId: string, status: 'pending' | 'in_progress' | 'completed') => {
     updatePathNodeStatus(nodeId, status)
-    setPathItems((prev) => [...prev]) // trigger re-render to refresh nodes
+    setPathItems((prev) => [...prev])
   }, [])
 
   const handleStartLearning = useCallback(() => {
@@ -140,10 +158,15 @@ export default function LearningPath() {
         <div className="flex items-center gap-2">
           <GitBranch className="w-6 h-6 text-primary-600" />
           <h1 className="text-2xl font-bold text-gray-900">
-            {usable ? 'CodeBuddy 为你定制的学习路径' : '学习路径规划'}
+            {usable ? '个性化学习路径' : '学习路径规划'}
           </h1>
           {!profileLoading && !usable && (
-            <span className="text-[10px] text-gray-400 ml-2">— 画像不足，显示通用参考路径</span>
+            <span className="text-[10px] text-gray-400 ml-2">— 画像不足，使用通用参考路径</span>
+          )}
+          {usable && learningPath.personalizedBasis && (
+            <span className="text-[10px] text-green-500 ml-2 bg-green-50 px-2 py-0.5 rounded-full">
+              基于学习画像生成
+            </span>
           )}
         </div>
       </AnimatedSection>
@@ -153,14 +176,39 @@ export default function LearningPath() {
         <AnimatedSection delay={0.03}>
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-100 px-5 py-5 text-center">
             <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-gray-700 mb-1">请先完成学习画像，以生成个性化学习路径。</p>
-            <p className="text-xs text-gray-500 mb-4">CodeBuddy 将根据你的学习画像，为你生成专属的阶段性学习路线。</p>
+            <p className="text-sm font-semibold text-gray-700 mb-1">画像信息不足，当前使用通用参考路径</p>
+            <p className="text-xs text-gray-500 mb-4">
+              完善学习画像后，CodeBuddy 可基于你的学习困难、目标和偏好，生成更准确的个性化路径。
+            </p>
             <Link
               to="/profile"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
             >
               去完善学习画像
             </Link>
+          </div>
+        </AnimatedSection>
+      )}
+
+      {/* Personalized basis indicator (when profile IS usable) */}
+      {usable && learningPath.personalizedBasis && (
+        <AnimatedSection delay={0.03}>
+          <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl border border-primary-100/50 px-5 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="w-3.5 h-3.5 text-primary-500" />
+              <span className="text-xs font-semibold text-primary-700">个性化依据</span>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">{learningPath.personalizedBasis}</p>
+            {learningPath.profileFieldsUsed.length > 0 && (
+              <div className="flex items-center gap-1 mt-2 flex-wrap">
+                <span className="text-[10px] text-gray-400">使用画像字段：</span>
+                {learningPath.profileFieldsUsed.map((f) => (
+                  <span key={f} className="px-1.5 py-0.5 rounded-full bg-white/80 text-primary-600 text-[10px] font-medium border border-primary-100">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </AnimatedSection>
       )}
@@ -195,6 +243,11 @@ export default function LearningPath() {
                     <span className="text-[10px] text-gray-400 font-normal">
                       ({completedCount}/{nodes.length} 已完成)
                     </span>
+                    {totalMatched > 0 && (
+                      <span className="text-[10px] text-primary-500 font-medium bg-primary-50 px-2 py-0.5 rounded-full">
+                        已匹配 {totalMatched} 项资源
+                      </span>
+                    )}
                   </h3>
                   <PathTimeline
                     nodes={nodes}
@@ -227,7 +280,7 @@ export default function LearningPath() {
                   />
                 </AnimatedSection>
 
-                {/* Compact status overview */}
+                {/* Status overview */}
                 <AnimatedSection delay={0.25} direction="right">
                   <div className="bg-white rounded-2xl p-3 shadow-card border border-gray-100">
                     <div className="grid grid-cols-3 gap-2">

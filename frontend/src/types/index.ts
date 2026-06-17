@@ -205,6 +205,19 @@ export interface PathNode {
   matchedResources: PathNodeResource[]
   growthDimensions: { label: string; value: number }[]
   taskDescription: string
+  /** Phase 9: 路径阶段 (基础概念 | 核心理解 | 代码实现 | 练习巩固 | 项目应用) */
+  stage: string
+  /** Phase 9: 个性化推荐理由，画像不足时显示通用说明 */
+  reason: string
+}
+
+export interface PersonalizedPathResult {
+  name: string
+  nodes: PathNode[]
+  /** Phase 9: 个性化依据摘要，画像不足时为 null */
+  personalizedBasis: string | null
+  /** Phase 9: 使用了哪些画像字段 */
+  profileFieldsUsed: string[]
 }
 
 export interface LearningPathResponse {
