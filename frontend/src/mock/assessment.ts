@@ -1,4 +1,4 @@
-import type { DiagnosisQuestion, AssessmentResult, TutorChatResponse, ConversationContext } from '../types'
+import type { DiagnosisQuestion, AssessmentResult, TutorChatResponse, ConversationContext, PathNode } from '../types'
 import type { PathResourceItem } from '../types'
 import { loadPathResources } from '../utils/pathResources'
 
@@ -8,6 +8,9 @@ export interface ChallengeQuestion extends DiagnosisQuestion {
   level: number
   levelName: string
   source: '来自本轮提问' | '来自当前路径' | '来自我的资源包' | '来自画像易错点' | '系统综合推荐'
+  source_basis: string
+  path_node_title?: string
+  path_node_stage?: string
 }
 
 // ========== Challenge Result Type ==========
@@ -23,7 +26,104 @@ export interface ChallengeResult {
   levelResults: Record<string, boolean>
 }
 
-// ========== Question Pool (tagged by knowledge domain) ==========
+// =====================================================================
+// Keyword → domain mapping for topic detection
+// =====================================================================
+
+export const TOPIC_KEYWORDS: Record<string, string[]> = {
+  'recursion': ['递归', '调用栈', '出口', '基准情形', '栈帧', '递推'],
+  'binary-tree': ['二叉树', '前序', '中序', '后序', '遍历', '层序', '树'],
+  'array': ['数组', '下标', '越界', '边界', '列表索引'],
+  'linked-list': ['链表', '节点指针', '头结点', '尾结点'],
+  'sorting': ['排序', '查找', '搜索', '冒泡', '快速排序', '二分', '归并', '选择排序', '插入排序'],
+  'sql': ['sql', '数据库', '索引', '查询', '表连接', 'join', '事务', '增删改查'],
+  'function-call': ['函数', '调用', '参数', '返回值', '作用域', '嵌套调用'],
+  'debug': ['调试', 'debug', '报错', '错误', '异常', '排错', '排查'],
+  'project': ['项目', '实践', '开发', '应用构建', '综合实战'],
+}
+
+function detectTopics(input: string): string[] {
+  const lower = input.toLowerCase()
+  const topics: string[] = []
+  for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+    if (keywords.some((kw) => lower.includes(kw.toLowerCase()))) {
+      topics.push(topic)
+    }
+  }
+  return topics
+}
+
+// =====================================================================
+// Path node matching — find the best path node for a user question
+// =====================================================================
+
+export interface PathNodeMatch {
+  node: PathNode
+  score: number
+  matchedVia: string[]
+}
+
+export function findBestPathNode(userQuestion: string, pathNodes: PathNode[]): PathNodeMatch | null {
+  if (!pathNodes.length) return null
+
+  const lower = userQuestion.toLowerCase()
+  const questionTopics = detectTopics(userQuestion)
+
+  const scored: PathNodeMatch[] = pathNodes.map((node) => {
+    const nodeText = [
+      node.name,
+      node.goal,
+      node.reason,
+      node.taskDescription,
+      ...node.keywords,
+      ...node.learningObjectives,
+    ].join(' ').toLowerCase()
+
+    let score = 0
+    const matchedVia: string[] = []
+
+    // Check keyword overlap from TOPIC_KEYWORDS
+    for (const topic of questionTopics) {
+      const keywords = TOPIC_KEYWORDS[topic] || []
+      for (const kw of keywords) {
+        if (nodeText.includes(kw.toLowerCase())) {
+          score += 2
+          matchedVia.push(`节点关键词匹配: ${kw}`)
+        }
+      }
+    }
+
+    // Direct keyword match from user question against node keywords
+    for (const kw of node.keywords) {
+      if (lower.includes(kw.toLowerCase())) {
+        score += 3
+        matchedVia.push(`用户提问匹配节点关键词: ${kw}`)
+      }
+    }
+
+    // Match against node name
+    if (lower.includes(node.name.toLowerCase()) || node.name.toLowerCase().includes(lower.slice(0, 4))) {
+      score += 4
+      matchedVia.push(`匹配节点名称: ${node.name}`)
+    }
+
+    // Match against stage
+    const matchingResources = node.matchedResources.length + node.defaultResources.length
+    if (matchingResources > 0 && score > 0) {
+      score += 1
+      matchedVia.push('节点包含可用资源')
+    }
+
+    return { node, score, matchedVia }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0]?.score > 0 ? scored[0] : null
+}
+
+// =====================================================================
+// Question Pool (tagged by knowledge domain)
+// =====================================================================
 
 interface PoolQuestion {
   id: string
@@ -196,28 +296,141 @@ const QUESTION_POOL: PoolQuestion[] = [
     options: ['A. 打印所有代码', 'B. 在关键位置插入 print 输出中间值', 'C. 使用打印机输出', 'D. 删除所有 print'], correct: 'B',
     knowledge_point: '调试技巧', explanation: 'print 调试是最简单实用的方法，在关键变量处插入 print 语句，观察中间值是否符合预期。',
   },
+
+  // --- linked-list (Phase 10) ---
+  {
+    id: 'q-ll-1', levelName: '链表结构判断', tags: ['linked-list'],
+    question: '单向链表的每个节点至少包含哪两个部分？',
+    options: ['A. 数据和索引', 'B. 数据和指针', 'C. 指针和索引', 'D. 键和值'], correct: 'B',
+    knowledge_point: '链表结构', explanation: '单向链表每个节点包含数据域和指向下一个节点的指针域。',
+  },
+  {
+    id: 'q-ll-2', levelName: '链表遍历', tags: ['linked-list'],
+    question: '遍历单向链表时，循环的终止条件通常是什么？',
+    options: ['A. 当前节点为 None', 'B. 当前节点的 next 为 None', 'C. 计数器等于链表长度', 'D. 到达数组末尾'], correct: 'A',
+    knowledge_point: '链表遍历', explanation: '遍历时判断 curr is None 停止，此时已访问完所有节点（包括最后一个节点的 next 为 None 的下一次循环）。',
+  },
+  {
+    id: 'q-ll-3', levelName: '链表插入', tags: ['linked-list'],
+    question: '在单向链表中插入新节点时，正确的操作顺序是？',
+    options: ['A. 先断链再连新节点', 'B. 新节点先指向后继，再修改前驱指针', 'C. 先修改前驱指针，新节点再指向后继', 'D. 同时修改两个指针'], correct: 'B',
+    knowledge_point: '链表插入', explanation: '先让新节点的 next 指向后继节点（防止丢失），再让前驱节点的 next 指向新节点。',
+  },
+  {
+    id: 'q-ll-4', levelName: '链表与数组对比', tags: ['linked-list', 'array'],
+    question: '与数组相比，链表的主要优势是什么？',
+    options: ['A. 随机访问更快', 'B. 插入删除不需要移动其他元素', 'C. 占用内存更少', 'D. 排序更快'], correct: 'B',
+    knowledge_point: '链表特性', explanation: '链表插入删除只需修改指针，而数组需要移动后续所有元素。但链表不支持随机访问。',
+  },
+  {
+    id: 'q-ll-5', levelName: '链表边界情况', tags: ['linked-list'],
+    question: '删除单向链表的头结点时，需要做什么特殊处理？',
+    options: ['A. 不需要特殊处理', 'B. 将头指针指向第二个节点', 'C. 删除整个链表', 'D. 将尾指针置空'], correct: 'B',
+    knowledge_point: '链表删除', explanation: '删除头结点时，需要更新头指针指向原头结点的 next（即第二个节点），否则链表会断开。',
+  },
+
+  // --- sorting (Phase 10) ---
+  {
+    id: 'q-srt-1', levelName: '排序稳定性', tags: ['sorting'],
+    question: '归并排序是稳定排序，这意味着什么？',
+    options: ['A. 速度最快', 'B. 相等元素的相对顺序保持不变', 'C. 占内存最少', 'D. 不需要递归'], correct: 'B',
+    knowledge_point: '排序稳定性', explanation: '稳定排序保证相等元素在排序前后的相对位置不变。归并排序是稳定的，快速排序是不稳定的。',
+  },
+  {
+    id: 'q-srt-2', levelName: '时间复杂度', tags: ['sorting'],
+    question: '快速排序的平均时间复杂度是？',
+    options: ['A. O(n)', 'B. O(n log n)', 'C. O(n^2)', 'D. O(log n)'], correct: 'B',
+    knowledge_point: '算法复杂度', explanation: '快速排序平均 O(n log n)，但最坏情况（已排序数组选到最小/最大基准）为 O(n^2)。',
+  },
+  {
+    id: 'q-srt-3', levelName: '冒泡排序', tags: ['sorting'],
+    question: '冒泡排序每一轮遍历后，什么元素会被放到正确的位置？',
+    options: ['A. 最小的元素', 'B. 当前未排序部分的最大元素', 'C. 随机元素', 'D. 中间元素'], correct: 'B',
+    knowledge_point: '冒泡排序', explanation: '每轮冒泡将当前未排序部分的最大元素"浮"到最后面，因此每轮减少一次比较。',
+  },
+  {
+    id: 'q-srt-4', levelName: '二分查找前提', tags: ['sorting', 'array'],
+    question: '使用二分查找的前提条件是什么？',
+    options: ['A. 数组已排序', 'B. 数组元素唯一', 'C. 数组长度是 2 的幂', 'D. 使用链表存储'], correct: 'A',
+    knowledge_point: '二分查找', explanation: '二分查找要求数组已排序，这样才能通过比较中间值来折半缩小搜索范围。',
+  },
+  {
+    id: 'q-srt-5', levelName: '分治思想', tags: ['sorting', 'recursion'],
+    question: '快速排序和归并排序共同体现的核心算法思想是什么？',
+    options: ['A. 贪心', 'B. 动态规划', 'C. 分治', 'D. 回溯'], correct: 'C',
+    knowledge_point: '分治思想', explanation: '两者都用分治：将大问题分解为小问题独立解决，再合并结果。快速排序先分区再递归，归并排序先递归再合并。',
+  },
+
+  // --- sql (Phase 10) ---
+  {
+    id: 'q-sql-1', levelName: '索引作用', tags: ['sql'],
+    question: '数据库索引的主要作用是什么？',
+    options: ['A. 增加存储空间', 'B. 加速数据查询', 'C. 自动备份数据', 'D. 加密数据'], correct: 'B',
+    knowledge_point: '数据库索引', explanation: '索引类似书的目录，帮助数据库快速定位数据行，避免全表扫描，大幅提升查询速度。',
+  },
+  {
+    id: 'q-sql-2', levelName: '主键约束', tags: ['sql'],
+    question: '数据库表中，主键（Primary Key）的特性是什么？',
+    options: ['A. 可以重复', 'B. 可以为空', 'C. 唯一且非空', 'D. 自动递增即可'], correct: 'C',
+    knowledge_point: '主键约束', explanation: '主键必须满足唯一性（不重复）和非空性，用于唯一标识表中的每一行。',
+  },
+  {
+    id: 'q-sql-3', levelName: 'JOIN 理解', tags: ['sql'],
+    question: 'INNER JOIN 的作用是什么？',
+    options: ['A. 返回左表所有行', 'B. 返回两个表中匹配的行', 'C. 返回右表所有行', 'D. 返回两表所有行'], correct: 'B',
+    knowledge_point: '表连接', explanation: 'INNER JOIN 只返回两个表中满足连接条件的行，不匹配的行不会出现在结果中。',
+  },
+  {
+    id: 'q-sql-4', levelName: '查询优化', tags: ['sql'],
+    question: '以下哪种方式能最有效地提升大数据量查询性能？',
+    options: ['A. 使用 SELECT *', 'B. 在 WHERE 条件列上创建索引', 'C. 增加更多列', 'D. 每次查询后重启数据库'], correct: 'B',
+    knowledge_point: '查询优化', explanation: '在 WHERE、JOIN、ORDER BY 涉及的列上创建索引，是提升查询性能最直接有效的方法。',
+  },
+  {
+    id: 'q-sql-5', levelName: '事务特性', tags: ['sql'],
+    question: '数据库事务的 ACID 特性中，A 代表什么？',
+    options: ['A. 自动化（Auto）', 'B. 原子性（Atomicity）', 'C. 匿名（Anonymous）', 'D. 异步（Async）'], correct: 'B',
+    knowledge_point: '事务特性', explanation: 'ACID 中 A 是原子性：事务中的所有操作要么全部完成，要么全部不执行，保证数据一致性。',
+  },
 ]
 
 const SOURCES: ChallengeQuestion['source'][] = [
   '来自本轮提问', '来自当前路径', '来自我的资源包', '来自画像易错点', '系统综合推荐',
 ]
 
-// ========== Context Inference (Mock) ==========
+// =====================================================================
+// Context Inference (Mock)
+// =====================================================================
 
-export function inferConversationContextMock(userQuestion: string): ConversationContext {
+export function inferConversationContextMock(
+  userQuestion: string,
+  pathNodes?: PathNode[],
+): ConversationContext {
   const resources = loadPathResources()
-  const weakPoints = ['递归出口', '遍历顺序']
 
-  const lower = userQuestion.toLowerCase()
-  const topics: string[] = []
+  const topics = detectTopics(userQuestion)
 
-  if (lower.includes('递归') || lower.includes('调用栈')) topics.push('recursion')
-  if (lower.includes('二叉树') || lower.includes('遍历') || lower.includes('前序') || lower.includes('中序') || lower.includes('后序')) topics.push('binary-tree')
-  if (lower.includes('数组') || lower.includes('越界') || lower.includes('下标') || lower.includes('边界')) topics.push('array')
-  if (lower.includes('函数') || lower.includes('调用') || lower.includes('参数') || lower.includes('返回值') || lower.includes('作用域')) topics.push('function-call')
-  if (lower.includes('调试') || lower.includes('debug') || lower.includes('报错') || lower.includes('错误')) topics.push('debug')
+  // Match against learning path if available
+  const pathMatch = pathNodes ? findBestPathNode(userQuestion, pathNodes) : null
 
-  if (topics.length === 0) {
+  // Default weak points — prefer path node info when available
+  const weakPoints: string[] = []
+  if (pathMatch) {
+    // Use the matched path node's keywords as reference for weak points
+    weakPoints.push(...pathMatch.node.keywords.slice(0, 2))
+  } else {
+    if (topics.includes('recursion')) weakPoints.push('递归出口')
+    if (topics.includes('binary-tree')) weakPoints.push('遍历顺序')
+    if (topics.includes('array')) weakPoints.push('数组边界')
+    if (topics.includes('linked-list')) weakPoints.push('指针操作')
+    if (topics.includes('sorting')) weakPoints.push('算法选择')
+    if (topics.includes('sql')) weakPoints.push('查询优化')
+    if (weakPoints.length === 0) {
+      weakPoints.push('知识巩固')
+    }
+  }
+
+  if (topics.length === 0 && !pathMatch) {
     topics.push('binary-tree', 'recursion')
   }
 
@@ -225,28 +438,118 @@ export function inferConversationContextMock(userQuestion: string): Conversation
     ? (userQuestion.length > 20 ? userQuestion.slice(0, 20) + '…' : userQuestion)
     : '等待输入'
 
+  // Build path node display name
+  let pathNodeDisplay: string
+  let matchNote: string | undefined
+  if (pathMatch) {
+    pathNodeDisplay = pathMatch.node.name
+    matchNote = undefined
+  } else if (pathNodes && pathNodes.length > 0) {
+    pathNodeDisplay = '当前未找到匹配节点'
+    matchNote = '当前学习路径中暂无完全匹配节点，以下题目基于通用知识点生成'
+  } else {
+    pathNodeDisplay = topics[0] ? `${topics[0]}相关知识点` : '当前学习节点'
+    matchNote = pathNodes && pathNodes.length === 0 ? undefined : '当前未检测到学习路径，题目根据你的提问生成'
+  }
+
   return {
     currentQuestion: questionSummary,
-    pathNode: '二叉树遍历代码实现',
+    pathNode: pathNodeDisplay,
     resourceCount: resources.length,
     weakPoints,
     inferredTopics: [...new Set(topics)],
+    matchedPathNodeId: pathMatch?.node.id,
+    matchedPathNodeTitle: pathMatch?.node.name,
+    matchedPathNodeStage: pathMatch?.node.stage,
+    pathNodeMatchNote: matchNote,
   }
 }
 
-// ========== Challenge Generation from Context (Mock) ==========
+// =====================================================================
+// Challenge Generation from Context (Mock)
+// =====================================================================
 
-export function generateChallengeByContextMock(context: ConversationContext): ChallengeQuestion[] {
-  const { inferredTopics } = context
+export function generateChallengeByContextMock(
+  context: ConversationContext,
+  pathNodes?: PathNode[],
+): ChallengeQuestion[] {
+  const { inferredTopics, matchedPathNodeId, matchedPathNodeTitle, matchedPathNodeStage } = context
 
-  // Score each pool question by how many tags match the inferred topics
-  const scored = QUESTION_POOL.map((q) => ({
-    ...q,
-    score: q.tags.filter((t) => inferredTopics.includes(t)).length,
-  }))
+  // Find the matched path node if available
+  const matchedNode = matchedPathNodeId
+    ? (pathNodes || []).find((n) => n.id === matchedPathNodeId) ?? null
+    : null
 
-  // Sort by relevance (most matching tags first), then pick top 5
+  // Build source_basis for each scenario
+  const questionPreview = context.currentQuestion !== '等待输入' ? context.currentQuestion : ''
+
+  // Expand scoring tags: if a path node is matched, boost its keywords
+  const pathNodeKeywords = new Set<string>()
+  if (matchedNode) {
+    for (const kw of matchedNode.keywords) {
+      pathNodeKeywords.add(kw.toLowerCase())
+    }
+    for (const kw of matchedNode.learningObjectives) {
+      pathNodeKeywords.add(kw.toLowerCase())
+    }
+  }
+
+  const scored = QUESTION_POOL.map((q) => {
+    let score = q.tags.filter((t) => inferredTopics.includes(t)).length
+
+    // Boost score for questions whose knowledge_point or tags match path node keywords
+    if (matchedNode) {
+      const qText = (q.knowledge_point + ' ' + q.tags.join(' ') + ' ' + q.levelName).toLowerCase()
+      for (const kw of pathNodeKeywords) {
+        if (qText.includes(kw)) score += 2
+      }
+    }
+
+    return { ...q, score }
+  })
+
   scored.sort((a, b) => b.score - a.score)
+
+  // Build a human-readable source_basis
+  function buildSourceBasis(): string {
+    if (matchedNode && questionPreview) {
+      return `依据：你的提问「${questionPreview}」+ 学习路径节点「${matchedNode.name}」（${matchedNode.stage}）`
+    }
+    if (matchedNode) {
+      return `依据：学习路径节点「${matchedNode.name}」（${matchedNode.stage}）`
+    }
+    if (questionPreview && pathNodes && pathNodes.length > 0) {
+      return `依据：你的提问「${questionPreview}」——当前学习路径中暂无完全匹配节点，以下基于通用知识点生成`
+    }
+    if (questionPreview) {
+      return `依据：你的提问「${questionPreview}」——当前未检测到学习路径，题目根据提问关键词生成`
+    }
+    if (pathNodes && pathNodes.length > 0) {
+      return '依据：学习路径综合分析'
+    }
+    return '依据：通用知识点评估'
+  }
+
+  const sourceBasis = buildSourceBasis()
+
+  // If no questions match and no path node match, shuffle and provide fallback
+  if (scored.every((q) => q.score === 0)) {
+    const shuffled = [...QUESTION_POOL].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, 5).map((q, i) => ({
+      id: q.id,
+      level: i + 1,
+      levelName: q.levelName,
+      source: SOURCES[i % SOURCES.length],
+      source_basis: sourceBasis,
+      path_node_title: matchedNode?.name,
+      path_node_stage: matchedNode?.stage,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      knowledge_point: q.knowledge_point,
+      explanation: q.explanation,
+    }))
+  }
 
   const selected: ChallengeQuestion[] = []
   const usedIds = new Set<string>()
@@ -259,7 +562,10 @@ export function generateChallengeByContextMock(context: ConversationContext): Ch
       id: q.id,
       level: selected.length + 1,
       levelName: q.levelName,
-      source: SOURCES[selected.length],
+      source: matchedNode ? '来自当前路径' : SOURCES[selected.length],
+      source_basis: sourceBasis,
+      path_node_title: matchedNode?.name,
+      path_node_stage: matchedNode?.stage,
       question: q.question,
       options: q.options,
       correct: q.correct,
@@ -271,32 +577,57 @@ export function generateChallengeByContextMock(context: ConversationContext): Ch
   return selected
 }
 
-// ========== Contextual Example Questions (Mock) ==========
+// =====================================================================
+// Contextual Example Questions (Mock)
+// =====================================================================
 
 export function getContextualExampleQuestions(context: ConversationContext): string[] {
   const { inferredTopics, resourceCount } = context
 
   const questions: string[] = []
 
-  if (inferredTopics.includes('binary-tree') || inferredTopics.includes('recursion')) {
-    questions.push('二叉树遍历代码应该怎么写？')
-    questions.push('前序、中序、后序遍历有什么区别？')
-  }
-
-  if (resourceCount > 0) {
-    questions.push('我加入的资源应该先学哪一个？')
-  }
-
-  if (inferredTopics.includes('recursion') || context.weakPoints.some((w) => w.includes('递归'))) {
+  if (inferredTopics.includes('recursion')) {
+    questions.push('递归调用栈为什么容易弄混？')
     questions.push('为什么递归函数一定要有出口？')
   }
 
-  if (inferredTopics.includes('array') || context.weakPoints.some((w) => w.includes('数组') || w.includes('边界'))) {
+  if (inferredTopics.includes('binary-tree')) {
+    questions.push('树的前序遍历和中序遍历有什么区别？')
+    questions.push('二叉树遍历代码应该怎么写？')
+  }
+
+  if (inferredTopics.includes('array')) {
     questions.push('如何避免数组越界？')
+    questions.push('数组的边界条件怎么处理？')
+  }
+
+  if (inferredTopics.includes('linked-list')) {
+    questions.push('链表和数组有什么区别？')
+    questions.push('链表的插入删除怎么实现？')
+  }
+
+  if (inferredTopics.includes('sorting')) {
+    questions.push('快速排序和归并排序有什么区别？')
+    questions.push('二分查找的前提条件是什么？')
+  }
+
+  if (inferredTopics.includes('sql')) {
+    questions.push('SQL 查询为什么要用索引？')
+    questions.push('数据库索引的工作原理是什么？')
   }
 
   if (inferredTopics.includes('function-call')) {
     questions.push('函数调用时参数是怎么传递的？')
+    questions.push('如何理解函数的作用域？')
+  }
+
+  if (inferredTopics.includes('debug')) {
+    questions.push('代码报错后应该怎么排查？')
+    questions.push('如何高效地调试递归函数？')
+  }
+
+  if (resourceCount > 0) {
+    questions.push('我加入的资源应该先学哪一个？')
   }
 
   if (questions.length < 4) {
@@ -305,6 +636,7 @@ export function getContextualExampleQuestions(context: ConversationContext): str
       '能不能结合我的资源包讲一下调用栈？',
       '我应该按什么顺序学习这些知识点？',
       '二叉树的层序遍历有什么用？',
+      '如何设计一个简单的数据库表？',
     ]
     for (const fb of fallbacks) {
       if (questions.length >= 5) break
@@ -315,7 +647,9 @@ export function getContextualExampleQuestions(context: ConversationContext): str
   return questions.slice(0, 5)
 }
 
-// ========== Resource Recommendation from Context (Mock) ==========
+// =====================================================================
+// Resource Recommendation from Context (Mock)
+// =====================================================================
 
 export function recommendResourcesByContextMock(context: ConversationContext): Array<{
   title: string
@@ -326,7 +660,6 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
   const resources = loadPathResources()
   const { inferredTopics, weakPoints } = context
 
-  // First, check localStorage resources for matches
   const matchedFromPackage: Array<{ title: string; type: string; estimatedTime: string; topic: string }> = []
 
   for (const res of resources) {
@@ -336,8 +669,12 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
         'recursion': ['递归', '调用栈', '出口'],
         'binary-tree': ['二叉树', '遍历', '树'],
         'array': ['数组', '下标', '越界', '边界'],
+        'linked-list': ['链表', '节点', '指针'],
+        'sorting': ['排序', '查找', '搜索', '二分'],
+        'sql': ['sql', '数据库', '索引', '查询'],
         'function-call': ['函数', '调用', '参数', '返回'],
         'debug': ['调试', 'debug', '错误', '报错'],
+        'project': ['项目', '实践', '开发'],
       }
       return (kwMap[t] || []).some((kw) => text.includes(kw))
     })
@@ -355,26 +692,68 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
     return matchedFromPackage.slice(0, 3)
   }
 
-  // Fallback: default mock recommendations based on context
+  // Fallback: topic-aware default recommendations
   const defaults: Array<{ title: string; type: string; estimatedTime: string; topic: string }> = []
 
-  if (inferredTopics.includes('binary-tree') || inferredTopics.includes('recursion')) {
-    defaults.push(
-      { title: '二叉树遍历个性化讲解文档', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '二叉树遍历' },
-      { title: '递归图解讲义', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '递归调用栈' },
-      { title: 'Python 代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '二叉树遍历' },
-    )
-  } else {
+  const topicResourceMap: Record<string, Array<{ title: string; type: string; estimatedTime: string; topic: string }>> = {
+    'recursion': [
+      { title: '递归调用栈图解讲义', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '递归' },
+      { title: '递归代码示例与逐行注释', type: '代码示例与注释', estimatedTime: '30 分钟', topic: '递归' },
+    ],
+    'binary-tree': [
+      { title: '二叉树遍历图解讲义', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '二叉树遍历' },
+      { title: '遍历代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '二叉树遍历' },
+    ],
+    'array': [
+      { title: '数组操作与边界条件讲解', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '数组操作' },
+      { title: '数组练习题集', type: '分层练习题', estimatedTime: '30 分钟', topic: '数组' },
+    ],
+    'linked-list': [
+      { title: '链表数据结构图解', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '链表' },
+      { title: '链表操作代码示例', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '链表' },
+    ],
+    'sorting': [
+      { title: '排序算法对比讲解', type: '个性化讲解文档', estimatedTime: '30 分钟', topic: '排序算法' },
+      { title: '排序算法代码模板', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '排序' },
+    ],
+    'sql': [
+      { title: '数据库索引原理讲解', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '数据库索引' },
+      { title: 'SQL 查询优化实践', type: '代码示例与注释', estimatedTime: '30 分钟', topic: 'SQL' },
+    ],
+    'function-call': [
+      { title: '函数调用机制深度讲解', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '函数调用' },
+      { title: 'Python 函数调用示例', type: '代码示例与注释', estimatedTime: '20 分钟', topic: '函数' },
+    ],
+    'debug': [
+      { title: '代码调试方法论', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '调试技巧' },
+      { title: '常见错误类型速查手册', type: '拓展阅读资料', estimatedTime: '15 分钟', topic: '调试' },
+    ],
+  }
+
+  for (const topic of inferredTopics) {
+    const items = topicResourceMap[topic]
+    if (items) {
+      for (const item of items) {
+        if (!defaults.some((d) => d.title === item.title)) {
+          defaults.push(item)
+        }
+      }
+    }
+  }
+
+  if (defaults.length === 0) {
     defaults.push(
       { title: `${weakPoints[0] || '基础知识'}个性化讲解文档`, type: '个性化讲解文档', estimatedTime: '20 分钟', topic: weakPoints[0] || '综合' },
-      { title: 'Python 代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '综合辅导' },
+      { title: '代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '综合辅导' },
     )
   }
 
-  return defaults
+  return defaults.slice(0, 3)
 }
 
-// ========== Challenge Result Generator ==========
+// =====================================================================
+// Challenge Result Generator
+// =====================================================================
 
 export function generateChallengeResult(answers: Record<string, string>, questions: ChallengeQuestion[]): ChallengeResult {
   let correct = 0
@@ -400,170 +779,275 @@ export function generateChallengeResult(answers: Record<string, string>, questio
   }
 }
 
-// ========== Tutor Chat Responses ==========
+// =====================================================================
+// Keyword-Driven Tutor Response System (Phase 10)
+//
+// Each domain has a response builder that generates a relevant,
+// structured tutoring response. The dispatcher matches the user's
+// question to the best domain and routes accordingly.
+// =====================================================================
 
-function getComprehensiveResponse(): TutorChatResponse {
+function buildRecursionResponse(): TutorChatResponse {
   return {
-    greeting: '好的，我来帮你梳理一下当前的整体学习情况！',
-    approach: '根据你的学习画像，我会从你最需要加强的"递归出口"和"遍历顺序"入手，帮你制定综合提升计划。',
+    greeting: '关于递归这个问题，我来帮你梳理清楚！',
+    approach: '递归的核心是把大问题分解成小问题，每次递归调用都解决一个更小的子问题，直到遇到基准情形（Base Case）为止。',
     steps: [
-      '第一步：优先巩固递归概念和调用栈理解——这是二叉树遍历的基础，也是后续数据结构课程的核心。',
-      '第二步：掌握数组操作和循环条件设置——这是编程基本功，几乎所有算法题都会用到。',
-      '第三步：深入理解函数调用机制——参数传递、返回值、作用域、调用顺序，为学习更复杂的算法打基础。',
-      '第四步：最后练习代码调试，学会定位和理解错误——这项能力会让你独立解决大部分编程问题。',
+      '第一步：明确递归函数的定义——它要解决什么问题，输入和输出分别是什么。',
+      '第二步：找到基准情形——最简单、不需要再递归的情况，这是递归的出口。',
+      '第三步：写出递归关系——如何把当前问题转化为更小的、同类型的子问题。',
+      '第四步：在纸上模拟调用栈的压入和弹出过程，理解每次递归调用时参数变化和返回值传递。',
     ],
-    code_example: null,
+    code_example: 'def factorial(n):\n    if n <= 1:         # 基准情形：递归出口\n        return 1\n    return n * factorial(n - 1)  # 递归关系\n\n# f(4) = 4 × f(3) = 4 × 3 × f(2)\n#      = 4 × 3 × 2 × f(1)\n#      = 4 × 3 × 2 × 1 = 24',
     recommended_resources: [
-      { title: '递归图解讲义', url: '#' },
-      { title: '二叉树遍历个性化讲解文档', url: '#' },
-      { title: '分层练习题', url: '#' },
+      { title: '递归调用栈图解讲义', url: '#' },
+      { title: '递归代码示例与逐行注释', url: '#' },
     ],
-    suggested_exercise: '按照以上顺序逐一学习，每完成一个知识点就完成对应的闯关挑战，最后完成综合代码调试练习。',
+    suggested_exercise: '尝试用递归实现斐波那契数列，并在一张纸上画出 f(5) 的完整调用栈图。',
   }
 }
 
-const TUTOR_RESPONSES: Record<string, TutorChatResponse> = {
-  '递归为什么能遍历二叉树': {
-    greeting: '别急，这个问题很常见！你偏好图示和代码案例，所以我先用"调用栈"来帮你直观理解。',
-    approach: '根据你的学习画像（图示优先 + 代码示例驱动），我会结合图示和代码来解释递归遍历的本质。',
+function buildBinaryTreeResponse(): TutorChatResponse {
+  return {
+    greeting: '二叉树遍历是数据结构中最核心的操作之一，让我帮你理清思路！',
+    approach: '三种遍历的核心区别在于"根节点被访问的时机"：前序先访问根，中序中间访问根，后序最后访问根。',
     steps: [
-      '第一步：把二叉树想象成"嵌套的套娃"——每个节点本身是一个小二叉树，有左子树和右子树。',
-      '第二步：递归函数只做一件事：访问当前节点，然后把"遍历左子树"和"遍历右子树"这两个同样的任务交给下一层。',
-      '第三步：每次递归调用都会在调用栈上压入一个新栈帧。以一棵 3 节点树为例，前序遍历的调用顺序是：访问 A → 递归左 B → 递归右 C。',
-      '第四步：当遇到叶子节点（左右子树为空），递归出口被触发，调用栈开始逐层弹出，回溯到上一层。',
+      '第一步：理解遍历的本质——遍历就是按照一定顺序访问树中的每个节点，每个节点恰好访问一次。',
+      '第二步：前序遍历（根→左→右）——先处理根节点，再递归左子树，最后递归右子树。',
+      '第三步：中序遍历（左→根→右）——先递归左子树，再处理根节点，最后递归右子树。对二叉搜索树（BST）会得到有序序列。',
+      '第四步：后序遍历（左→右→根）——先递归左右子树，最后处理根。适合需要子节点结果汇总的场景，如计算树的高度。',
     ],
-    code_example: 'def preorder(root):\n    if root is None:      # 递归出口\n        return\n    print(root.val)        # 访问当前节点\n    preorder(root.left)    # 递归左子树\n    preorder(root.right)   # 递归右子树',
+    code_example: 'class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\ndef preorder(root):\n    if root is None: return      # 出口\n    print(root.val, end=" ")     # 根\n    preorder(root.left)          # 左\n    preorder(root.right)         # 右',
     recommended_resources: [
-      { title: '二叉树遍历个性化讲解文档', url: '#' },
-      { title: 'Python 代码示例与注释', url: '#' },
+      { title: '二叉树遍历图解讲义', url: '#' },
+      { title: '遍历代码示例与注释', url: '#' },
     ],
-    suggested_exercise: '接下来可以试试闯关评估第 1 关：前序遍历判断。',
-  },
-  '前序中序后序的区别': {
-    greeting: '这三个顺序很多同学一开始都会混淆，不用担心！我们来用一个简单的方法记住它们。',
-    approach: '根据你图示优先的学习风格，我用"根节点的访问时机"作为核心记忆点。',
-    steps: [
-      '第一步：记住关键——"前/中/后"指的是根节点在第几位被访问。',
-      '第二步：前序遍历（根→左→右）：先处理根，再递归左右。记忆口诀："根左右"。',
-      '第三步：中序遍历（左→根→右）：先递归左子树，再处理根，最后递归右子树。记忆口诀："左根右"。',
-      '第四步：后序遍历（左→右→根）：先递归左右子树，最后处理根。记忆口诀："左右根"。',
-    ],
-    code_example: '# 以 A-B-C 三节点树为例：\n# 前序：A → B → C  (根左右)\n# 中序：B → A → C  (左根右)\n# 后序：B → C → A  (左右根)',
-    recommended_resources: [
-      { title: '二叉树遍历思维导图', url: '#' },
-      { title: '分层练习题', url: '#' },
-    ],
-    suggested_exercise: '接下来可以试试闯关评估第 3 关：中序遍历判断。',
-  },
-  '为什么递归函数一定要有出口': {
-    greeting: '问得好！这个问题触及了递归最核心的概念。',
-    approach: '用你的编程经验来类比：递归就像循环，而"出口"就是循环的终止条件。没有终止条件就是死循环。',
-    steps: [
-      '第一步：递归出口就是"基准情形"——最简单、不需要再递归的情况。',
-      '第二步：没有出口会发生什么？每次递归调用都会压入一个栈帧。没有出口，调用栈无限增长，最终导致栈溢出。',
-      '第三步：在二叉树遍历中，出口是"遇到空节点"。走到叶子节点的子节点时它是 None，直接 return。',
-      '第四步：理解记忆——"出口就是告诉递归：你已经走到头了，停止往下走，开始往回返。"',
-    ],
-    code_example: 'def factorial(n):\n    if n <= 1:         # ← 这就是出口！\n        return 1\n    return n * factorial(n - 1)',
-    recommended_resources: [
-      { title: '递归图解讲义', url: '#' },
-      { title: '二叉树遍历代码示例', url: '#' },
-    ],
-    suggested_exercise: '接下来可以试试闯关评估的递归出口理解题。',
-  },
-  '二叉树遍历代码应该怎么写': {
-    greeting: '写遍历代码其实有固定的"模板"，掌握了模板就很好写了！',
-    approach: '你喜欢代码案例学习，所以我会直接给出完整的 Python 模板，每行都有中文注释。',
-    steps: [
-      '第一步：定义二叉树节点类 TreeNode，包含 val、left、right 三个属性。',
-      '第二步：写递归遍历函数，记住三步公式：判断出口 → 访问当前 → 递归子树。',
-      '第三步：前/中/后序的区别仅在于"访问当前节点"这一行代码的位置。',
-      '第四步：写出测试用例，手动验证输出是否正确。',
-    ],
-    code_example: 'class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\nroot = TreeNode("A", TreeNode("B"), TreeNode("C"))\n\ndef preorder(root):\n    if root is None: return\n    print(root.val, end=" ")   # 根\n    preorder(root.left)         # 左\n    preorder(root.right)        # 右\n# 输出: A B C',
-    recommended_resources: [
-      { title: 'Python 代码示例与注释', url: '#' },
-      { title: '分层练习题 - 代码补全', url: '#' },
-    ],
-    suggested_exercise: '在编辑器中运行代码，修改 print 的位置分别实现中序和后序遍历，对比输出。',
-  },
+    suggested_exercise: '用同一棵 3 层二叉树分别跑前序、中序、后序遍历，对比三种输出结果的差异。',
+  }
 }
 
-function matchQuestion(input: string): string {
-  const lower = input.toLowerCase()
-  if (lower.includes('综合') || lower.includes('补哪') || lower.includes('安排') || lower.includes('复习顺序') || lower.includes('应该先') || lower.includes('怎么继续')) return '__comprehensive__'
-  if (lower.includes('递归') && (lower.includes('遍历') || lower.includes('二叉树'))) return '递归为什么能遍历二叉树'
-  if (lower.includes('前序') || lower.includes('中序') || lower.includes('后序') || lower.includes('区别')) return '前序中序后序的区别'
-  if (lower.includes('出口') || lower.includes('为什么递归')) return '为什么递归函数一定要有出口'
-  if (lower.includes('代码') || lower.includes('怎么写')) return '二叉树遍历代码应该怎么写'
-  if (lower.includes('遍历')) return '前序中序后序的区别'
-  if (lower.includes('递归')) return '递归为什么能遍历二叉树'
-  if (lower.includes('数组') || lower.includes('下标') || lower.includes('越界') || lower.includes('边界')) return '__comprehensive__'
-  if (lower.includes('函数') || lower.includes('调用') || lower.includes('参数') || lower.includes('返回')) return '__comprehensive__'
-  if (lower.includes('调试') || lower.includes('debug') || lower.includes('报错') || lower.includes('错误')) return '__comprehensive__'
-  return '__comprehensive__'
+function buildArrayResponse(): TutorChatResponse {
+  return {
+    greeting: '数组是编程中最常用的数据结构，我来帮你理清基本概念！',
+    approach: '数组操作的核心是理解"索引从 0 开始"和"边界条件"。大部分数组错误都来自越界访问或循环条件写错。',
+    steps: [
+      '第一步：明确索引范围——长度为 n 的数组，有效索引是 0 到 n-1，arr[n] 会越界。',
+      '第二步：遍历数组时，循环条件用 i < n 而不是 i <= n，防止访问 arr[n]。',
+      '第三步：处理多维数组时，逐层理解——arr[i][j] 中 i 是行号，j 是列号。',
+      '第四步：注意边界情况——空数组（len=0）、单元素数组、首尾元素的特殊处理。',
+    ],
+    code_example: 'arr = [10, 20, 30, 40, 50]\nn = len(arr)              # n = 5\n# 安全的遍历方式\nfor i in range(n):        # range(5) → 0,1,2,3,4\n    print(arr[i])\n# 不安全的访问\n# arr[n]                  # IndexError!',
+    recommended_resources: [
+      { title: '数组操作基础讲解', url: '#' },
+      { title: '数组边界条件练习题', url: '#' },
+    ],
+    suggested_exercise: '写一个函数反转数组，分别用循环遍历和切片两种方式实现，测试空数组和单元素数组的情况。',
+  }
+}
+
+function buildLinkedListResponse(): TutorChatResponse {
+  return {
+    greeting: '链表是理解指针和动态数据结构的基础，让我来帮你理清！',
+    approach: '链表的核心是每个节点包含数据域和指向下一个节点的指针。理解指针的"指向关系"是掌握链表的关键。',
+    steps: [
+      '第一步：理解节点结构——每个节点包含数据域（val）和指针域（next），next 指向下一个节点。',
+      '第二步：掌握链表遍历——从头结点开始，沿着 next 指针逐个访问，直到遇到 None。',
+      '第三步：理解插入操作——新节点的 next 先指向后继节点，然后修改前驱节点的 next 指向新节点。',
+      '第四步：注意空链表、头结点操作、尾结点操作的边界情况。',
+    ],
+    code_example: 'class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\ndef traverse(head):\n    curr = head\n    while curr is not None:\n        print(curr.val)\n        curr = curr.next',
+    recommended_resources: [
+      { title: '链表数据结构图解讲义', url: '#' },
+      { title: '链表操作代码示例与注释', url: '#' },
+    ],
+    suggested_exercise: '实现链表的三个基本操作：遍历、插入、删除，画出每一步指针变化的图示。',
+  }
+}
+
+function buildSortingResponse(): TutorChatResponse {
+  return {
+    greeting: '排序和查找是算法学习的经典起点，让我帮你理清思路！',
+    approach: '学习排序算法的推荐路径：先掌握简单排序（冒泡、选择、插入），再学习高效排序（快速、归并），最后理解它们的适用场景和复杂度差异。',
+    steps: [
+      '第一步：从冒泡排序入手——理解比较和交换的基本操作，每轮将最大元素"冒泡"到最后。',
+      '第二步：学习快速排序的分治思想——选基准（pivot）、分区（partition）、递归排序子数组。',
+      '第三步：理解归并排序——先递归分成小数组，再合并有序子数组。是稳定排序的代表。',
+      '第四步：掌握二分查找——前提是数组已排序，每次通过中间值折半缩小搜索范围。',
+    ],
+    code_example: 'def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        swapped = False\n        for j in range(n - i - 1):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n                swapped = True\n        if not swapped: break\n    return arr',
+    recommended_resources: [
+      { title: '排序算法可视化对比', url: '#' },
+      { title: '排序算法代码模板集', url: '#' },
+    ],
+    suggested_exercise: '用 Python 实现冒泡排序和快速排序，分别在随机数组和已排序数组上测试性能差异。',
+  }
+}
+
+function buildSqlResponse(): TutorChatResponse {
+  return {
+    greeting: '数据库查询优化是实际开发中很重要的技能，让我来帮你理解！',
+    approach: 'SQL 查询优化的核心是理解索引的工作原理。索引就像书的目录，帮你快速定位数据，避免逐行扫描整张表。',
+    steps: [
+      '第一步：理解全表扫描的问题——没有索引时，数据库必须逐行检查所有数据，数据量大时非常慢。',
+      '第二步：理解索引原理——索引是一个排序的数据结构（通常是 B+ 树），支持 O(log n) 的快速查找。',
+      '第三步：知道什么时候该建索引——频繁出现在 WHERE、JOIN、ORDER BY 中的列。',
+      '第四步：了解索引的代价——索引占用额外存储空间，并在插入、更新、删除时带来维护开销。',
+    ],
+    code_example: '-- 没有索引 → 全表扫描\nSELECT * FROM students WHERE name = \'Tom\';\n\n-- 创建索引后 → 快速定位\nCREATE INDEX idx_name ON students(name);\n\n-- 索引对范围查询同样有效\nSELECT * FROM orders\nWHERE order_date > \'2025-01-01\'\nORDER BY order_date;',
+    recommended_resources: [
+      { title: '数据库索引原理讲解', url: '#' },
+      { title: 'SQL 查询优化实践指南', url: '#' },
+    ],
+    suggested_exercise: '创建一个包含 1000 行数据的测试表，分别在有无索引时执行相同的查询，对比 EXPLAIN 输出和执行时间。',
+  }
+}
+
+function buildFunctionCallResponse(): TutorChatResponse {
+  return {
+    greeting: '函数调用机制是理解程序执行流程的核心，我来帮你讲清楚！',
+    approach: '理解函数调用的关键是三个概念：参数传递方式、返回值机制和调用栈的工作原理。',
+    steps: [
+      '第一步：理解参数传递——Python 中不可变对象（int、str、tuple）传值，可变对象（list、dict）传引用。',
+      '第二步：掌握返回值——函数通过 return 将结果返回给调用者，没有 return 时默认返回 None。',
+      '第三步：理解调用栈——每次函数调用会创建一个栈帧（存储参数、局部变量、返回地址），返回时弹栈。',
+      '第四步：注意作用域规则——函数内部变量是局部的（local），外部无法直接访问；需要访问外部变量时用 global 或 nonlocal。',
+    ],
+    code_example: 'def add(a, b):\n    result = a + b      # result 是局部变量\n    return result        # 返回给调用者\n\nx = add(3, 4)           # x = 7\n# print(result)          # NameError: result 未定义',
+    recommended_resources: [
+      { title: '函数调用机制详解', url: '#' },
+      { title: 'Python 作用域与闭包讲解', url: '#' },
+    ],
+    suggested_exercise: '定义三个嵌套函数（outer → middle → inner），在纸面上追踪每次调用的参数、局部变量和返回值。',
+  }
+}
+
+function buildDebugResponse(): TutorChatResponse {
+  return {
+    greeting: '调试是每个开发者必须掌握的实用技能，我来分享一些有效的方法！',
+    approach: '调试的核心是"假设→验证"循环：根据错误信息提出假设，用工具或 print 验证假设，逐步缩小问题范围。',
+    steps: [
+      '第一步：仔细阅读错误信息——错误类型（如 IndexError）、出错行号和调用堆栈是最重要的三个线索。',
+      '第二步：从堆栈最底层（你的代码）开始向上追溯，定位问题源头。',
+      '第三步：在可疑位置插入 print 输出关键变量值，验证你的假设是否正确。',
+      '第四步：重点检查边界条件——空值、零值、数组首尾元素、递归出口，这些是最常见的错误来源。',
+    ],
+    code_example: '# 调试技巧示例\ndef binary_search(arr, target):\n    print(f"搜索 {target} 在 {arr} 中")\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        print(f"  left={left}, mid={mid}, right={right}, val={arr[mid]}")\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1',
+    recommended_resources: [
+      { title: '代码调试方法论与技巧', url: '#' },
+      { title: '常见错误类型速查手册', url: '#' },
+    ],
+    suggested_exercise: '故意写一个包含越界错误的数组访问函数，通过阅读错误信息定位问题，然后用 print 调试法验证修复。',
+  }
+}
+
+function buildProjectResponse(): TutorChatResponse {
+  return {
+    greeting: '项目实践是把知识转化为真实能力的关键一步！',
+    approach: '项目学习的最佳策略是从小到大、从模仿到创新。先完成一个简单但完整的项目，再逐步增加复杂度。',
+    steps: [
+      '第一步：明确项目目标——确定核心功能和预期效果，不要一开始就追求完美。',
+      '第二步：拆解任务——把大项目分解为独立的小模块，每个模块完成后可以单独测试。',
+      '第三步：先写核心逻辑——从最简单的功能开始，确保基本流程能跑通。',
+      '第四步：逐步完善——添加错误处理、边界条件、用户交互，最后优化代码结构。',
+    ],
+    code_example: null,
+    recommended_resources: [
+      { title: '项目式学习案例集', url: '#' },
+      { title: '从零搭建完整项目指南', url: '#' },
+    ],
+    suggested_exercise: '选择一个你感兴趣的小项目（如命令行计算器、待办事项管理器），按上述四步从零开始实现。',
+  }
+}
+
+function buildGenericResponse(input: string): TutorChatResponse {
+  const preview = input.length > 40 ? input.slice(0, 40) + '…' : input
+  return {
+    greeting: `关于"${preview}"这个问题，我来帮你分析一下！`,
+    approach: '根据你的问题，我建议从基础概念入手，逐步深入理解相关知识点。',
+    steps: [
+      '第一步：明确问题涉及的核心概念和知识点范围。',
+      '第二步：查阅相关基础资料，建立概念框架。',
+      '第三步：结合代码示例加深理解，动手运行验证。',
+      '第四步：完成相关练习，检验掌握程度。',
+    ],
+    code_example: null,
+    recommended_resources: [
+      { title: '个性化讲解文档', url: '#' },
+      { title: '知识点思维导图', url: '#' },
+    ],
+    suggested_exercise: '尝试用自己的语言复述该知识点，然后找一道相关练习题来检验理解。',
+  }
+}
+
+// ========== Response Dispatcher ==========
+
+const DOMAIN_BUILDERS: Record<string, () => TutorChatResponse> = {
+  'recursion': buildRecursionResponse,
+  'binary-tree': buildBinaryTreeResponse,
+  'array': buildArrayResponse,
+  'linked-list': buildLinkedListResponse,
+  'sorting': buildSortingResponse,
+  'sql': buildSqlResponse,
+  'function-call': buildFunctionCallResponse,
+  'debug': buildDebugResponse,
+  'project': buildProjectResponse,
 }
 
 export function getTutorResponse(input: string): TutorChatResponse {
-  const key = matchQuestion(input)
-  if (key === '__comprehensive__') return getComprehensiveResponse()
-  return TUTOR_RESPONSES[key] || getComprehensiveResponse()
+  if (!input.trim()) return buildGenericResponse('')
+
+  const topics = detectTopics(input)
+
+  if (topics.length > 0) {
+    const builder = DOMAIN_BUILDERS[topics[0]]
+    if (builder) return builder()
+  }
+
+  return buildGenericResponse(input)
 }
 
-// ========== LLM-ready stubs (TODO) ==========
+// =====================================================================
+// LLM-ready stubs (preserved for future integration)
+// =====================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function inferConversationContextWithLLM(_userQuestion: string, _pathNode: string, _resources: PathResourceItem[], _profile: Record<string, unknown>): Promise<ConversationContext> {
-  // TODO: Call LLM to analyze user question and return structured context
   throw new Error('Not implemented — use inferConversationContextMock for now')
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function generateChallengeWithLLM(_context: ConversationContext): Promise<ChallengeQuestion[]> {
-  // TODO: Call LLM to generate personalized challenge questions
   throw new Error('Not implemented — use generateChallengeByContextMock for now')
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function recommendResourcesWithLLM(_context: ConversationContext): Promise<Array<{ title: string; type: string; estimatedTime: string; topic: string }>> {
-  // TODO: Call LLM to recommend resources based on context
   throw new Error('Not implemented — use recommendResourcesByContextMock for now')
 }
 
-// ========== Default Recommended Resources ==========
+// =====================================================================
+// Backward-compatible exports for api.ts
+// =====================================================================
 
 export const DEFAULT_RECOMMENDED_RESOURCES = [
-  { title: '二叉树遍历个性化讲解文档', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '二叉树遍历' },
-  { title: 'Python 代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '二叉树遍历' },
-  { title: '分层练习题', type: '分层练习题', estimatedTime: '45 分钟', topic: '二叉树遍历' },
+  { title: '个性化讲解文档', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '综合' },
+  { title: '代码示例与注释', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '综合' },
+  { title: '分层练习题', type: '分层练习题', estimatedTime: '45 分钟', topic: '综合' },
 ]
 
-// ========== Backward-compatible exports for api.ts ==========
-
 export const mockQuestions: DiagnosisQuestion[] = (() => {
-  const ctx = inferConversationContextMock('')
-  return generateChallengeByContextMock(ctx)
+  const ctx = inferConversationContextMock('', [])
+  return generateChallengeByContextMock(ctx, [])
 })()
 
 export const mockAssessmentResult: AssessmentResult = {
   score: 85,
   total: 100,
   growth: { knowledge_base: 8, practice_ability: 6 },
-  badges: ['递归新手', '遍历达人'],
+  badges: ['知识探索者'],
   remedial_resources: [
-    { knowledge_point: '递归出口', reason: '递归终止条件判断有误' },
-    { knowledge_point: '遍历顺序', reason: '中序与前序概念混淆' },
+    { knowledge_point: '递归出口', reason: '递归终止条件判断需要加强' },
+    { knowledge_point: '遍历顺序', reason: '中序与前序概念容易混淆' },
   ],
 }
 
-export const mockTutorResponse: TutorChatResponse = {
-  greeting: '你好！这是一个很好的问题。',
-  approach: '让我们从基础概念开始，逐步深入理解。',
-  steps: ['理解基本定义', '观察代码执行过程', '总结规律'],
-  code_example: 'def example():\n    print("Hello World")\n    return True',
-  recommended_resources: [
-    { title: '二叉树遍历图解', url: '/resources/binary-tree' },
-    { title: 'Python 递归练习', url: '/resources/recursion-practice' },
-  ],
-  suggested_exercise: '尝试用递归方式实现二叉树的前序遍历。',
-}
+export const mockTutorResponse: TutorChatResponse = getTutorResponse('递归')

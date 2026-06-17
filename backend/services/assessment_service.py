@@ -150,7 +150,7 @@ def get_user_growth(user_id: int) -> dict:
             "growth": {"total_points": 0, "level": 1, "last_updated_at": None},
             "badges": [],
             "recent_records": [],
-            "source": "mock_fallback",
+            "source": "local_cache",
         }
     finally:
         if db:

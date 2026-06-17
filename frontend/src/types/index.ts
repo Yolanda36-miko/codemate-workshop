@@ -264,4 +264,8 @@ export interface ConversationContext {
   resourceCount: number
   weakPoints: string[]
   inferredTopics: string[]
+  matchedPathNodeId?: string
+  matchedPathNodeTitle?: string
+  matchedPathNodeStage?: string
+  pathNodeMatchNote?: string
 }

@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Swords, ChevronRight } from 'lucide-react'
 import type { ChallengeQuestion, ChallengeResult } from '../../mock/assessment'
-import type { ConversationContext } from '../../types'
+import type { ConversationContext, PathNode } from '../../types'
 import { generateChallengeByContextMock, generateChallengeResult, recommendResourcesByContextMock } from '../../mock/assessment'
 import ChallengeCard from './ChallengeCard'
 
 interface ChallengePanelProps {
   context: ConversationContext
+  pathNodes?: PathNode[]
   onViewResource: (resource: { title: string; type: string; estimatedTime: string; topic: string }) => void
 }
 
-export default function ChallengePanel({ context, onViewResource }: ChallengePanelProps) {
+export default function ChallengePanel({ context, pathNodes, onViewResource }: ChallengePanelProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<ChallengeResult | null>(null)
   const [allDone, setAllDone] = useState(false)
   const [currentLevel, setCurrentLevel] = useState(1)
   const [questions, setQuestions] = useState<ChallengeQuestion[]>(() =>
-    generateChallengeByContextMock(context),
+    generateChallengeByContextMock(context, pathNodes),
   )
 
   // Reset when context changes (new question asked)

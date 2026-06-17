@@ -20,7 +20,7 @@ import { mockCourses } from '../mock/courses'
 import { mockResources, generateResourcesMock } from '../mock/resources'
 import type { ResourceGenerateParams } from '../types'
 import { mockLearningPath } from '../mock/path'
-import { mockQuestions, mockAssessmentResult, mockTutorResponse } from '../mock/assessment'
+import { mockQuestions, mockAssessmentResult, getTutorResponse } from '../mock/assessment'
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -194,7 +194,7 @@ export async function generatePath() {
 // ========== Tutor ==========
 
 export async function tutorChat(message: string) {
-  if (USE_MOCK) return mockTutorResponse
+  if (USE_MOCK) return getTutorResponse(message)
   return request<TutorChatResponse>('/tutor/chat', {
     method: 'POST',
     body: JSON.stringify({ message }),

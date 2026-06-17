@@ -51,24 +51,7 @@ export default function ChallengeCard({
           {submitted ? (isCorrect ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />) : question.level}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-gray-700">第 {question.level} 关：{question.levelName}</span>
-            <span
-              className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                question.source === '来自本轮提问'
-                  ? 'bg-primary-50 text-primary-600'
-                  : question.source === '来自当前路径'
-                    ? 'bg-blue-50 text-blue-600'
-                    : question.source === '来自我的资源包'
-                      ? 'bg-green-50 text-green-600'
-                      : question.source === '来自画像易错点'
-                        ? 'bg-amber-50 text-amber-600'
-                        : 'bg-purple-50 text-purple-600'
-              }`}
-            >
-              {question.source}
-            </span>
-          </div>
+          <span className="text-[11px] font-semibold text-gray-700">第 {question.level} 关：{question.levelName}</span>
           {submitted && (
             <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{question.explanation}</p>
           )}

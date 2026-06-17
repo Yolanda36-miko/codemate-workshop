@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles, Code, BookOpen, Lightbulb, MessageCircle } from 'lucide-react'
-import type { TutorChatResponse, ConversationContext } from '../../types'
+import type { TutorChatResponse, ConversationContext, PathNode } from '../../types'
 import { getTutorResponse, getContextualExampleQuestions, inferConversationContextMock } from '../../mock/assessment'
-import { isDemoMode } from '../../config/appConfig'
 import SuggestedQuestions from './SuggestedQuestions'
 
 interface TutorChatWindowProps {
   onQuestionAsked: (question: string) => void
   onViewResource: (resource: { title: string; type: string; estimatedTime: string; topic: string }) => void
+  pathNodes?: PathNode[]
 }
 
 interface ChatMessage {
@@ -18,10 +18,10 @@ interface ChatMessage {
   tutorResponse?: TutorChatResponse
 }
 
-export default function TutorChatWindow({ onQuestionAsked, onViewResource }: TutorChatWindowProps) {
+export default function TutorChatWindow({ onQuestionAsked, onViewResource, pathNodes }: TutorChatWindowProps) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [context, setContext] = useState<ConversationContext>(() => inferConversationContextMock(''))
+  const [context, setContext] = useState<ConversationContext>(() => inferConversationContextMock('', pathNodes))
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const msgIdRef = useRef(0)
 
@@ -39,8 +39,8 @@ export default function TutorChatWindow({ onQuestionAsked, onViewResource }: Tut
     const q = (question || input).trim()
     if (!q) return
 
-    // Update context based on user question
-    const newContext = inferConversationContextMock(q)
+    // Update context based on user question + learning path
+    const newContext = inferConversationContextMock(q, pathNodes)
     setContext(newContext)
     onQuestionAsked(q)
 
@@ -182,7 +182,7 @@ export default function TutorChatWindow({ onQuestionAsked, onViewResource }: Tut
 
               {msg.role === 'user' && (
                 <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[10px] text-gray-500 font-medium">{isDemoMode() ? '李' : '你'}</span>
+                  <span className="text-[10px] text-gray-500 font-medium">你</span>
                 </div>
               )}
             </motion.div>
