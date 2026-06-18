@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { GitBranch, BookOpen, Info } from 'lucide-react'
+import { GitBranch, BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getUserProfile, getCourses } from '../services/api'
 import { hasUsableProfile, buildPersonalizedPath } from '../services/personalizedPath'
@@ -163,11 +163,6 @@ export default function LearningPath() {
           {!profileLoading && !usable && (
             <span className="text-[10px] text-gray-400 ml-2">— 画像不足，使用通用参考路径</span>
           )}
-          {usable && learningPath.personalizedBasis && (
-            <span className="text-[10px] text-green-500 ml-2 bg-green-50 px-2 py-0.5 rounded-full">
-              基于学习画像生成
-            </span>
-          )}
         </div>
       </AnimatedSection>
 
@@ -186,29 +181,6 @@ export default function LearningPath() {
             >
               去完善学习画像
             </Link>
-          </div>
-        </AnimatedSection>
-      )}
-
-      {/* Personalized basis indicator (when profile IS usable) */}
-      {usable && learningPath.personalizedBasis && (
-        <AnimatedSection delay={0.03}>
-          <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl border border-primary-100/50 px-5 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="w-3.5 h-3.5 text-primary-500" />
-              <span className="text-xs font-semibold text-primary-700">个性化依据</span>
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed">{learningPath.personalizedBasis}</p>
-            {learningPath.profileFieldsUsed.length > 0 && (
-              <div className="flex items-center gap-1 mt-2 flex-wrap">
-                <span className="text-[10px] text-gray-400">使用画像字段：</span>
-                {learningPath.profileFieldsUsed.map((f) => (
-                  <span key={f} className="px-1.5 py-0.5 rounded-full bg-white/80 text-primary-600 text-[10px] font-medium border border-primary-100">
-                    {f}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </AnimatedSection>
       )}

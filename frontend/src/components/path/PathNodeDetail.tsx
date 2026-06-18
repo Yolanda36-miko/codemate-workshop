@@ -99,7 +99,7 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Tag className="w-3.5 h-3.5 text-primary-500" />
-                  <span className="text-xs font-medium text-gray-700">我的资源包匹配</span>
+                  <span className="text-xs font-medium text-gray-700">学习资源匹配</span>
                   <span className="text-[10px] text-primary-500 font-medium bg-primary-50 px-1.5 py-0.5 rounded-full">
                     {node.matchedResources.length} 项
                   </span>
@@ -118,7 +118,7 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
                               {r.estimatedTime}
                             </span>
                             <span className="text-[9px] text-primary-500 font-medium bg-primary-50 px-1 py-0.5 rounded">
-                              我的资源包
+                              已保存资源
                             </span>
                           </div>
                         </div>

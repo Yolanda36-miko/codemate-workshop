@@ -84,7 +84,7 @@ export default function ResourceGen() {
       resource_types: p?.selectedTypes ?? [],
     })
     // Sync added_to_path using stable saveKey from packageIdMap
-    const synced = res.resource_cards.map((r) => ({
+    const synced = (res.resource_cards ?? []).map((r) => ({
       ...r,
       added_to_path: packageIdMap.has(`${r.course}|${r.knowledge_point}|${r.title}`),
     }))

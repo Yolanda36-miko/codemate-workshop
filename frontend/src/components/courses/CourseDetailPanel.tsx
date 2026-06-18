@@ -33,11 +33,6 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-gray-800">{course.name}</h2>
-                  {course.positioning === '重点演示' && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-600 font-medium">
-                      重点演示
-                    </span>
-                  )}
                 </div>
                 <p className="text-xs text-gray-400">{course.stage} · {(course.knowledge_points ?? []).length} 个核心知识点</p>
               </div>

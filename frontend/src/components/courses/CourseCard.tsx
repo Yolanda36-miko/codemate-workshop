@@ -10,6 +10,7 @@ interface CourseCardProps {
   onClick: () => void
   onHover: (id: string | null) => void
   index: number
+  isPriority?: boolean
 }
 
 export default function CourseCard({
@@ -20,8 +21,8 @@ export default function CourseCard({
   onClick,
   onHover,
   index,
+  isPriority = false,
 }: CourseCardProps) {
-  const isHighlight = course.positioning === '重点演示'
   const isDimmed = anyHovered && !isHovered
   const keywords = course.knowledge_points.slice(0, 5)
 
@@ -54,18 +55,18 @@ export default function CourseCard({
           : undefined,
       }}
     >
-      {/* Course name + highlight star */}
+      {/* Course name + priority star */}
       <div className="flex items-center gap-1.5 mb-2">
         <h3 className="text-sm font-semibold text-gray-800 truncate">{course.name}</h3>
-        {isHighlight && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
+        {isPriority && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
       </div>
 
       {/* Stage + positioning badge */}
       <div className="flex items-center gap-1.5 mb-2.5">
         <span className="text-[10px] text-gray-500">{course.stage}</span>
-        {isHighlight ? (
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-600 font-medium">
-            重点演示
+        {isPriority ? (
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+            重点课程
           </span>
         ) : (
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">

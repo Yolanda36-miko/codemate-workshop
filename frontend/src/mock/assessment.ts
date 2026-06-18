@@ -7,7 +7,7 @@ import { loadPathResources } from '../utils/pathResources'
 export interface ChallengeQuestion extends DiagnosisQuestion {
   level: number
   levelName: string
-  source: '来自本轮提问' | '来自当前路径' | '来自我的资源包' | '来自画像易错点' | '系统综合推荐'
+  source: '来自本轮提问' | '来自当前路径' | '来自已保存资源' | '来自画像易错点' | '系统综合推荐'
   source_basis: string
   path_node_title?: string
   path_node_stage?: string
@@ -395,7 +395,7 @@ const QUESTION_POOL: PoolQuestion[] = [
 ]
 
 const SOURCES: ChallengeQuestion['source'][] = [
-  '来自本轮提问', '来自当前路径', '来自我的资源包', '来自画像易错点', '系统综合推荐',
+  '来自本轮提问', '来自当前路径', '来自已保存资源', '来自画像易错点', '系统综合推荐',
 ]
 
 // =====================================================================
@@ -633,7 +633,7 @@ export function getContextualExampleQuestions(context: ConversationContext): str
   if (questions.length < 4) {
     const fallbacks = [
       '递归和迭代有什么区别？',
-      '能不能结合我的资源包讲一下调用栈？',
+      '能不能结合已保存的资源讲一下调用栈？',
       '我应该按什么顺序学习这些知识点？',
       '二叉树的层序遍历有什么用？',
       '如何设计一个简单的数据库表？',

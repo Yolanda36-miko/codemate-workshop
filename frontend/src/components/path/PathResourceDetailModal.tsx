@@ -28,8 +28,8 @@ function isPathResourceItem(r: PathResourceItem | PathNodeResource): r is PathRe
 }
 
 function getSource(resource: PathResourceItem | PathNodeResource): string {
-  if (isPathResourceItem(resource)) return '我的资源包'
-  return resource.source === 'resource_package' ? '我的资源包' : '系统推荐'
+  if (isPathResourceItem(resource)) return '已保存资源'
+  return resource.source === 'resource_package' ? '已保存资源' : '系统推荐'
 }
 
 function getDefaultDetail(resource: PathResourceItem | PathNodeResource): ResourceDetail {
@@ -43,7 +43,7 @@ function getDefaultDetail(resource: PathResourceItem | PathNodeResource): Resour
       note: resource.note || '',
       purpose: resource.purpose || '',
       priority: resource.priority || '',
-      source: '我的资源包',
+      source: '已保存资源',
       coreContent: getMockCoreContent(resource.type, resource.title),
       recommendedUsage: getMockRecommendedUsage(resource.type),
       nextSteps: getMockNextSteps(resource.type),
@@ -153,7 +153,7 @@ export default function PathResourceDetailModal({ resource, onClose }: PathResou
                           </span>
                         )}
                         <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                          detail.source === '我的资源包' ? 'text-primary-500 bg-primary-50' : 'text-gray-400 bg-gray-100'
+                          detail.source === '已保存资源' ? 'text-primary-500 bg-primary-50' : 'text-gray-400 bg-gray-100'
                         }`}>
                           {detail.source}
                         </span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getCourses, getUserProfile } from '../services/api'
@@ -9,6 +9,37 @@ import CourseDetailPanel from '../components/courses/CourseDetailPanel'
 import AnimatedSection from '../components/common/AnimatedSection'
 
 const CURRENT_USER_ID = 1
+
+function parseTags(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr : []
+  } catch {
+    return []
+  }
+}
+
+function computePriorityCourses(profile: BackendProfile | null, courses: Course[]): Set<string> {
+  if (!profile || !hasUsableProfile(profile)) return new Set()
+  const profileTerms = [
+    ...parseTags(profile.error_patterns),
+    ...parseTags(profile.learning_goals),
+  ].map((t) => t.toLowerCase())
+  if (profileTerms.length === 0) return new Set()
+  const priority = new Set<string>()
+  for (const c of courses) {
+    const courseTerms = [
+      ...(c.knowledge_points ?? []),
+      ...(c.typical_difficulties ?? []),
+      c.name,
+    ].map((t) => t.toLowerCase())
+    if (courseTerms.some((ct) => profileTerms.some((pt) => ct.includes(pt) || pt.includes(ct)))) {
+      priority.add(c.id)
+    }
+  }
+  return priority
+}
 
 export default function CourseCenter() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -33,6 +64,7 @@ export default function CourseCenter() {
   const selected = courses.find((c) => c.id === selectedId) ?? null
   const usable = hasUsableProfile(profile)
   const transition = profile ? buildPersonalizedTransition(profile, courses) : null
+  const priorityCourses = useMemo(() => computePriorityCourses(profile, courses), [profile, courses])
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 pb-12">
@@ -116,6 +148,7 @@ export default function CourseCenter() {
                   onClick={() => setSelectedId(c.id)}
                   onHover={(id) => setHoveredId(id)}
                   index={i}
+                  isPriority={priorityCourses.has(c.id)}
                 />
               ))}
             </div>

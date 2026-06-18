@@ -118,36 +118,52 @@ export default function RightPanel() {
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-gray-500">知识基础</span>
-                <span className="text-xs text-gray-400">
-                  {'★'.repeat(profile.profile.knowledge_base.stars || 0)}
-                  {'☆'.repeat(5 - (profile.profile.knowledge_base.stars || 0))}
-                  {' '}{profile.profile.knowledge_base.score ?? '--'}/{profile.profile.knowledge_base.max_score}
-                </span>
+                {profile.profile.knowledge_base?.score != null && profile.profile.knowledge_base?.stars != null ? (
+                  <span className="text-xs text-gray-400">
+                    {'★'.repeat(profile.profile.knowledge_base.stars)}
+                    {'☆'.repeat(5 - profile.profile.knowledge_base.stars)}
+                    {' '}{profile.profile.knowledge_base.score}/{profile.profile.knowledge_base.max_score}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">--/100</span>
+                )}
               </div>
-              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary-400 rounded-full transition-all"
-                  style={{ width: `${((profile.profile.knowledge_base.score || 0) / (profile.profile.knowledge_base.max_score || 100)) * 100}%` }}
-                />
-              </div>
+              {profile.profile.knowledge_base?.score != null ? (
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-400 rounded-full transition-all"
+                    style={{ width: `${((profile.profile.knowledge_base.score) / (profile.profile.knowledge_base.max_score || 100)) * 100}%` }}
+                  />
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-400">暂未评估</p>
+              )}
             </div>
 
             {/* Practice Ability */}
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-gray-500">实践能力</span>
-                <span className="text-xs text-gray-400">
-                  {'★'.repeat(profile.profile.practice_ability.stars || 0)}
-                  {'☆'.repeat(5 - (profile.profile.practice_ability.stars || 0))}
-                  {' '}{profile.profile.practice_ability.score ?? '--'}/{profile.profile.practice_ability.max_score}
-                </span>
+                {profile.profile.practice_ability?.score != null && profile.profile.practice_ability?.stars != null ? (
+                  <span className="text-xs text-gray-400">
+                    {'★'.repeat(profile.profile.practice_ability.stars)}
+                    {'☆'.repeat(5 - profile.profile.practice_ability.stars)}
+                    {' '}{profile.profile.practice_ability.score}/{profile.profile.practice_ability.max_score}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">--/100</span>
+                )}
               </div>
-              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-400 rounded-full transition-all"
-                  style={{ width: `${((profile.profile.practice_ability.score || 0) / (profile.profile.practice_ability.max_score || 100)) * 100}%` }}
-                />
-              </div>
+              {profile.profile.practice_ability?.score != null ? (
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-400 rounded-full transition-all"
+                    style={{ width: `${((profile.profile.practice_ability.score) / (profile.profile.practice_ability.max_score || 100)) * 100}%` }}
+                  />
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-400">暂未评估</p>
+              )}
             </div>
 
             {/* Cognitive Style */}

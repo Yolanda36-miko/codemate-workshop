@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { Star } from 'lucide-react'
 import type { Course } from '../../types'
 
 interface CourseMapProps {
@@ -87,7 +86,6 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
         const course = courseMap.get(node.id)
         if (!course) return null
         const isSelected = node.id === selectedId
-        const isHighlight = course.positioning === '重点演示'
 
         return (
           <motion.button
@@ -112,7 +110,6 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
           >
             <div className="flex items-center gap-1.5 mb-0.5">
               <h3 className="text-xs font-semibold text-gray-800 truncate">{course.name}</h3>
-              {isHighlight && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
             </div>
             <p className="text-[10px] text-gray-400 mb-1.5">{course.stage}</p>
             <div className="flex flex-wrap gap-1">

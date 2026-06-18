@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { UserRound } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import CodeBuddyAvatar from '../components/profile/CodeBuddyAvatar'
@@ -7,7 +7,7 @@ import ProfileDraftPanel from '../components/profile/ProfileDraftPanel'
 import DiagnosisQuiz from '../components/profile/DiagnosisQuiz'
 import LearningProfileCard from '../components/profile/LearningProfileCard'
 import { isDemoMode } from '../config/appConfig'
-import { profileChat, getUserProfile, updateUserProfile } from '../services/api'
+import { profileChat, updateUserProfile } from '../services/api'
 import {
   createInitialState,
   processMessage,
@@ -16,8 +16,6 @@ import {
   generateProfile,
   applyDemoFill,
   ALL_FIELDS,
-  isProfileComplete,
-  mapBackendProfileToStudentProfile,
   mapStudentProfileToBackend,
   type InterviewState,
 } from '../services/profileInterview'
@@ -30,8 +28,6 @@ export default function Profile() {
   const [state, setState] = useState<InterviewState>(createInitialState)
   const [buddyState, setBuddyState] = useState<BuddyState>('welcome')
   const [diagnosisAnswers, setDiagnosisAnswers] = useState<Record<string, string>>({})
-  const [existingProfile, setExistingProfile] = useState<import('../types').StudentProfile | null>(null)
-  const profileLoaded = useRef(false)
 
   const conversationFields = ALL_FIELDS.filter((f) => f.key !== 'diagnosis_result').map((f) => f.key)
   const collectedConvFields = conversationFields.filter((k) => k in state.collectedFields)
@@ -40,27 +36,6 @@ export default function Profile() {
   const isChatActive = state.stage === 'collecting' || state.stage === 'greeting'
   const demoMode = isDemoMode()
   const showDemoBtn = demoMode && state.stage === 'collecting' && Object.keys(state.collectedFields).length === 0
-
-  // ---- Load existing profile on mount ----
-
-  useEffect(() => {
-    if (profileLoaded.current) return
-    profileLoaded.current = true
-
-    const loadProfile = async () => {
-      try {
-        const backend = await getUserProfile(CURRENT_USER_ID)
-        if (backend && isProfileComplete(backend)) {
-          const mapped = mapBackendProfileToStudentProfile(backend)
-          // Store for right-panel display — do NOT change stage
-          setExistingProfile(mapped)
-        }
-      } catch {
-        // Backend unavailable — stay on interview flow (local mock)
-      }
-    }
-    loadProfile()
-  }, [])
 
   // ---- Handlers ----
 
@@ -247,29 +222,6 @@ export default function Profile() {
 
             {/* Right: Profile Draft */}
             <div className="col-span-5 space-y-4">
-              {/* Synced profile indicator */}
-              {existingProfile && (
-                <div className="bg-green-50 rounded-2xl border border-green-200 p-4 space-y-2">
-                  <p className="text-xs font-semibold text-green-800">
-                    画像信息已同步
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {existingProfile.profile.knowledge_base?.score != null && (
-                      <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-100 text-green-700">
-                        知识基础: {existingProfile.profile.knowledge_base.score}
-                      </span>
-                    )}
-                    {existingProfile.profile.practice_ability?.score != null && (
-                      <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-100 text-green-700">
-                        实践能力: {existingProfile.profile.practice_ability.score}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-green-500">
-                    你可以继续对话补充信息，或点击下方"生成学习画像"更新完整画像
-                  </p>
-                </div>
-              )}
               <ProfileDraftPanel
                 collectedFields={Object.keys(state.collectedFields)}
                 missingFields={missingConvFields.concat(
