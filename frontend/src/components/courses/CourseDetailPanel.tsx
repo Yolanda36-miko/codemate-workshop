@@ -34,7 +34,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-gray-800">{course.name}</h2>
                 </div>
-                <p className="text-xs text-gray-400">{course.stage} · {(course.knowledge_points ?? []).length} 个核心知识点</p>
+                <p className="text-xs text-gray-400">{(course.knowledge_points ?? []).length} 个核心知识点</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed mt-2">{course.description}</p>
@@ -82,7 +82,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
 
           {/* Prerequisites */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 shrink-0">先修课程</span>
+            <span className="text-xs text-gray-500 shrink-0">前置模块</span>
             <div className="flex flex-wrap gap-1">
               {(course.prerequisites ?? []).length > 0
                 ? (course.prerequisites ?? []).map((p) => {
@@ -97,13 +97,13 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
                       </button>
                     )
                   })
-                : <span className="text-xs text-gray-400">无（入门课程）</span>}
+                : <span className="text-xs text-gray-400">无（入门模块）</span>}
             </div>
           </div>
 
           {/* Related courses */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 shrink-0">关联课程</span>
+            <span className="text-xs text-gray-500 shrink-0">关联模块</span>
             <div className="flex flex-wrap gap-1">
               {(course.related_courses ?? []).map((r) => {
                 const c = allCourses.find((x) => x.id === r)
@@ -137,15 +137,15 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
             </div>
           </div>
 
-          {/* Prerequisite hint for DS&A */}
-          {course.id === 'data-structures' && (
+          {/* Module learning suggestion */}
+          {(course.prerequisites ?? []).length >= 2 && (
             <div className="p-3 rounded-xl bg-gradient-to-r from-primary-50 to-purple-50 border border-primary-100/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <ChevronRight className="w-3.5 h-3.5 text-primary-500" />
-                <span className="text-xs font-semibold text-primary-700">先修关系推荐</span>
+                <span className="text-xs font-semibold text-primary-700">学习建议</span>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed">
-                建议先巩固<strong>程序设计基础</strong>中的函数、数组和递归等核心内容，再开始数据结构的学习。可先回顾递归调用栈和数组操作的代码练习。
+                建议先完成<strong>基础模块</strong>和<strong>核心模块</strong>的学习，再进入本模块。如有困难可回顾相关前置模块中的知识点。
               </p>
             </div>
           )}
@@ -178,7 +178,7 @@ export default function CourseDetailPanel({ course, allCourses, onSelectCourse }
           animate={{ opacity: 1 }}
         >
           <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">选择一门课程查看详情</p>
+          <p className="text-sm text-gray-400">选择一个模块查看详情</p>
         </motion.div>
       )}
     </AnimatePresence>

@@ -24,21 +24,30 @@ interface MapEdge {
 }
 
 const NODES: MapNode[] = [
-  { id: 'programming-basics', x: 8, y: 16, w: 156, h: 82, cx: 86, cy: 57 },
-  { id: 'data-structures', x: 300, y: 16, w: 156, h: 82, cx: 378, cy: 57 },
-  { id: 'database-system', x: 592, y: 16, w: 150, h: 82, cx: 667, cy: 57 },
-  { id: 'computer-organization', x: 8, y: 188, w: 156, h: 82, cx: 86, cy: 229 },
-  { id: 'operating-system', x: 280, y: 188, w: 156, h: 82, cx: 358, cy: 229 },
-  { id: 'computer-network', x: 560, y: 188, w: 156, h: 82, cx: 638, cy: 229 },
+  { id: 'complexity', x: 8, y: 16, w: 150, h: 78, cx: 83, cy: 55 },
+  { id: 'linear-list', x: 200, y: 16, w: 150, h: 78, cx: 275, cy: 55 },
+  { id: 'stack-queue', x: 392, y: 16, w: 150, h: 78, cx: 467, cy: 55 },
+  { id: 'recursion-callstack', x: 584, y: 16, w: 150, h: 78, cx: 659, cy: 55 },
+  { id: 'tree', x: 104, y: 140, w: 150, h: 78, cx: 179, cy: 179 },
+  { id: 'sort-search', x: 296, y: 140, w: 150, h: 78, cx: 371, cy: 179 },
+  { id: 'graph', x: 488, y: 140, w: 150, h: 78, cx: 563, cy: 179 },
+  { id: 'hash', x: 120, y: 242, w: 150, h: 78, cx: 195, cy: 281 },
+  { id: 'dp', x: 312, y: 242, w: 150, h: 78, cx: 387, cy: 281 },
+  { id: 'ds-project', x: 504, y: 242, w: 150, h: 78, cx: 579, cy: 281 },
 ]
 
 const EDGES: MapEdge[] = [
-  { from: 'programming-basics', to: 'data-structures', highlight: true },
-  { from: 'programming-basics', to: 'computer-organization' },
-  { from: 'data-structures', to: 'operating-system' },
-  { from: 'data-structures', to: 'database-system' },
-  { from: 'computer-organization', to: 'operating-system' },
-  { from: 'operating-system', to: 'computer-network' },
+  { from: 'complexity', to: 'linear-list', highlight: true },
+  { from: 'linear-list', to: 'stack-queue', highlight: true },
+  { from: 'stack-queue', to: 'recursion-callstack', highlight: true },
+  { from: 'recursion-callstack', to: 'tree' },
+  { from: 'recursion-callstack', to: 'sort-search' },
+  { from: 'tree', to: 'graph' },
+  { from: 'sort-search', to: 'hash' },
+  { from: 'tree', to: 'dp' },
+  { from: 'graph', to: 'ds-project' },
+  { from: 'dp', to: 'ds-project' },
+  { from: 'hash', to: 'ds-project' },
 ]
 
 function findNode(id: string): MapNode {
@@ -49,7 +58,7 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
   const courseMap = new Map(courses.map((c) => [c.id, c]))
 
   return (
-    <div className="relative w-full" style={{ height: 280 }}>
+    <div className="relative w-full" style={{ height: 340 }}>
       {/* SVG connection lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
         <defs>
@@ -73,7 +82,7 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
               y2={tn.cy}
               stroke={edge.highlight ? '#7c3aed' : '#c4b5fd'}
               strokeWidth={edge.highlight ? 2.5 : 1.5}
-              strokeDasharray={edge.highlight ? 'none' : '6,3'}
+              strokeDasharray={edge.highlight ? 'none' : '5,3'}
               markerEnd={edge.highlight ? 'url(#arrow-highlight)' : 'url(#arrow-normal)'}
               opacity={edge.highlight ? 1 : 0.7}
             />
@@ -91,7 +100,7 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
           <motion.button
             key={node.id}
             onClick={() => onSelect(node.id)}
-            className={`absolute text-left rounded-2xl px-3.5 py-2.5 border transition-all duration-200 ${
+            className={`absolute text-left rounded-2xl px-3 py-2 border transition-all duration-200 ${
               isSelected
                 ? 'bg-primary-50 border-primary-300 shadow-md ring-1 ring-primary-200'
                 : 'bg-white border-gray-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5'
@@ -105,13 +114,12 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
             }}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05 * NODES.indexOf(node), duration: 0.35 }}
+            transition={{ delay: 0.04 * NODES.indexOf(node), duration: 0.35 }}
             whileHover={{ y: -2 }}
           >
             <div className="flex items-center gap-1.5 mb-0.5">
               <h3 className="text-xs font-semibold text-gray-800 truncate">{course.name}</h3>
             </div>
-            <p className="text-[10px] text-gray-400 mb-1.5">{course.stage}</p>
             <div className="flex flex-wrap gap-1">
               {course.knowledge_points.slice(0, 2).map((kp) => (
                 <span
@@ -129,13 +137,13 @@ export default function CourseMap({ courses, selectedId, onSelect }: CourseMapPr
         )
       })}
 
-      {/* Highlight label */}
+      {/* Highlight label for core prerequisite chain */}
       <div
         className="absolute flex items-center gap-1"
-        style={{ left: 175, top: 72 }}
+        style={{ left: 105, top: 74 }}
       >
         <span className="text-[9px] text-primary-500 font-medium bg-primary-50 px-1.5 py-0.5 rounded whitespace-nowrap">
-          核心先修
+          建议学习顺序
         </span>
       </div>
     </div>

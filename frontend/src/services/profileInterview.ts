@@ -107,23 +107,23 @@ export const ALL_FIELDS = [
 // ---- Field-specific question templates (used by getNextQuestionMock) ----
 
 const fieldQuestions: Record<string, (prev: Record<string, string>) => string> = {
-  current_courses: () => '你最近主要在上哪些计算机专业课呀？有没有哪门课让你觉得特别吃力？',
+  current_courses: () => '你在学习《数据结构与算法》时，最卡的是哪一块？复杂度分析、线性表、递归、树，还是图？',
   learning_difficulty: (prev) => {
-    if (prev.current_courses) return '你说到有些知识点不太顺手，能具体说说哪些知识点让你觉得难吗？比如递归、指针、还是某些算法？'
-    return '你目前学习中，有没有哪些知识点让你反复琢磨还是不太明白？'
+    if (prev.current_courses) return '你说到有些知识点不太顺手，能具体说说吗？是递归调用栈、二叉树遍历，还是复杂度分析？'
+    return '你在学数据结构与算法时，哪些知识点让你反复琢磨还是不太明白？'
   },
   programming_languages: (prev) => {
-    if (prev.learning_difficulty) return '了解你遇到的困难了。那换个话题～你平时写代码主要用哪些语言？Python、C、Java，还是其他？'
-    return '你平时写代码主要用哪些编程语言呢？'
+    if (prev.learning_difficulty) return '了解了。那换个话题——你主要用 Python、C++ 还是 Java 写代码？'
+    return '你主要使用 Python、C++ 还是 Java 写代码？'
   },
   coding_blockers: (prev) => {
-    if (prev.programming_languages) return '明白。那你写代码时最容易卡在哪里——是理解题目思路、写具体语法、还是调试找错？'
-    if (prev.learning_difficulty) return '写代码时，你觉得自己更容易卡在思路理解上，还是语法和调试上？'
-    return '写代码的时候，你觉得最费时间的环节是什么？'
+    if (prev.programming_languages) return '明白。那你写算法题时最容易卡在哪里——理解题目意思、设计算法思路、还是写出具体代码？'
+    if (prev.learning_difficulty) return '写代码实现算法时，你更容易卡在思路设计上，还是代码调试上？'
+    return '写代码的时候，设计算法思路和实现代码，哪个环节更费时间？'
   },
   completed_courses: (prev) => {
-    if (prev.current_courses) return '除了现在学的这些，之前你还学过哪些计算机课程呢？'
-    return '你之前学过哪些计算机相关课程？'
+    if (prev.current_courses) return '好的。那你之前学过程序设计基础吗？对函数、数组、循环这些基础熟悉吗？'
+    return '你之前学过程序设计基础和离散数学吗？对树、图、集合这些概念有没有接触过？'
   },
   cognitive_style: (prev) => {
     if (prev.coding_blockers && prev.coding_blockers.includes('思路') || prev.coding_blockers.includes('理解'))
@@ -132,8 +132,8 @@ const fieldQuestions: Record<string, (prev: Record<string, string>) => string> =
     return '你平时学新知识的时候，最喜欢哪种方式？图示讲解、代码示例、分步骤推导，还是项目实践？'
   },
   learning_goals: (prev) => {
-    if (prev.cognitive_style) return '很好，我后面会优先给你匹配图示和代码结合的资源。那你最近想达成什么小目标？比如完成某门课作业、准备考试、掌握某个知识点？'
-    return '你最近有什么学习目标吗？比如通过考试、完成大作业，还是想深入掌握某个方向？'
+    if (prev.cognitive_style) return '很好，我后面会优先给你匹配图示和代码结合的资源。那你最近的数据结构与算法目标是什么？掌握递归和树、通过考试，还是刷题？'
+    return '你最近的数据结构与算法学习目标是什么？掌握某个模块、通过考试，还是准备面试刷题？'
   },
   resource_preference: (prev) => {
     if (prev.learning_goals) return '了解了你的目标。最后问一下～什么样的学习材料对你帮助最大？代码案例、思维导图、分层练习题，还是简洁讲义？'
@@ -351,7 +351,7 @@ export function createInitialState(): InterviewState {
     .filter((f) => f.key !== 'diagnosis_result')
     .map((f) => f.key)
 
-  const firstQuestion = '嗨！我是你的学习伙伴 CodeBuddy 🎓 很高兴认识你～我想先了解一下：你最近主要在上哪些计算机专业课呀？有没有哪门课让你觉得比较吃力？'
+  const firstQuestion = '嗨！我是你的学习伙伴 CodeBuddy 🎓 很高兴认识你～你现在正在学习数据结构与算法对吧？感觉最吃力的模块是哪一个？复杂度分析、线性表、递归、树，还是图？'
 
   return {
     messages: [{ role: 'buddy', content: firstQuestion }],
@@ -439,13 +439,13 @@ export function generateProfile(state: InterviewState): InterviewState {
 
 export function applyDemoFill(state: InterviewState): InterviewState {
   const answers: Array<{ field: string; text: string }> = [
-    { field: 'current_courses', text: '我在学习程序设计基础和数据结构与算法，对递归、数组操作和二叉树遍历感觉不太顺手。' },
-    { field: 'learning_difficulty', text: '递归、二叉树遍历、数组操作这些理解起来比较抽象，写代码时经常要参考示例。' },
+    { field: 'current_courses', text: '我在学数据结构与算法，对递归、二叉树遍历和复杂度分析感觉不太顺手。' },
+    { field: 'learning_difficulty', text: '递归调用栈理解起来比较抽象，二叉树的前中后序遍历容易混淆，复杂度分析的大O估算经常算错。' },
     { field: 'programming_languages', text: '我会 Python 和 C 语言基础，Python 用得多一些，C 语言在学数据结构时也在用。' },
-    { field: 'coding_blockers', text: '写代码时更容易卡在理解思路上，特别是递归和树的题目，经常需要参考示例代码。' },
-    { field: 'completed_courses', text: '之前学过计算机导论和 C 语言程序设计基础。' },
+    { field: 'coding_blockers', text: '写递归和树的代码时更容易卡在思路上，经常需要参考示例代码才能写出来。' },
+    { field: 'completed_courses', text: '之前学过 C 语言程序设计基础和计算机导论。' },
     { field: 'cognitive_style', text: '我更喜欢图示讲解和代码示例，分步骤推导也很好，不太适应纯理论讲解。' },
-    { field: 'learning_goals', text: '我想掌握递归、数组和二叉树遍历，完成这学期的课程练习和期末考试。' },
+    { field: 'learning_goals', text: '我想掌握递归、二叉树遍历和排序算法，完成这学期的数据结构课程练习和期末考试。' },
     { field: 'resource_preference', text: '我喜欢代码案例、思维导图、分层练习题和简洁讲义，不太喜欢看太长的视频。' },
   ]
 

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -6,15 +5,14 @@ import {
   MessageCircle, Search, FileText, ClipboardCheck,
   UserRound, Map, Terminal,
 } from 'lucide-react'
-import { getCourses } from '../services/api'
-import type { Course } from '../types'
+import { dataStructureModules } from '../config/courseFocus'
 import { isDemoMode } from '../config/appConfig'
 import AnimatedSection from '../components/common/AnimatedSection'
 
 const flowSteps = [
   { label: '多轮对话', icon: MessageCircle },
   { label: '画像生成', icon: Sparkles },
-  { label: '课程诊断', icon: Search },
+  { label: '模块诊断', icon: Search },
   { label: '资源生成', icon: FileText },
   { label: '路径规划', icon: GitBranch },
   { label: '辅导评估', icon: ClipboardCheck },
@@ -22,7 +20,7 @@ const flowSteps = [
 
 const agents = [
   { name: 'Profile Agent', role: '学习画像构建', icon: UserRound, bg: 'bg-primary-400/20', fg: 'text-primary-500' },
-  { name: 'Course Map Agent', role: '课程群关系分析', icon: Map, bg: 'bg-primary-500/20', fg: 'text-primary-600' },
+  { name: 'Course Map Agent', role: '模块依赖分析', icon: Map, bg: 'bg-primary-500/20', fg: 'text-primary-600' },
   { name: 'Diagnosis Agent', role: '学习困难诊断', icon: Search, bg: 'bg-purple-400/20', fg: 'text-purple-500' },
   { name: 'Resource Agent', role: '个性化资源生成', icon: FileText, bg: 'bg-primary-600/20', fg: 'text-primary-700' },
   { name: 'Code Practice Agent', role: '代码练习辅导', icon: Terminal, bg: 'bg-purple-500/20', fg: 'text-purple-600' },
@@ -30,30 +28,20 @@ const agents = [
   { name: 'Assessment Agent', role: '学习效果评估', icon: ClipboardCheck, bg: 'bg-purple-600/20', fg: 'text-purple-700' },
 ]
 
-const courseAccents: Record<string, string> = {
-  '程序设计基础': 'border-l-primary-400',
-  '数据结构与算法': 'border-l-primary-600',
-  '计算机组成原理': 'border-l-purple-400',
-  '操作系统': 'border-l-primary-500',
-  '计算机网络': 'border-l-purple-500',
-  '数据库系统': 'border-l-primary-700',
-}
-
-const stageColors: Record<string, string> = {
-  '大一上': 'bg-primary-50 text-primary-600',
-  '大一下': 'bg-blue-50 text-blue-600',
-  '大二上': 'bg-purple-50 text-purple-600',
-  '大二下': 'bg-indigo-50 text-indigo-600',
-  '大三上': 'bg-violet-50 text-violet-600',
+const moduleAccents: Record<string, string> = {
+  '复杂度分析': 'border-l-primary-400',
+  '线性表': 'border-l-blue-400',
+  '栈与队列': 'border-l-primary-500',
+  '递归与调用栈': 'border-l-purple-400',
+  '树与二叉树': 'border-l-primary-600',
+  '图结构与图算法': 'border-l-purple-500',
+  '排序与查找': 'border-l-blue-500',
+  '散列表': 'border-l-primary-700',
+  '动态规划入门': 'border-l-purple-600',
+  '综合项目实践': 'border-l-amber-400',
 }
 
 export default function Dashboard() {
-  const [courses, setCourses] = useState<Course[]>([])
-
-  useEffect(() => {
-    getCourses().then((res) => setCourses(res.courses)).catch(() => {})
-  }, [])
-
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-10 pb-12">
       {/* ========== Section 1: Hero ========== */}
@@ -88,7 +76,7 @@ export default function Dashboard() {
 
           {/* Subtitle */}
           <p className="text-gray-500 text-base max-w-2xl mx-auto mb-7 leading-relaxed">
-            让计算机学习更清晰，让个性化资源更懂你
+            数据结构与算法个性化学习资源平台
           </p>
 
           {/* CTA Buttons */}
@@ -104,19 +92,19 @@ export default function Dashboard() {
               to="/courses"
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-primary-200 text-primary-700 text-sm font-medium bg-white/80 hover:bg-white hover:shadow-card transition-all duration-200"
             >
-              查看课程中心
+              查看模块中心
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </AnimatedSection>
 
-      {/* ========== Section 2: Course Overview ========== */}
+      {/* ========== Section 2: Module Overview ========== */}
       <AnimatedSection delay={0.1}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary-600" />
-            <h2 className="text-lg font-semibold text-gray-800">课程群概览</h2>
+            <h2 className="text-lg font-semibold text-gray-800">数据结构与算法模块中心</h2>
           </div>
           <Link
             to="/courses"
@@ -126,10 +114,8 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          {courses.map((c, i) => {
-            const accent = courseAccents[c.name] || 'border-l-primary-400'
-            const stageClass = stageColors[c.stage] || 'bg-gray-50 text-gray-600'
-            const isFirst = c.name === '程序设计基础'
+          {dataStructureModules.slice(0, 6).map((c, i) => {
+            const accent = moduleAccents[c.name] || 'border-l-primary-400'
 
             return (
               <motion.div
@@ -143,9 +129,6 @@ export default function Dashboard() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-gray-800 text-sm">{c.name}</h3>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${stageClass}`}>
-                    {c.stage}
-                  </span>
                 </div>
                 <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">
                   {c.description}
@@ -154,11 +137,6 @@ export default function Dashboard() {
                   <span className="text-[11px] text-gray-400">
                     {(c.knowledge_points ?? []).length} 个核心知识点
                   </span>
-                  {isFirst && (
-                    <span className="text-[10px] text-primary-500 font-medium flex items-center gap-0.5">
-                      先修 <ArrowRight className="w-3 h-3" /> 数据结构
-                    </span>
-                  )}
                 </div>
               </motion.div>
             )
@@ -265,7 +243,7 @@ export default function Dashboard() {
         </div>
 
         {isDemoMode() ? (
-          /* Demo Mode: Li classmate scenario */
+          /* Demo Mode: generic DS scenario */
           <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl p-6 border border-primary-100/50">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
@@ -279,23 +257,22 @@ export default function Dashboard() {
                   </span>
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  程序设计基础 → 数据结构与算法
+                  数据结构与算法 · 个性化学习
                 </p>
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed mb-4">
-              当前学习者正从<strong className="text-gray-800">程序设计基础</strong>过渡到
-              <strong className="text-gray-800">数据结构与算法</strong>的学习，
-              她对<strong className="text-primary-600">函数调用</strong>、
-              <strong className="text-primary-600">递归</strong>、
-              <strong className="text-primary-600">数组操作</strong>和
-              <strong className="text-primary-600">二叉树遍历</strong>理解不够清晰，
+              当前学习者正在学习<strong className="text-gray-800">数据结构与算法</strong>，
+              对<strong className="text-primary-600">复杂度分析</strong>、
+              <strong className="text-primary-600">递归调用栈</strong>、
+              <strong className="text-primary-600">二叉树遍历</strong>和
+              <strong className="text-primary-600">动态规划</strong>等模块需要加强，
               偏好图示讲解、代码案例和分层练习题。
             </p>
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] text-gray-400 font-medium">学习难点</span>
-                {['函数调用', '递归', '数组操作', '二叉树遍历'].map((tag) => (
+                <span className="text-[10px] text-gray-400 font-medium">薄弱模块</span>
+                {['复杂度分析', '递归调用栈', '二叉树遍历', '动态规划'].map((tag) => (
                   <span key={tag} className="px-2 py-0.5 rounded-full bg-white/80 text-primary-600 text-[11px] font-medium border border-primary-100">
                     {tag}
                   </span>
@@ -317,10 +294,10 @@ export default function Dashboard() {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-purple-500 flex items-center justify-center mx-auto mb-3">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <p className="text-sm font-semibold text-gray-800 mb-1">从你的课程和学习问题开始</p>
+            <p className="text-sm font-semibold text-gray-800 mb-1">从数据结构与算法开始你的学习之旅</p>
             <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
               先去<Link to="/profile" className="text-primary-500 font-medium hover:underline">学习画像</Link>告诉 CodeBuddy 你的基础和目标，
-              系统将为你生成专属的学习资源与路径规划。
+              系统将为你生成专属的数据结构与算法学习资源与路径规划。
             </p>
           </div>
         )}

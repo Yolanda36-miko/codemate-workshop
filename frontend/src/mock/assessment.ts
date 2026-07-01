@@ -36,7 +36,7 @@ export const TOPIC_KEYWORDS: Record<string, string[]> = {
   'array': ['数组', '下标', '越界', '边界', '列表索引'],
   'linked-list': ['链表', '节点指针', '头结点', '尾结点'],
   'sorting': ['排序', '查找', '搜索', '冒泡', '快速排序', '二分', '归并', '选择排序', '插入排序'],
-  'sql': ['sql', '数据库', '索引', '查询', '表连接', 'join', '事务', '增删改查'],
+  'dp': ['动态规划', '状态转移', '最优子结构', '重叠子问题', '记忆化', '背包'],
   'function-call': ['函数', '调用', '参数', '返回值', '作用域', '嵌套调用'],
   'debug': ['调试', 'debug', '报错', '错误', '异常', '排错', '排查'],
   'project': ['项目', '实践', '开发', '应用构建', '综合实战'],
@@ -361,36 +361,27 @@ const QUESTION_POOL: PoolQuestion[] = [
     knowledge_point: '分治思想', explanation: '两者都用分治：将大问题分解为小问题独立解决，再合并结果。快速排序先分区再递归，归并排序先递归再合并。',
   },
 
-  // --- sql (Phase 10) ---
+  // --- dp (Phase 10) ---
   {
-    id: 'q-sql-1', levelName: '索引作用', tags: ['sql'],
-    question: '数据库索引的主要作用是什么？',
-    options: ['A. 增加存储空间', 'B. 加速数据查询', 'C. 自动备份数据', 'D. 加密数据'], correct: 'B',
-    knowledge_point: '数据库索引', explanation: '索引类似书的目录，帮助数据库快速定位数据行，避免全表扫描，大幅提升查询速度。',
+    id: 'q-dp-1', levelName: '状态定义', tags: ['dp'],
+    question: '动态规划中"状态定义"指的是什么？',
+    options: ['A. 定义变量名', 'B. 定义 dp 数组每个位置的含义', 'C. 定义输入数据格式', 'D. 定义输出的格式'],
+    correct: 'B',
+    knowledge_point: '状态定义', explanation: '状态定义是 DP 的核心，即明确 dp[i] 或 dp[i][j] 表示什么含义，是推导转移方程的基础。',
   },
   {
-    id: 'q-sql-2', levelName: '主键约束', tags: ['sql'],
-    question: '数据库表中，主键（Primary Key）的特性是什么？',
-    options: ['A. 可以重复', 'B. 可以为空', 'C. 唯一且非空', 'D. 自动递增即可'], correct: 'C',
-    knowledge_point: '主键约束', explanation: '主键必须满足唯一性（不重复）和非空性，用于唯一标识表中的每一行。',
+    id: 'q-dp-2', levelName: '最优子结构', tags: ['dp'],
+    question: '一个问题能用动态规划求解，必须满足什么性质？',
+    options: ['A. 数据有序', 'B. 最优子结构和重叠子问题', 'C. 可以暴力枚举', 'D. 输入规模很小'],
+    correct: 'B',
+    knowledge_point: '最优子结构', explanation: 'DP 的两大核心性质：最优子结构（大问题的最优解包含子问题的最优解）和重叠子问题（子问题被重复计算）。',
   },
   {
-    id: 'q-sql-3', levelName: 'JOIN 理解', tags: ['sql'],
-    question: 'INNER JOIN 的作用是什么？',
-    options: ['A. 返回左表所有行', 'B. 返回两个表中匹配的行', 'C. 返回右表所有行', 'D. 返回两表所有行'], correct: 'B',
-    knowledge_point: '表连接', explanation: 'INNER JOIN 只返回两个表中满足连接条件的行，不匹配的行不会出现在结果中。',
-  },
-  {
-    id: 'q-sql-4', levelName: '查询优化', tags: ['sql'],
-    question: '以下哪种方式能最有效地提升大数据量查询性能？',
-    options: ['A. 使用 SELECT *', 'B. 在 WHERE 条件列上创建索引', 'C. 增加更多列', 'D. 每次查询后重启数据库'], correct: 'B',
-    knowledge_point: '查询优化', explanation: '在 WHERE、JOIN、ORDER BY 涉及的列上创建索引，是提升查询性能最直接有效的方法。',
-  },
-  {
-    id: 'q-sql-5', levelName: '事务特性', tags: ['sql'],
-    question: '数据库事务的 ACID 特性中，A 代表什么？',
-    options: ['A. 自动化（Auto）', 'B. 原子性（Atomicity）', 'C. 匿名（Anonymous）', 'D. 异步（Async）'], correct: 'B',
-    knowledge_point: '事务特性', explanation: 'ACID 中 A 是原子性：事务中的所有操作要么全部完成，要么全部不执行，保证数据一致性。',
+    id: 'q-dp-3', levelName: '记忆化搜索', tags: ['dp'],
+    question: '记忆化搜索和动态规划的主要关系是什么？',
+    options: ['A. 完全不同', 'B. 记忆化搜索是自顶向下，DP 是自底向上', 'C. DP 比记忆化搜索快很多', 'D. 两者没有关系'],
+    correct: 'B',
+    knowledge_point: '记忆化搜索', explanation: '记忆化搜索（自顶向下递归+缓存）和 DP（自底向上迭代）本质相同，只是求解方向不同，时间/空间复杂度通常一致。',
   },
 ]
 
@@ -424,7 +415,7 @@ export function inferConversationContextMock(
     if (topics.includes('array')) weakPoints.push('数组边界')
     if (topics.includes('linked-list')) weakPoints.push('指针操作')
     if (topics.includes('sorting')) weakPoints.push('算法选择')
-    if (topics.includes('sql')) weakPoints.push('查询优化')
+    if (topics.includes('dp')) weakPoints.push('状态定义')
     if (weakPoints.length === 0) {
       weakPoints.push('知识巩固')
     }
@@ -611,9 +602,9 @@ export function getContextualExampleQuestions(context: ConversationContext): str
     questions.push('二分查找的前提条件是什么？')
   }
 
-  if (inferredTopics.includes('sql')) {
-    questions.push('SQL 查询为什么要用索引？')
-    questions.push('数据库索引的工作原理是什么？')
+  if (inferredTopics.includes('dp')) {
+    questions.push('动态规划为什么要定义状态？')
+    questions.push('记忆化搜索和动态规划有什么区别？')
   }
 
   if (inferredTopics.includes('function-call')) {
@@ -636,7 +627,7 @@ export function getContextualExampleQuestions(context: ConversationContext): str
       '能不能结合已保存的资源讲一下调用栈？',
       '我应该按什么顺序学习这些知识点？',
       '二叉树的层序遍历有什么用？',
-      '如何设计一个简单的数据库表？',
+      '如何分析递归算法的时间复杂度？',
     ]
     for (const fb of fallbacks) {
       if (questions.length >= 5) break
@@ -671,7 +662,7 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
         'array': ['数组', '下标', '越界', '边界'],
         'linked-list': ['链表', '节点', '指针'],
         'sorting': ['排序', '查找', '搜索', '二分'],
-        'sql': ['sql', '数据库', '索引', '查询'],
+        'dp': ['动态规划', '状态', '转移方程', '最优子结构'],
         'function-call': ['函数', '调用', '参数', '返回'],
         'debug': ['调试', 'debug', '错误', '报错'],
         'project': ['项目', '实践', '开发'],
@@ -716,9 +707,9 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
       { title: '排序算法对比讲解', type: '个性化讲解文档', estimatedTime: '30 分钟', topic: '排序算法' },
       { title: '排序算法代码模板', type: '代码示例与注释', estimatedTime: '25 分钟', topic: '排序' },
     ],
-    'sql': [
-      { title: '数据库索引原理讲解', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '数据库索引' },
-      { title: 'SQL 查询优化实践', type: '代码示例与注释', estimatedTime: '30 分钟', topic: 'SQL' },
+    'dp': [
+      { title: '动态规划入门讲解', type: '个性化讲解文档', estimatedTime: '30 分钟', topic: '动态规划' },
+      { title: '经典DP问题代码示例', type: '代码示例与注释', estimatedTime: '25 分钟', topic: 'DP' },
     ],
     'function-call': [
       { title: '函数调用机制深度讲解', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '函数调用' },
@@ -882,22 +873,22 @@ function buildSortingResponse(): TutorChatResponse {
   }
 }
 
-function buildSqlResponse(): TutorChatResponse {
+function buildDpResponse(): TutorChatResponse {
   return {
-    greeting: '数据库查询优化是实际开发中很重要的技能，让我来帮你理解！',
-    approach: 'SQL 查询优化的核心是理解索引的工作原理。索引就像书的目录，帮你快速定位数据，避免逐行扫描整张表。',
+    greeting: '动态规划是算法中的重点和难点，让我来帮你理清思路！',
+    approach: '动态规划的核心是"状态定义"和"状态转移方程"。把大问题分解成小问题，找到子问题之间的递推关系。',
     steps: [
-      '第一步：理解全表扫描的问题——没有索引时，数据库必须逐行检查所有数据，数据量大时非常慢。',
-      '第二步：理解索引原理——索引是一个排序的数据结构（通常是 B+ 树），支持 O(log n) 的快速查找。',
-      '第三步：知道什么时候该建索引——频繁出现在 WHERE、JOIN、ORDER BY 中的列。',
-      '第四步：了解索引的代价——索引占用额外存储空间，并在插入、更新、删除时带来维护开销。',
+      '第一步：明确状态定义——定义 dp[i] 或 dp[i][j] 表示什么含义，这是最关键的一步。',
+      '第二步：推导状态转移方程——找到当前状态和之前状态的关系，即 dp[i] 如何从 dp[i-1]、dp[i-2] 等推出。',
+      '第三步：确定初始条件——明确 dp[0]、dp[1] 等基础状态的值。',
+      '第四步：考虑空间优化——如果当前状态只依赖前几个状态，可以用滚动数组降低空间复杂度。',
     ],
-    code_example: '-- 没有索引 → 全表扫描\nSELECT * FROM students WHERE name = \'Tom\';\n\n-- 创建索引后 → 快速定位\nCREATE INDEX idx_name ON students(name);\n\n-- 索引对范围查询同样有效\nSELECT * FROM orders\nWHERE order_date > \'2025-01-01\'\nORDER BY order_date;',
+    code_example: '# 斐波那契数列 — 从递归到DP\n# 记忆化搜索（自顶向下）\ndef fib_memo(n, memo={}):\n    if n <= 1: return n\n    if n not in memo:\n        memo[n] = fib_memo(n-1) + fib_memo(n-2)\n    return memo[n]\n\n# 动态规划（自底向上）\ndef fib_dp(n):\n    if n <= 1: return n\n    dp = [0] * (n + 1)\n    dp[1] = 1\n    for i in range(2, n + 1):\n        dp[i] = dp[i-1] + dp[i-2]\n    return dp[n]',
     recommended_resources: [
-      { title: '数据库索引原理讲解', url: '#' },
-      { title: 'SQL 查询优化实践指南', url: '#' },
+      { title: '动态规划入门讲解', url: '#' },
+      { title: '经典DP问题代码示例', url: '#' },
     ],
-    suggested_exercise: '创建一个包含 1000 行数据的测试表，分别在有无索引时执行相同的查询，对比 EXPLAIN 输出和执行时间。',
+    suggested_exercise: '从斐波那契数列开始，逐步过渡到爬楼梯、背包问题和最长公共子序列（LCS），每个问题都用记忆化搜索和DP两种方式实现。',
   }
 }
 
@@ -986,7 +977,7 @@ const DOMAIN_BUILDERS: Record<string, () => TutorChatResponse> = {
   'array': buildArrayResponse,
   'linked-list': buildLinkedListResponse,
   'sorting': buildSortingResponse,
-  'sql': buildSqlResponse,
+  'dp': buildDpResponse,
   'function-call': buildFunctionCallResponse,
   'debug': buildDebugResponse,
   'project': buildProjectResponse,

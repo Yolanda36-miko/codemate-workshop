@@ -35,8 +35,8 @@ export function normalizeKnowledgePointMock(input: string): string {
 export function inferRelatedCourseMock(input: string, selectedCourse: string): string {
   const topic = normalizeKnowledgePointMock(input)
   if (topic === 'binary-tree' || topic === 'recursion' || topic === 'sorting') return '数据结构与算法'
-  if (topic === 'array' || topic === 'function-call') return '程序设计基础'
-  if (topic === 'process-scheduling') return '操作系统'
+  if (topic === 'array' || topic === 'function-call') return '数据结构与算法'
+  if (topic === 'process-scheduling') return '数据结构与算法'
   return selectedCourse
 }
 

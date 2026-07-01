@@ -61,19 +61,14 @@ export default function CourseCard({
         {isPriority && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
       </div>
 
-      {/* Stage + positioning badge */}
-      <div className="flex items-center gap-1.5 mb-2.5">
-        <span className="text-[10px] text-gray-500">{course.stage}</span>
-        {isPriority ? (
+      {/* Priority badge — only shown when profile matches */}
+      {isPriority && (
+        <div className="flex items-center gap-1.5 mb-2.5">
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            重点课程
+            建议优先学习
           </span>
-        ) : (
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
-            课程群支撑
-          </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Keyword chips */}
       <div className="flex flex-wrap gap-1 mb-2.5">

@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { getCourses, getUserProfile } from '../services/api'
+import { getUserProfile } from '../services/api'
 import { hasUsableProfile, buildPersonalizedTransition } from '../services/personalizedPath'
 import type { Course, BackendProfile } from '../types'
+import { dataStructureModules } from '../config/courseFocus'
 import CourseCard from '../components/courses/CourseCard'
 import CourseDetailPanel from '../components/courses/CourseDetailPanel'
 import AnimatedSection from '../components/common/AnimatedSection'
@@ -42,29 +43,22 @@ function computePriorityCourses(profile: BackendProfile | null, courses: Course[
 }
 
 export default function CourseCenter() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(dataStructureModules[0]?.id ?? null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [profile, setProfile] = useState<BackendProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
 
   useEffect(() => {
-    getCourses().then((res) => {
-      setCourses(res.courses)
-      const defaultId = res.courses.find((c) => c.id === 'programming-basics')?.id ?? res.courses[0]?.id ?? null
-      setSelectedId(defaultId)
-    }).catch(() => {})
-
     getUserProfile(CURRENT_USER_ID)
       .then((p) => setProfile(p))
       .catch(() => setProfile(null))
       .finally(() => setProfileLoading(false))
   }, [])
 
-  const selected = courses.find((c) => c.id === selectedId) ?? null
+  const selected = dataStructureModules.find((c) => c.id === selectedId) ?? null
   const usable = hasUsableProfile(profile)
-  const transition = profile ? buildPersonalizedTransition(profile, courses) : null
-  const priorityCourses = useMemo(() => computePriorityCourses(profile, courses), [profile, courses])
+  const transition = profile ? buildPersonalizedTransition(profile, dataStructureModules) : null
+  const priorityCourses = useMemo(() => computePriorityCourses(profile, dataStructureModules), [profile])
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 pb-12">
@@ -72,7 +66,7 @@ export default function CourseCenter() {
       <AnimatedSection>
         <div className="flex items-center gap-2">
           <BookOpen className="w-6 h-6 text-primary-600" />
-          <h1 className="text-2xl font-bold text-gray-900">计算机专业课程中心</h1>
+          <h1 className="text-2xl font-bold text-gray-900">数据结构与算法模块中心</h1>
         </div>
       </AnimatedSection>
 
@@ -112,8 +106,8 @@ export default function CourseCenter() {
         ) : (
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-100 px-5 py-6 text-center">
             <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-gray-700 mb-1">完成学习画像后，CodeBuddy 将为你生成个性化课程路线。</p>
-            <p className="text-xs text-gray-500 mb-4">完善你的学习画像，让智能体了解你的学习背景、困难与目标。</p>
+            <p className="text-sm font-semibold text-gray-700 mb-1">完成学习画像后，CodeBuddy 将为你推荐适合的模块学习顺序。</p>
+            <p className="text-xs text-gray-500 mb-4">完善你的学习画像，让智能体了解你的薄弱模块与学习目标，推荐最合适的模块学习路径。</p>
             <Link
               to="/profile"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
@@ -127,8 +121,7 @@ export default function CourseCenter() {
       {/* ===== General Course Catalog ===== */}
       <AnimatedSection delay={0.08}>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">通用课程体系</span>
-          <span className="text-[10px] text-gray-400">— 计算机专业核心课程群</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">数据结构与算法模块体系</span>
         </div>
       </AnimatedSection>
 
@@ -138,7 +131,7 @@ export default function CourseCenter() {
         <div className="col-span-7">
           <AnimatedSection delay={0.1}>
             <div className="grid grid-cols-2 gap-3 overflow-visible">
-              {courses.map((c, i) => (
+              {dataStructureModules.map((c, i) => (
                 <CourseCard
                   key={c.id}
                   course={c}
@@ -160,7 +153,7 @@ export default function CourseCenter() {
           <AnimatedSection delay={0.15} direction="right">
             <CourseDetailPanel
               course={selected}
-              allCourses={courses}
+              allCourses={dataStructureModules}
               onSelectCourse={setSelectedId}
             />
           </AnimatedSection>

@@ -89,8 +89,8 @@ export function buildPersonalizedTransition(
   const kw = extractProfileKeywords(profile)
   if (!hasUsableProfile(profile)) return null
 
-  const programmingCourse = courses.find((c) => c.id === 'programming-basics')
-  const dsCourse = courses.find((c) => c.id === 'data-structures')
+  const baseModule = courses.find((c) => c.stage === '基础模块')
+  const coreModule = courses.find((c) => c.stage === '核心模块')
 
   const reasons: string[] = []
   const basedOn: string[] = []
@@ -117,21 +117,21 @@ export function buildPersonalizedTransition(
     basedOn.push(...kw.goals.filter((g) => projectTerms.some((t) => g.includes(t))))
   }
 
-  if (reasons.length > 0 && programmingCourse && dsCourse) {
+  if (reasons.length > 0 && baseModule) {
     return {
-      from: programmingCourse.name,
-      to: dsCourse.name,
-      reason: reasons.join('；') + '，建议优先学习数据结构与算法核心内容。',
+      from: baseModule.name,
+      to: coreModule?.name ?? '树与二叉树',
+      reason: reasons.join('；') + '，建议优先从基础模块入手逐步深入。',
       basedOn: [...new Set(basedOn)].slice(0, 6),
       isPersonalized: true,
     }
   }
 
-  if (programmingCourse && dsCourse) {
+  if (baseModule && coreModule) {
     return {
-      from: programmingCourse.name,
-      to: dsCourse.name,
-      reason: '根据你的学习画像，建议在巩固程序设计基础后进入数据结构学习。',
+      from: baseModule.name,
+      to: coreModule.name,
+      reason: '根据你的学习画像，建议从基础模块开始，逐步进入核心模块学习。',
       basedOn: ['学习画像综合分析'],
       isPersonalized: true,
     }
@@ -192,11 +192,8 @@ export function buildPersonalizedPath(
     ...kw.difficulties.filter((d) => [...BASIC_TERMS, ...DS_TERMS, ...ALGO_TERMS].some((t) => d.includes(t))),
   ]
   const primaryTopic = difficultyTopics[0] || kw.goals[0] || '数据结构基础'
-  const dsCourse = courses.find((c) => c.id === 'data-structures')
-  const progCourse = courses.find((c) => c.id === 'programming-basics')
-  const primaryCourse = dsCourse || progCourse || courses[0]
+  const primaryCourse = courses[0]
   const primaryCourseName = primaryCourse?.name ?? '数据结构与算法'
-  const basicCourseName = progCourse?.name ?? primaryCourseName
 
   // ---- Resource type preference ----
   const preferredResourceType = prefersDiagrams ? '图解讲义' : prefersCode ? '代码示例' : '讲解文档'
@@ -246,7 +243,7 @@ export function buildPersonalizedPath(
     nodes.push({
       id: `stage-${nodeId++}`,
       name: `${topic}概念梳理`,
-      course: basicCourseName,
+      course: primaryCourseName,
       goal: hasBasicIssue
         ? `消除${topic}相关的知识盲区，建立完整的基础概念体系`
         : `建立${topic}的清晰概念框架，为后续学习打好基础`,

@@ -3,7 +3,7 @@ import type { StudentProfile, ProfileChatResponse, DiagnosisQuestion, BackendPro
 // ========== Original mock data (kept for backward compatibility) ==========
 
 export const mockProfileChat: ProfileChatResponse = {
-  message: '你好！我是你的学习伙伴 CodeBuddy 🎓 让我们从了解你开始吧～你目前在学哪几门课程呢？',
+  message: '你好！我是你的学习伙伴 CodeBuddy 🎓 你现在正在学习数据结构与算法吧？感觉最吃力的模块是哪一个呢——复杂度分析、递归、树、还是图？先跟我聊聊你的学习情况吧～',
   extracted_fields: {},
   missing_fields: [
     'current_courses', 'completed_courses', 'learning_difficulty',

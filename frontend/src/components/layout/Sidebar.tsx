@@ -13,7 +13,7 @@ import { getCurrentUserDisplay } from '../../config/appConfig'
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '首页' },
   { to: '/profile', icon: UserRound, label: '学习画像' },
-  { to: '/courses', icon: BookOpen, label: '课程中心' },
+  { to: '/courses', icon: BookOpen, label: '模块中心' },
   { to: '/resources', icon: FileText, label: '资源生成' },
   { to: '/path', icon: GitBranch, label: '学习路径' },
   { to: '/assessment', icon: ClipboardCheck, label: '辅导评估' },

@@ -161,7 +161,7 @@ export default function LearningPath() {
             {usable ? '个性化学习路径' : '学习路径规划'}
           </h1>
           {!profileLoading && !usable && (
-            <span className="text-[10px] text-gray-400 ml-2">— 画像不足，使用通用参考路径</span>
+            <span className="text-[10px] text-gray-400 ml-2">— 画像不足，使用数据结构与算法通用参考路径</span>
           )}
         </div>
       </AnimatedSection>
@@ -171,9 +171,9 @@ export default function LearningPath() {
         <AnimatedSection delay={0.03}>
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-100 px-5 py-5 text-center">
             <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-gray-700 mb-1">画像信息不足，当前使用通用参考路径</p>
+            <p className="text-sm font-semibold text-gray-700 mb-1">画像信息不足，当前使用数据结构与算法通用参考路径</p>
             <p className="text-xs text-gray-500 mb-4">
-              完善学习画像后，CodeBuddy 可基于你的学习困难、目标和偏好，生成更准确的个性化路径。
+              完善学习画像后，CodeBuddy 可基于你的基础、困难点和学习目标，调整模块学习顺序与深度。
             </p>
             <Link
               to="/profile"

@@ -78,7 +78,7 @@ export default function ResourceGen() {
     const p = pendingParams
     const res = await generateResources({
       course_id: p?.courseId ?? 'data-structures',
-      learning_topic: p?.learningTopic ?? '二叉树遍历',
+      learning_topic: p?.learningTopic ?? '递归调用栈',
       difficulty: p?.difficulty ?? '基础',
       language: p?.language ?? 'Python',
       resource_types: p?.selectedTypes ?? [],

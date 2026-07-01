@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Sparkles, BookOpen, Edit3, Clock, Code } from 'lucide-react'
-import { mockCourses } from '../../mock/courses'
 
 const DIFFICULTIES = ['基础', '进阶', '综合']
 const LANGUAGES = ['Python', 'C', 'C++', 'Java']
@@ -15,7 +14,7 @@ const RESOURCE_TYPES = [
 ]
 
 const RECOMMENDED_TOPICS = [
-  '递归调用栈', '二叉树遍历', '数组边界', '函数调用', '排序算法', '进程调度',
+  '递归调用栈', '二叉树遍历', '图的 BFS 与 DFS', '快速排序', '动态规划入门',
 ]
 
 export interface WorkbenchParams {
@@ -33,14 +32,12 @@ interface ResourceWorkbenchProps {
 
 export default function ResourceWorkbench({ onGenerate, generating }: ResourceWorkbenchProps) {
   const [courseId, setCourseId] = useState('data-structures')
-  const [learningTopic, setLearningTopic] = useState('二叉树遍历')
+  const [learningTopic, setLearningTopic] = useState('递归调用栈')
   const [difficulty, setDifficulty] = useState('基础')
   const [language, setLanguage] = useState('Python')
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     RESOURCE_TYPES.map((t) => t.key),
   )
-
-  const allCourses = mockCourses.courses
 
   const toggleType = (key: string) => {
     setSelectedTypes((prev) =>
@@ -73,9 +70,7 @@ export default function ResourceWorkbench({ onGenerate, generating }: ResourceWo
             onChange={(e) => setCourseId(e.target.value)}
             className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 bg-white"
           >
-            {allCourses.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            <option value="data-structures">数据结构与算法</option>
           </select>
         </div>
         <div className="col-span-3">
@@ -89,7 +84,7 @@ export default function ResourceWorkbench({ onGenerate, generating }: ResourceWo
             type="text"
             value={learningTopic}
             onChange={(e) => setLearningTopic(e.target.value)}
-            placeholder="例如：递归调用栈、二叉树中序遍历、数组越界、进程调度算法……"
+            placeholder="输入你想学习的数据结构知识点，例如：递归调用栈、二叉树遍历、图的最短路径、快速排序、动态规划入门"
             className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 bg-white placeholder:text-gray-300"
           />
           <p className="text-[10px] text-gray-400 mt-1">
