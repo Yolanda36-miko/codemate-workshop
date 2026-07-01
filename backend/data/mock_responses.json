@@ -1,43 +1,73 @@
 {
   "profile_chat": {
-    "message": "李同学你好！我是你的学习伙伴 CodeBuddy 🎓 让我们从了解你开始吧～你目前在学哪几门课程呢？",
+    "message": "你好！我是你的学习伙伴 CodeBuddy。我们先从《数据结构与算法》的学习情况聊起吧——你目前在哪些模块上感到最吃力呢？比如递归调用栈、树遍历、排序算法？",
     "extracted_fields": {},
-    "missing_fields": ["current_courses", "completed_courses", "knowledge_basis", "learning_difficulty", "programming_languages", "learning_style", "learning_goals", "resource_preference"]
+    "missing_fields": ["current_courses", "completed_courses", "learning_difficulty", "programming_languages", "coding_blockers", "cognitive_style", "learning_goals", "resource_preference"]
   },
   "resources": {
     "resource_cards": [
       {
         "id": "res-001",
-        "title": "递归调用栈详解",
+        "title": "递归调用栈图解讲义",
         "type": "个性化讲解文档",
-        "course": "程序设计基础",
-        "knowledge_point": "递归",
+        "course": "数据结构与算法",
+        "knowledge_point": "递归调用栈",
         "difficulty": "入门",
         "language": "Python",
-        "summary": "通过图解和代码逐步讲解递归调用栈的工作过程，适合递归概念不清晰的同学。"
+        "summary": "通过逐步图解展示递归函数调用的栈帧变化过程，帮助理解递归执行机制和调用栈原理。"
       },
       {
         "id": "res-002",
-        "title": "二叉树遍历实现",
+        "title": "二叉树三种遍历代码示例",
         "type": "代码示例与注释",
         "course": "数据结构与算法",
         "knowledge_point": "二叉树遍历",
         "difficulty": "进阶",
         "language": "Python",
-        "summary": "前序、中序、后序遍历的Python实现，包含详细注释和复杂度分析。"
+        "summary": "前序、中序、后序遍历的Python递归与非递归实现，包含详细注释和复杂度分析。"
+      },
+      {
+        "id": "res-003",
+        "title": "BFS与DFS对比讲解",
+        "type": "知识点思维导图",
+        "course": "数据结构与算法",
+        "knowledge_point": "图遍历",
+        "difficulty": "进阶",
+        "language": "通用",
+        "summary": "对比广度优先搜索与深度优先搜索的核心思想、实现方式和适用场景，附带图示说明。"
+      },
+      {
+        "id": "res-004",
+        "title": "快速排序易错点分析",
+        "type": "拓展阅读资料",
+        "course": "数据结构与算法",
+        "knowledge_point": "排序算法",
+        "difficulty": "进阶",
+        "language": "Python",
+        "summary": "梳理快速排序partition过程中的常见错误：基准选择、边界条件、递归出口等。"
+      },
+      {
+        "id": "res-005",
+        "title": "动态规划入门练习",
+        "type": "分层练习题",
+        "course": "数据结构与算法",
+        "knowledge_point": "动态规划",
+        "difficulty": "基础",
+        "language": "通用",
+        "summary": "从斐波那契记忆化搜索到背包问题的分层练习，帮助建立状态定义和转移方程思维。"
       }
     ]
   },
   "path": {
-    "name": "从程序设计基础到数据结构入门的成长路径",
+    "name": "数据结构与算法个性化学习路径",
     "nodes": [
-      {"id": "node-1", "name": "函数调用基础", "course": "程序设计基础", "goal": "理解函数调用机制", "duration": "2小时", "status": "pending"},
-      {"id": "node-2", "name": "数组与循环巩固", "course": "程序设计基础", "goal": "掌握数组遍历与操作", "duration": "3小时", "status": "pending"},
-      {"id": "node-3", "name": "递归概念与调用栈", "course": "程序设计基础", "goal": "理解递归思想和调用栈", "duration": "4小时", "status": "pending"},
-      {"id": "node-4", "name": "二叉树结构理解", "course": "数据结构与算法", "goal": "理解二叉树的结构和性质", "duration": "3小时", "status": "pending"},
-      {"id": "node-5", "name": "二叉树遍历代码实现", "course": "数据结构与算法", "goal": "掌握三种遍历方式的代码实现", "duration": "4小时", "status": "pending"},
-      {"id": "node-6", "name": "分层练习与错题修正", "course": "数据结构与算法", "goal": "通过练习巩固，修正易错点", "duration": "3小时", "status": "pending"},
-      {"id": "node-7", "name": "文件目录树项目案例", "course": "数据结构与算法", "goal": "综合应用树结构解决实际问题", "duration": "5小时", "status": "pending"}
+      {"id": "node-1", "name": "复杂度分析基础", "course": "数据结构与算法", "goal": "理解大O表示法与复杂度分析方法", "duration": "2小时", "status": "pending"},
+      {"id": "node-2", "name": "线性表与链表操作", "course": "数据结构与算法", "goal": "掌握顺序表与链式存储结构", "duration": "3小时", "status": "pending"},
+      {"id": "node-3", "name": "栈与队列应用", "course": "数据结构与算法", "goal": "理解LIFO/FIFO及经典应用场景", "duration": "3小时", "status": "pending"},
+      {"id": "node-4", "name": "递归与调用栈深入", "course": "数据结构与算法", "goal": "理解递归思想与调用栈机制", "duration": "4小时", "status": "pending"},
+      {"id": "node-5", "name": "二叉树结构与遍历", "course": "数据结构与算法", "goal": "掌握二叉树四种遍历方式", "duration": "4小时", "status": "pending"},
+      {"id": "node-6", "name": "排序与查找算法", "course": "数据结构与算法", "goal": "掌握经典排序查找算法及对比", "duration": "4小时", "status": "pending"},
+      {"id": "node-7", "name": "综合项目实践", "course": "数据结构与算法", "goal": "综合应用数据结构解决实际问题", "duration": "5小时", "status": "pending"}
     ]
   },
   "assessment": {
@@ -46,8 +76,8 @@
     "growth": {"knowledge_base": 5, "practice_ability": 4},
     "badges": ["二叉树探索者"],
     "remedial_resources": [
-      {"knowledge_point": "递归出口", "reason": "2道题目均与递归边界条件有关"},
-      {"knowledge_point": "遍历顺序", "reason": "后序遍历顺序需加强练习"}
+      {"knowledge_point": "递归终止条件", "reason": "2道题目均与递归边界条件设置有关"},
+      {"knowledge_point": "遍历顺序", "reason": "后序遍历顺序需加强练习和对比理解"}
     ]
   }
 }

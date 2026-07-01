@@ -23,7 +23,7 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
     "array": ["数组", "下标", "越界", "边界", "列表", "索引"],
     "linked_list": ["链表", "节点", "指针", "头结点"],
     "sorting": ["排序", "查找", "搜索", "冒泡", "快速排序", "二分", "归并"],
-    "sql": ["sql", "数据库", "索引", "查询", "表", "join", "事务"],
+    "dp": ["动态规划", "dp", "状态定义", "状态转移", "最优子结构", "重叠子问题", "背包", "记忆化"],
     "function_call": ["函数", "调用", "参数", "返回值", "作用域", "嵌套"],
     "debug": ["调试", "debug", "报错", "错误", "异常", "排错"],
     "project": ["项目", "实践", "开发", "应用", "综合"],
@@ -190,36 +190,39 @@ def _build_sorting_response(msg: str) -> dict:
     }
 
 
-def _build_sql_response(msg: str) -> dict:
+def _build_dp_response(msg: str) -> dict:
     return {
-        "greeting": "数据库查询优化是实际开发中很重要的技能，让我来帮你理解！",
+        "greeting": "动态规划是算法学习中的重要里程碑，让我帮你建立DP思维！",
         "approach": (
-            "SQL 查询优化的核心是理解索引的工作原理——"
-            "索引就像书的目录，帮你快速定位数据，避免全表扫描。"
+            "动态规划的核心是「找到最优子结构」——"
+            "大问题的最优解包含子问题的最优解。关键是正确定义状态和写出转移方程。"
         ),
         "steps": [
-            "第一步：理解全表扫描的问题——没有索引时，数据库需要逐行检查所有数据。",
-            "第二步：理解索引原理——索引是一个排序的数据结构（通常是 B+ 树），支持快速查找。",
-            "第三步：知道什么时候该建索引——频繁查询的列、WHERE 条件列、JOIN 关联列。",
-            "第四步：了解索引的代价——索引会占用额外存储空间，并降低写入性能。",
+            "第一步：明确问题是否具有最优子结构——能否用子问题的最优解构造原问题的最优解。",
+            "第二步：定义状态——用一个或多个变量描述子问题的状态，例如 dp[i] 表示前 i 个元素的最优解。",
+            "第三步：写出状态转移方程——当前状态如何从之前的某个状态转移而来。",
+            "第四步：确定计算顺序——自顶向下（记忆化搜索）还是自底向上（递推填表）。",
         ],
         "code_example": (
-            "-- 没有索引时：全表扫描\n"
-            "SELECT * FROM students WHERE name = 'Tom';\n"
-            "\n"
-            "-- 创建索引后：快速定位\n"
-            "CREATE INDEX idx_name ON students(name);\n"
-            "\n"
-            "-- 索引对范围查询也有效\n"
-            "SELECT * FROM orders WHERE date > '2024-01-01';"
+            "# 0-1 背包问题 — 经典 DP 入门\n"
+            "def knapsack(weights, values, capacity):\n"
+            "    n = len(weights)\n"
+            "    dp = [[0] * (capacity + 1) for _ in range(n + 1)]\n"
+            "    for i in range(1, n + 1):\n"
+            "        for w in range(capacity + 1):\n"
+            "            if weights[i-1] > w:\n"
+            "                dp[i][w] = dp[i-1][w]\n"
+            "            else:\n"
+            "                dp[i][w] = max(dp[i-1][w], dp[i-1][w-weights[i-1]] + values[i-1])\n"
+            "    return dp[n][capacity]"
         ),
         "recommended_resources": [
-            {"title": "数据库索引原理讲解", "url": "#"},
-            {"title": "SQL 查询优化实践", "url": "#"},
+            {"title": "动态规划入门讲解", "url": "#"},
+            {"title": "经典DP问题分类整理", "url": "#"},
         ],
         "suggested_exercise": (
-            "创建一个包含 1000 条记录的表，"
-            "分别在有无索引的情况下执行查询，对比执行时间。"
+            "从斐波那契数列的记忆化搜索开始，"
+            "然后尝试解决「爬楼梯」和「最小路径和」问题，逐步过渡到背包问题。"
         ),
     }
 
@@ -340,7 +343,7 @@ _DOMAIN_BUILDERS = {
     "array": _build_array_response,
     "linked_list": _build_linked_list_response,
     "sorting": _build_sorting_response,
-    "sql": _build_sql_response,
+    "dp": _build_dp_response,
     "function_call": _build_function_call_response,
     "debug": _build_debug_response,
     "project": _build_project_response,
@@ -373,7 +376,7 @@ def tutor_chat(req: TutorChatRequest):
 
     Mock mode (LLM_PROVIDER=mock):
       Returns a keyword-aware response that varies based on the user's
-      question topic (recursion, binary-tree, array, SQL, etc.).
+      question topic (recursion, binary-tree, array, dp, etc.).
 
     Real LLM mode:
       Forwards to the configured LLM provider with the user's profile

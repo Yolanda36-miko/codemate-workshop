@@ -59,57 +59,89 @@ def seed_users(session):
 
 
 def seed_courses(session):
-    """填充课程数据"""
+    """填充课程数据 — 数据结构与算法内部模块"""
     print("填充课程数据...")
-    
+
     courses_data = [
         {
-            "course_code": "programming_basics",
-            "name": "程序设计基础",
-            "description": "学习程序设计的基础知识，包括变量、函数、控制流程等",
-            "stage": "入门",
+            "course_code": "complexity",
+            "name": "复杂度分析",
+            "description": "理解算法效率的度量方式，掌握时间复杂度与空间复杂度的分析方法。",
+            "stage": "基础模块",
             "positioning": "重点演示",
-            "keywords": '["程序设计", "基础", "编程"]',
+            "keywords": '["复杂度", "大O表示法", "渐进分析", "时间复杂度", "空间复杂度"]',
         },
         {
-            "course_code": "data_structures",
-            "name": "数据结构与算法",
-            "description": "学习常见数据结构和算法，提升编程能力",
-            "stage": "进阶",
-            "positioning": "课程群支撑",
-            "keywords": '["数据结构", "算法", "复杂度"]',
+            "course_code": "linear-list",
+            "name": "线性表",
+            "description": "掌握顺序表与链式存储结构的原理、实现及适用场景。",
+            "stage": "基础模块",
+            "positioning": "重点演示",
+            "keywords": '["线性表", "顺序表", "链表", "单链表", "双向链表"]',
         },
         {
-            "course_code": "computer_organization",
-            "name": "计算机组成原理",
-            "description": "了解计算机硬件组成和工作原理",
-            "stage": "进阶",
-            "positioning": "课程群支撑",
-            "keywords": '["计算机组成", "硬件", "CPU"]',
+            "course_code": "stack-queue",
+            "name": "栈与队列",
+            "description": "理解栈与队列的逻辑结构、存储实现及在算法中的经典应用。",
+            "stage": "核心模块",
+            "positioning": "重点演示",
+            "keywords": '["栈", "队列", "LIFO", "FIFO", "表达式求值", "BFS"]',
         },
         {
-            "course_code": "operating_system",
-            "name": "操作系统",
-            "description": "学习操作系统的基本概念和原理",
-            "stage": "高级",
-            "positioning": "课程群支撑",
-            "keywords": '["操作系统", "进程", "内存管理"]',
+            "course_code": "recursion-callstack",
+            "name": "递归与调用栈",
+            "description": "深入理解递归思想、调用栈机制，掌握递归算法的设计与调试。",
+            "stage": "建议优先学习",
+            "positioning": "重点演示",
+            "keywords": '["递归", "调用栈", "栈帧", "基准情形", "尾递归", "分治"]',
         },
         {
-            "course_code": "computer_network",
-            "name": "计算机网络",
-            "description": "学习计算机网络的基本原理和协议",
-            "stage": "高级",
-            "positioning": "课程群支撑",
-            "keywords": '["网络", "TCP/IP", "协议"]',
+            "course_code": "tree",
+            "name": "树与二叉树",
+            "description": "系统学习树结构，掌握二叉树遍历、二叉搜索树及平衡树的核心算法。",
+            "stage": "核心模块",
+            "positioning": "重点演示",
+            "keywords": '["二叉树", "遍历", "BST", "AVL", "堆", "哈夫曼树"]',
         },
         {
-            "course_code": "database_system",
-            "name": "数据库系统",
-            "description": "学习数据库设计和SQL语言",
-            "stage": "进阶",
-            "positioning": "课程群支撑",
-            "keywords": '["数据库", "SQL", "数据管理"]',
+            "course_code": "graph",
+            "name": "图结构与图算法",
+            "description": "学习图的存储结构与遍历算法，掌握最短路径、拓扑排序等经典图算法。",
+            "stage": "进阶模块",
+            "positioning": "重点演示",
+            "keywords": '["图", "DFS", "BFS", "Dijkstra", "拓扑排序", "最小生成树"]',
+        },
+        {
+            "course_code": "sort-search",
+            "name": "排序与查找",
+            "description": "掌握经典排序与查找算法的原理、实现及性能对比。",
+            "stage": "核心模块",
+            "positioning": "重点演示",
+            "keywords": '["排序", "快速排序", "归并排序", "二分查找", "稳定性"]',
+        },
+        {
+            "course_code": "hash",
+            "name": "散列表",
+            "description": "理解散列表的原理与实现，掌握哈希函数设计与冲突解决方法。",
+            "stage": "进阶模块",
+            "positioning": "重点演示",
+            "keywords": '["散列表", "哈希函数", "链地址法", "开放定址", "rehash"]',
+        },
+        {
+            "course_code": "dp",
+            "name": "动态规划入门",
+            "description": "入门动态规划思想，掌握状态定义、转移方程和经典DP问题的求解。",
+            "stage": "进阶模块",
+            "positioning": "重点演示",
+            "keywords": '["动态规划", "最优子结构", "状态转移", "记忆化搜索", "背包问题"]',
+        },
+        {
+            "course_code": "ds-project",
+            "name": "综合项目实践",
+            "description": "将所学数据结构与算法知识应用于综合项目，培养实际建模与编码能力。",
+            "stage": "综合应用",
+            "positioning": "重点演示",
+            "keywords": '["项目", "综合", "数据结构选型", "实际建模", "测试调试"]',
         },
     ]
     
@@ -132,25 +164,42 @@ def seed_courses(session):
 
 
 def seed_course_relations(session):
-    """填充课程关系数据"""
+    """填充课程关系数据（模块间依赖）"""
     print("填充课程关系数据...")
-    
-    # 获取课程
-    programming_basics = session.query(Course).filter_by(course_code="programming_basics").first()
-    data_structures = session.query(Course).filter_by(course_code="data_structures").first()
-    
-    if not programming_basics or not data_structures:
-        print("  警告：相关课程不存在，跳过课程关系填充")
+
+    complexity = session.query(Course).filter_by(course_code="complexity").first()
+    linear_list = session.query(Course).filter_by(course_code="linear-list").first()
+    stack_queue = session.query(Course).filter_by(course_code="stack-queue").first()
+    recursion = session.query(Course).filter_by(course_code="recursion-callstack").first()
+    tree = session.query(Course).filter_by(course_code="tree").first()
+
+    if not complexity or not linear_list:
+        print("  警告：基础模块不存在，跳过课程关系填充")
         return
-    
-    relations_data = [
-        {
-            "from_course_id": programming_basics.id,
-            "to_course_id": data_structures.id,
+
+    relations_data = []
+    # 基础模块之间无强依赖
+    if linear_list and stack_queue:
+        relations_data.append({
+            "from_course_id": linear_list.id,
+            "to_course_id": stack_queue.id,
             "relation_type": "prerequisite",
-            "description": "程序设计基础是数据结构的前置课程",
-        },
-    ]
+            "description": "线性表是栈与队列实现的基础",
+        })
+    if stack_queue and recursion:
+        relations_data.append({
+            "from_course_id": stack_queue.id,
+            "to_course_id": recursion.id,
+            "relation_type": "prerequisite",
+            "description": "栈的理解是递归调用栈学习的基础",
+        })
+    if recursion and tree:
+        relations_data.append({
+            "from_course_id": recursion.id,
+            "to_course_id": tree.id,
+            "relation_type": "prerequisite",
+            "description": "递归思想是二叉树递归遍历的前置知识",
+        })
     
     created_count = 0
     for relation_data in relations_data:
@@ -176,81 +225,57 @@ def seed_course_relations(session):
 def seed_knowledge_points(session):
     """填充知识点数据"""
     print("填充知识点数据...")
-    
-    # 获取课程
-    programming_basics = session.query(Course).filter_by(course_code="programming_basics").first()
-    data_structures = session.query(Course).filter_by(course_code="data_structures").first()
-    
-    if not programming_basics or not data_structures:
-        print("  警告：相关课程不存在，跳过知识点填充")
+
+    complexity = session.query(Course).filter_by(course_code="complexity").first()
+    stack_queue = session.query(Course).filter_by(course_code="stack-queue").first()
+    recursion = session.query(Course).filter_by(course_code="recursion-callstack").first()
+    tree = session.query(Course).filter_by(course_code="tree").first()
+    sort_search = session.query(Course).filter_by(course_code="sort-search").first()
+
+    if not complexity or not recursion:
+        print("  警告：基础模块不存在，跳过知识点填充")
         return
-    
+
     knowledge_points_data = [
-        # 程序设计基础的知识点
         {
-            "course_id": programming_basics.id,
-            "name": "函数调用",
-            "description": "学习函数的定义和调用方法",
+            "course_id": complexity.id,
+            "name": "时间复杂度分析",
+            "description": "学习大O表示法，分析算法的时间复杂度",
             "difficulty": "基础",
-            "tags": '["函数", "调用"]',
-            "common_errors": '["参数错误", "返回值错误"]',
+            "tags": '["复杂度", "大O", "渐进分析"]',
+            "common_errors": '["嵌套循环复杂度误判", "忽略递归复杂度"]',
         },
         {
-            "course_id": programming_basics.id,
-            "name": "数组边界",
-            "description": "理解数组的索引和边界问题",
+            "course_id": stack_queue.id or complexity.id,
+            "name": "栈的应用",
+            "description": "理解栈在表达式求值、括号匹配中的应用",
             "difficulty": "基础",
-            "tags": '["数组", "边界"]',
-            "common_errors": '["越界访问", "索引错误"]',
+            "tags": '["栈", "LIFO", "表达式求值"]',
+            "common_errors": '["栈空/栈满判断", "出栈顺序理解错误"]',
         },
         {
-            "course_id": programming_basics.id,
-            "name": "递归调用栈",
-            "description": "理解递归调用的执行过程和调用栈",
+            "course_id": recursion.id,
+            "name": "递归三要素",
+            "description": "掌握递归函数的基准情形、递归关系和递归调用",
             "difficulty": "进阶",
-            "tags": '["递归", "调用栈"]',
-            "common_errors": '["栈溢出", "递归终止条件错误"]',
+            "tags": '["递归", "基准情形", "调用栈"]',
+            "common_errors": '["递归出口缺失", "栈溢出", "重复计算"]',
         },
         {
-            "course_id": programming_basics.id,
-            "name": "基础调试",
-            "description": "学习基本的调试方法和技巧",
-            "difficulty": "基础",
-            "tags": '["调试", "错误排查"]',
-            "common_errors": '[]',
-        },
-        # 数据结构与算法的知识点
-        {
-            "course_id": data_structures.id,
-            "name": "二叉树结构",
-            "description": "学习二叉树的基本结构和性质",
-            "difficulty": "进阶",
-            "tags": '["二叉树", "数据结构"]',
-            "common_errors": '["空指针访问", "树的高度计算错误"]',
-        },
-        {
-            "course_id": data_structures.id,
+            "course_id": tree.id or recursion.id,
             "name": "二叉树遍历",
-            "description": "掌握二叉树的前序、中序、后序遍历方法",
+            "description": "掌握二叉树的前序、中序、后序和层序遍历方法",
             "difficulty": "进阶",
-            "tags": '["二叉树", "遍历"]',
-            "common_errors": '["递归深度错误", "遍历顺序错误"]',
+            "tags": '["二叉树", "遍历", "递归"]',
+            "common_errors": '["遍历顺序混淆", "递归深度错误", "空指针访问"]',
         },
         {
-            "course_id": data_structures.id,
-            "name": "递归思想",
-            "description": "深入理解递归算法的设计思想",
+            "course_id": sort_search.id or recursion.id,
+            "name": "快速排序",
+            "description": "理解快速排序的partition过程和分治思想",
             "difficulty": "进阶",
-            "tags": '["递归", "算法"]',
-            "common_errors": '["递归深度过大", "重复计算"]',
-        },
-        {
-            "course_id": data_structures.id,
-            "name": "排序算法基础",
-            "description": "学习常见的排序算法",
-            "difficulty": "进阶",
-            "tags": '["排序", "算法"]',
-            "common_errors": '["时间复杂度分析错误", "稳定性问题"]',
+            "tags": '["排序", "快速排序", "分治"]',
+            "common_errors": '["基准选择不当", "递归深度过大", "稳定性误判"]',
         },
     ]
     
@@ -278,28 +303,21 @@ def seed_knowledge_points(session):
 def seed_knowledge_point_relations(session):
     """填充知识点关系数据"""
     print("填充知识点关系数据...")
-    
-    # 获取知识点
-    func_call = session.query(KnowledgePoint).filter_by(name="函数调用").first()
-    recursion_stack = session.query(KnowledgePoint).filter_by(name="递归调用栈").first()
+
+    time_complexity = session.query(KnowledgePoint).filter_by(name="时间复杂度分析").first()
+    recursion = session.query(KnowledgePoint).filter_by(name="递归三要素").first()
     binary_tree_traversal = session.query(KnowledgePoint).filter_by(name="二叉树遍历").first()
-    
-    if not func_call or not recursion_stack or not binary_tree_traversal:
+
+    if not time_complexity or not recursion or not binary_tree_traversal:
         print("  警告：相关知识点不存在，跳过知识点关系填充")
         return
-    
+
     relations_data = [
         {
-            "from_kp_id": func_call.id,
-            "to_kp_id": recursion_stack.id,
-            "relation_type": "prerequisite",
-            "description": "函数调用是理解递归调用栈的基础",
-        },
-        {
-            "from_kp_id": recursion_stack.id,
+            "from_kp_id": recursion.id,
             "to_kp_id": binary_tree_traversal.id,
             "relation_type": "prerequisite",
-            "description": "递归调用栈是理解二叉树递归遍历的基础",
+            "description": "递归思想是理解二叉树递归遍历的基础",
         },
     ]
     
@@ -330,28 +348,28 @@ def seed_badges(session):
     
     badges_data = [
         {
-            "badge_code": "function_call_intro",
-            "name": "函数调用入门",
-            "description": "完成函数调用知识点的学习",
+            "badge_code": "complexity_master",
+            "name": "复杂度分析入门",
+            "description": "完成时间复杂度分析知识点的学习",
             "icon": "🔧",
             "condition_type": "knowledge_point_completed",
-            "condition_value": "函数调用",
+            "condition_value": "时间复杂度分析",
         },
         {
             "badge_code": "recursion_explorer",
             "name": "递归探索者",
-            "description": "掌握递归调用的基本原理",
+            "description": "掌握递归三要素和调用栈基本原理",
             "icon": "🔄",
             "condition_type": "knowledge_point_completed",
-            "condition_value": "递归调用栈",
+            "condition_value": "递归三要素",
         },
         {
-            "badge_code": "array_practitioner",
-            "name": "数组练习达人",
-            "description": "熟练掌握数组相关知识",
+            "badge_code": "stack_practitioner",
+            "name": "栈应用达人",
+            "description": "熟练掌握栈在表达式求值等场景的应用",
             "icon": "📊",
             "condition_type": "knowledge_point_completed",
-            "condition_value": "数组边界",
+            "condition_value": "栈的应用",
         },
         {
             "badge_code": "binary_tree_explorer",
@@ -362,12 +380,12 @@ def seed_badges(session):
             "condition_value": "二叉树遍历",
         },
         {
-            "badge_code": "code_practice_novice",
-            "name": "代码实践新手",
-            "description": "完成第一次代码练习",
+            "badge_code": "sorting_practitioner",
+            "name": "排序算法练习达人",
+            "description": "掌握快速排序等经典排序算法",
             "icon": "💻",
-            "condition_type": "practice_completed",
-            "condition_value": "1",
+            "condition_type": "knowledge_point_completed",
+            "condition_value": "快速排序",
         },
         {
             "badge_code": "path_persistent",

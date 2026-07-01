@@ -8,6 +8,10 @@ class Settings:
     APP_NAME: str = "CodeMate 智学工坊"
     APP_VERSION: str = "0.1.0"
 
+    # Focus course — the single course this platform centers on
+    FOCUS_COURSE: str = "数据结构与算法"
+    FOCUS_COURSE_CODE: str = "data_structures"
+
     # LLM Provider
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "mock")
     # OpenAI

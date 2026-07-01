@@ -7,7 +7,7 @@ Does NOT call LLMs — that's llm_service.py's job.
 Usage:
     from services.prompt_service import load_template, render_template
     raw = load_template("chat_profile")
-    rendered = render_template("chat_profile", student_name="李同学", extracted_fields={})
+    rendered = render_template("chat_profile", student_name="", extracted_fields={})
 """
 from __future__ import annotations
 
