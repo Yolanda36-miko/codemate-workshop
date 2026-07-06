@@ -1,8 +1,16 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Clock, Target, BookOpen, Lightbulb, User, ArrowRight, Bookmark, XCircle,
+  AlertTriangle, CheckCircle2, Code, ListOrdered, Zap, GitCompare,
 } from 'lucide-react'
-import type { ResourceCard } from '../../types'
+import type { ResourceCard, ResourceSection } from '../../types'
+
+function safeStr(v: unknown): string {
+  if (v == null) return ''
+  if (typeof v === 'string') return v
+  if (Array.isArray(v)) return v.map(String).join('\n')
+  return String(v)
+}
 
 interface ResourceDetailPanelProps {
   resource: ResourceCard | null
@@ -18,6 +26,128 @@ const typeBadgeColors: Record<string, string> = {
   '分层练习题': 'bg-amber-50 text-amber-700 border-amber-100',
   '拓展阅读资料': 'bg-indigo-50 text-indigo-700 border-indigo-100',
   '项目式学习案例': 'bg-rose-50 text-rose-700 border-rose-100',
+  '图解讲解': 'bg-purple-50 text-purple-700 border-purple-100',
+  '代码示例': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  '易错点': 'bg-amber-50 text-amber-700 border-amber-100',
+  '分层练习': 'bg-blue-50 text-blue-700 border-blue-100',
+  '项目案例': 'bg-rose-50 text-rose-700 border-rose-100',
+  '提示': 'bg-gray-50 text-gray-600 border-gray-100',
+}
+
+const sectionKindConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string; border: string; text: string }> = {
+  highlight: { icon: Zap, bg: 'bg-primary-50/60', border: 'border-primary-200/60', text: 'text-primary-800' },
+  steps: { icon: ListOrdered, bg: 'bg-white', border: 'border-gray-100', text: 'text-gray-700' },
+  code: { icon: Code, bg: 'bg-gray-900', border: 'border-gray-800', text: 'text-green-300' },
+  warning: { icon: AlertTriangle, bg: 'bg-amber-50/70', border: 'border-amber-200', text: 'text-amber-800' },
+  practice: { icon: CheckCircle2, bg: 'bg-emerald-50/50', border: 'border-emerald-200', text: 'text-emerald-800' },
+  compare: { icon: GitCompare, bg: 'bg-indigo-50/50', border: 'border-indigo-200', text: 'text-indigo-800' },
+}
+
+function SectionBlock({ section }: { section: ResourceSection }) {
+  const kind = section.kind || 'text'
+  const config = sectionKindConfig[kind] ?? sectionKindConfig.highlight
+  const Icon = config.icon
+
+  if (kind === 'code') {
+    const langLabel = section.language
+      ? (() => {
+          const l = section.language.toLowerCase()
+          if (l === 'python' || l === 'py') return 'Python'
+          if (l === 'c') return 'C'
+          if (l === 'c++' || l === 'cpp' || l === 'cxx') return 'C++'
+          if (l === 'java') return 'Java'
+          return section.language
+        })()
+      : null
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          {section.heading && (
+            <div className="flex items-center gap-1.5">
+              {Icon && <Icon className="w-3.5 h-3.5 text-gray-500" />}
+              <span className="text-xs font-semibold text-gray-600">{section.heading}</span>
+            </div>
+          )}
+          {langLabel && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-200 text-gray-500">
+              {langLabel}
+            </span>
+          )}
+        </div>
+        <div className={`rounded-xl p-4 ${config.bg} border ${config.border} overflow-x-auto`}>
+          <pre className={`text-xs leading-relaxed font-mono ${config.text}`}>
+            {safeStr(section.content)}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  if (kind === 'steps' && section.items) {
+    return (
+      <div className="space-y-2">
+        {section.heading && (
+          <div className="flex items-center gap-1.5">
+            {Icon && <Icon className="w-3.5 h-3.5 text-gray-500" />}
+            <span className="text-xs font-semibold text-gray-600">{section.heading}</span>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          {section.items.map((item, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              <span className="text-xs text-gray-600 leading-relaxed">{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if ((kind === 'practice' || kind === 'compare') && section.items) {
+    return (
+      <div className={`rounded-xl p-4 ${config.bg} border ${config.border} space-y-2`}>
+        {section.heading && (
+          <div className="flex items-center gap-1.5">
+            {Icon && <Icon className="w-3.5 h-3.5" />}
+            <span className={`text-xs font-semibold ${config.text}`}>{section.heading}</span>
+          </div>
+        )}
+        <ul className="space-y-1.5">
+          {section.items.map((item, i) => (
+            <li key={i} className="flex items-start gap-2">
+              {kind === 'practice' ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+              ) : (
+                <span className="w-1 h-1 rounded-full bg-indigo-400 shrink-0 mt-2" />
+              )}
+              <span className="text-xs text-gray-600 leading-relaxed">{item}</span>
+            </li>
+          ))}
+        </ul>
+        {section.content && (
+          <p className={`text-xs ${config.text} leading-relaxed`}>{safeStr(section.content)}</p>
+        )}
+      </div>
+    )
+  }
+
+  // Default rendering for highlight, warning, and text kinds
+  return (
+    <div className={`rounded-xl p-4 ${config.bg} border ${config.border} space-y-1.5`}>
+      {section.heading && (
+        <div className="flex items-center gap-1.5">
+          {Icon && <Icon className="w-3.5 h-3.5" />}
+          <span className={`text-xs font-semibold ${config.text}`}>{section.heading}</span>
+        </div>
+      )}
+      {section.content && (
+        <p className={`text-xs ${config.text} opacity-90 leading-relaxed`}>{safeStr(section.content)}</p>
+      )}
+    </div>
+  )
 }
 
 export default function ResourceDetailPanel({ resource, onClose, onSaveToPackage, savedToPackage }: ResourceDetailPanelProps) {
@@ -73,100 +203,150 @@ export default function ResourceDetailPanel({ resource, onClose, onSaveToPackage
                 </p>
               </div>
 
-              {/* Match reason */}
-              {resource.match_reason && (
+              {/* Personalized reason */}
+              {resource.personalized_reason && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary-50/50 border border-primary-100/50">
+                  <Lightbulb className="w-4 h-4 text-primary-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-primary-700">{resource.personalized_reason}</p>
+                </div>
+              )}
+
+              {/* Match reason (legacy) */}
+              {resource.match_reason && !resource.personalized_reason && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary-50/50 border border-primary-100/50">
                   <Lightbulb className="w-4 h-4 text-primary-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-primary-700">{resource.match_reason}</p>
                 </div>
               )}
 
-              {/* Section 1: Learning objectives */}
-              {resource.learning_objectives && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Target className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-semibold text-gray-700">学习目标</span>
+              {/* Sections (new structured format) */}
+              {resource.sections && resource.sections.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-primary-500" />
+                    <span className="text-xs font-semibold text-gray-700">学习内容</span>
                   </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{resource.learning_objectives}</p>
+                  {resource.sections.map((section, i) => (
+                    <SectionBlock key={i} section={section} />
+                  ))}
                 </div>
-              )}
-
-              {/* Section 2: Core content */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <BookOpen className="w-4 h-4 text-primary-500" />
-                  <span className="text-xs font-semibold text-gray-700">核心内容</span>
-                </div>
-                {resource.detailed_content ? (
-                  <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-3">
-                    {resource.detailed_content}
-                  </div>
-                ) : resource.sections?.length ? (
-                  resource.sections.map((s, i) => (
-                    <div key={i} className="mb-3">
-                      <h3 className="text-sm font-semibold text-gray-800 mb-1">{s.heading}</h3>
-                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-1.5">{s.content}</p>
-                      {s.codeBlock && (
-                        <div className="bg-gray-900 rounded-xl p-3 overflow-x-auto">
-                          <pre className="text-xs text-green-300 leading-relaxed font-mono">{s.codeBlock}</pre>
-                        </div>
-                      )}
+              ) : (
+                /* Fallback to old rendering chain */
+                <>
+                  {/* Learning objectives */}
+                  {resource.learning_objectives && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Target className="w-4 h-4 text-primary-500" />
+                        <span className="text-xs font-semibold text-gray-700">学习目标</span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">{resource.learning_objectives}</p>
                     </div>
-                  ))
-                ) : (
+                  )}
+
+                  {/* Core content */}
                   <div>
-                    {resource.summary && (
-                      <p className="text-sm text-gray-600 leading-relaxed mb-2">{resource.summary}</p>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <BookOpen className="w-4 h-4 text-primary-500" />
+                      <span className="text-xs font-semibold text-gray-700">核心内容</span>
+                    </div>
+                    {resource.content ? (
+                      <div className="text-sm text-gray-600 leading-relaxed mb-3 max-h-24 overflow-y-auto">
+                        {resource.content}
+                      </div>
+                    ) : resource.detailed_content ? (
+                      <div className="text-sm text-gray-600 leading-relaxed mb-3 max-h-24 overflow-y-auto">
+                        {resource.detailed_content}
+                      </div>
+                    ) : resource.sections ? (
+                      resource.sections.map((s, i) => (
+                        <div key={i} className="mb-3">
+                          <h3 className="text-sm font-semibold text-gray-800 mb-1">{s.heading}</h3>
+                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-1.5">{safeStr(s.content)}</p>
+                          {s.codeBlock && (
+                            <div className="bg-gray-900 rounded-xl p-3 overflow-x-auto">
+                              <pre className="text-xs text-green-300 leading-relaxed font-mono">{s.codeBlock}</pre>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div>
+                        {resource.summary && (
+                          <p className="text-sm text-gray-600 leading-relaxed mb-2">{resource.summary}</p>
+                        )}
+                        <p className="text-xs text-gray-400">暂无更详细内容。</p>
+                      </div>
                     )}
-                    <p className="text-xs text-gray-400">暂无更详细内容，可参考上方摘要信息。</p>
+                    {resource.key_concepts && resource.key_concepts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {resource.key_concepts.map((kc) => (
+                          <span key={kc} className="px-2 py-0.5 bg-primary-50 rounded-full text-[11px] text-primary-700 border border-primary-100">
+                            {kc}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-                {resource.key_concepts && resource.key_concepts.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {resource.key_concepts.map((kc) => (
-                      <span key={kc} className="px-2 py-0.5 bg-primary-50 rounded-full text-[11px] text-primary-700 border border-primary-100">
-                        {kc}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Section 3: Recommended usage */}
-              {resource.recommended_usage && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <ArrowRight className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-semibold text-gray-700">推荐使用方式</span>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{resource.recommended_usage}</p>
+                  {/* Recommended usage */}
+                  {resource.recommended_usage && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <ArrowRight className="w-4 h-4 text-primary-500" />
+                        <span className="text-xs font-semibold text-gray-700">推荐使用方式</span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed">{resource.recommended_usage}</p>
+                    </div>
+                  )}
+
+                  {/* Profile dimension mapping */}
+                  {resource.profile_dimension && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <User className="w-4 h-4 text-primary-500" />
+                        <span className="text-xs font-semibold text-gray-700">对应画像维度</span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed">{resource.profile_dimension}</p>
+                    </div>
+                  )}
+
+                  {/* Next steps */}
+                  {resource.next_steps && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <ArrowRight className="w-4 h-4 text-purple-500" />
+                        <span className="text-xs font-semibold text-gray-700">下一步建议</span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed">{resource.next_steps}</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Tags (new format) */}
+              {resource.tags && resource.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {resource.tags.map((tag) => (
+                    <span key={tag} className="px-2 py-0.5 bg-gray-100 rounded-full text-[11px] text-gray-500">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
 
-              {/* Section 4: Profile dimension mapping */}
-              {resource.profile_dimension && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <User className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-semibold text-gray-700">对应画像维度</span>
+              {/* Next action */}
+              {resource.next_action && (
+                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-purple-50 border border-purple-100">
+                  <ArrowRight className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-purple-700 mb-0.5">下一步行动</p>
+                    <p className="text-xs text-purple-600">{resource.next_action}</p>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{resource.profile_dimension}</p>
                 </div>
               )}
 
-              {/* Section 5: Next steps */}
-              {resource.next_steps && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <ArrowRight className="w-4 h-4 text-purple-500" />
-                    <span className="text-xs font-semibold text-gray-700">下一步建议</span>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{resource.next_steps}</p>
-                </div>
-              )}
-
-              {/* Learning tips */}
+              {/* Learning tips (legacy) */}
               {resource.learning_tips && resource.learning_tips.length > 0 && (
                 <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
                   <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />

@@ -5,7 +5,7 @@ import type { ResourceCard, PathResourceItem } from '../types'
 import ResourceWorkbench from '../components/resources/ResourceWorkbench'
 import type { WorkbenchParams } from '../components/resources/ResourceWorkbench'
 import ResourceCardComponent from '../components/resources/ResourceCard'
-import ResourceDetailPanel from '../components/resources/ResourceDetailPanel'
+import ResourceDetailModal from '../components/resources/ResourceDetailModal'
 import AgentGenerationStatus from '../components/resources/AgentGenerationStatus'
 import PathResourcePackage from '../components/resources/PathResourcePackage'
 import AnimatedSection from '../components/common/AnimatedSection'
@@ -16,6 +16,25 @@ import {
 
 type Phase = 'config' | 'generating' | 'done'
 
+// Check if user has a profile in localStorage (written by Profile page)
+function detectExistingProfile(): boolean {
+  try {
+    const keys = ['codemate_profile_draft', 'codemate_profile_complete', 'student_profile']
+    for (const key of keys) {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const data = JSON.parse(raw)
+        // Check for meaningful profile fields
+        if (data?.profile_summary || data?.learning_goals || data?.error_patterns ||
+            data?.cognitive_styles || data?.resource_preferences || data?.knowledge_base_score) {
+          return true
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return false
+}
+
 export default function ResourceGen() {
   const [phase, setPhase] = useState<Phase>('config')
   const [resources, setResources] = useState<ResourceCard[]>([])
@@ -23,8 +42,8 @@ export default function ResourceGen() {
   const [pendingParams, setPendingParams] = useState<WorkbenchParams | null>(null)
   const [pathItems, setPathItems] = useState<PathResourceItem[]>(() => loadPathResources())
   const [toast, setToast] = useState<string | null>(null)
-  // saveKey → packageId for resources saved to the API
   const [packageIdMap, setPackageIdMap] = useState<Map<string, number>>(new Map())
+  const [hasProfile] = useState(() => detectExistingProfile())
 
   // Derive savedKeys from packageIdMap for rendering
   const savedKeys = new Set(packageIdMap.keys())
@@ -79,9 +98,9 @@ export default function ResourceGen() {
     const res = await generateResources({
       course_id: p?.courseId ?? 'data-structures',
       learning_topic: p?.learningTopic ?? '递归调用栈',
-      difficulty: p?.difficulty ?? '基础',
       language: p?.language ?? 'Python',
       resource_types: p?.selectedTypes ?? [],
+      quick_profile: p?.quickProfile,
     })
     // Sync added_to_path using stable saveKey from packageIdMap
     const synced = (res.resource_cards ?? []).map((r) => ({
@@ -245,7 +264,7 @@ export default function ResourceGen() {
         {/* Left: Workbench + Results */}
         <div className="col-span-8 space-y-5">
           <AnimatedSection delay={0.05}>
-            <ResourceWorkbench onGenerate={handleGenerate} generating={phase === 'generating'} />
+            <ResourceWorkbench onGenerate={handleGenerate} generating={phase === 'generating'} hasExistingProfile={hasProfile} />
           </AnimatedSection>
 
           {phase === 'generating' && (
@@ -316,8 +335,8 @@ export default function ResourceGen() {
         </div>
       </div>
 
-      {/* Detail Panel */}
-      <ResourceDetailPanel
+      {/* Detail Modal */}
+      <ResourceDetailModal
         resource={detailResource}
         onClose={() => setDetailResource(null)}
         onSaveToPackage={handleSaveToPackage}

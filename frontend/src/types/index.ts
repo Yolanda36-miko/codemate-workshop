@@ -97,11 +97,26 @@ export interface CourseListResponse {
 
 // ========== Resources ==========
 
+export type SectionKind = 'highlight' | 'steps' | 'code' | 'warning' | 'practice' | 'compare' | 'divider' | 'text' | 'task' | 'next_action' | 'answer_hint' | 'complexity'
+
 export interface ResourceSection {
-  heading: string
-  content: string
-  codeBlock?: string
+  kind?: string  // lenient — handles unknown section kinds gracefully
+  heading?: string
+  title?: string
+  content?: string | string[] | Record<string, unknown>
+  items?: string[]
+  steps?: string[]
   language?: string
+  // Legacy compat
+  codeBlock?: string
+}
+
+export interface QuickProfile {
+  foundation_level?: string   // 基础薄弱 | 一般 | 较好
+  learning_goal?: string      // 概念理解 | 考试复习 | 刷题训练 | 项目实践
+  programming_language?: string
+  current_difficulties?: string[]
+  expression_preferences?: string[]
 }
 
 export interface ResourceCard {
@@ -127,10 +142,36 @@ export interface ResourceCard {
   student_name?: string
   generated_at?: string
   added_to_path?: boolean
+  // Phase 3: new fields from LLM-enriched response
+  description?: string
+  content?: string
+  tags?: string[]
+  matched_profile?: string[] | string
+  related_module?: string
+  next_action?: string
+  personalized_reason?: string
+  knowledge_points?: string[]
+  programming_language_used?: string
 }
 
 export interface ResourceGenerateResponse {
   resource_cards: ResourceCard[]
+  // Phase 3: metadata from backend
+  topic?: string
+  focus_course?: string
+  used_profile?: boolean
+  used_resource_library?: boolean
+  fallback?: boolean
+  programming_language_used?: string
+  // Phase 3 verification fields
+  normalized_module?: string
+  resource_types_used?: string[]
+  personalization_source?: string
+  personalization_summary?: Record<string, unknown>
+  generation_signature?: string
+  // Validation flags
+  needs_profile?: boolean
+  needs_resource_types?: boolean
 }
 
 export interface ResourceGenerateParams {
@@ -140,6 +181,7 @@ export interface ResourceGenerateParams {
   language?: string
   teaching_style?: string
   resource_types?: string[]
+  quick_profile?: QuickProfile
 }
 
 export interface SaveResourcePayload {
