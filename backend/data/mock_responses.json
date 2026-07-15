@@ -14,20 +14,29 @@
         "knowledge_point": "递归调用栈",
         "difficulty": "入门",
         "language": "Python",
-        "summary": "通过逐步图解展示递归函数调用的栈帧变化过程，帮助理解递归执行机制和调用栈原理。",
+        "summary": "通过逐步图解展示递归函数调用的栈帧变化过程，帮助理解递归执行机制和调用栈原理。从阶乘入手逐步建立递归思维模型。",
         "sections": [
-          {"kind": "highlight", "heading": "核心要点", "content": "递归的两个关键要素：基准情形（停止条件）和递归情形（缩小问题规模）。每次递归调用都会在调用栈上压入一个新的栈帧。"},
-          {"kind": "steps", "heading": "理解步骤", "steps": ["第一步：理解阶乘的递归定义 n! = n × (n-1)!", "第二步：追踪 factorial(3) 的调用栈变化", "第三步：观察基准情形 n≤1 如何终止递归", "第四步：理解栈帧逐层弹出并返回结果的过程"]},
-          {"kind": "compare", "heading": "递归 vs 迭代", "content": "递归代码简洁，但每次调用有栈帧开销；迭代无此开销但代码可能较复杂。尾递归可被编译器优化为迭代。"},
-          {"kind": "complexity", "heading": "复杂度分析", "content": "阶乘递归：时间 O(n)，空间 O(n)（调用栈深度）。斐波那契朴素递归：时间 O(2ⁿ)，空间 O(n)。记忆化后时间降为 O(n)。"},
-          {"kind": "code", "heading": "阶乘递归示例", "content": "def factorial(n):\n    if n <= 1:        # 基准情形\n        return 1\n    return n * factorial(n - 1)  # 递归情形", "language": "Python"}
+          {"kind": "highlight", "heading": "核心要点", "content": "递归的两个关键要素：基准情形（停止条件）和递归情形（缩小问题规模）。每次递归调用都会在调用栈上压入一个新的栈帧，包含参数值、返回地址和局部变量。"},
+          {"kind": "example", "heading": "具体示例：以 factorial(3) 为例", "content": "以计算 factorial(3) = 3 × 2 × 1 = 6 为例跟踪整个递归过程。初始调用 factorial(3) → 压栈 factorial(3) → 调用 factorial(2) → 压栈 factorial(2) → 调用 factorial(1) → 压栈 factorial(1)，满足基准情形 n≤1 返回 1 → 弹栈 factorial(1) 返回 1 → factorial(2) 收到 1，计算 2×1=2 返回 → 弹栈 factorial(2) → factorial(3) 收到 2，计算 3×2=6 返回 → 弹栈 factorial(3)，整个过程结束。"},
+          {"kind": "steps", "heading": "理解步骤", "steps": [
+            "第一步：理解阶乘的递归定义 n! = n × (n-1)!，其中 1! = 1 是基准情形",
+            "第二步：在纸上画出 factorial(3) 的调用栈，标注每次压栈时 n 的值和返回地址",
+            "第三步：观察基准情形 n=1 如何阻止无限递归，注意为什么必须先判断基准情形",
+            "第四步：模拟弹栈过程——每弹出一个栈帧，将其返回值代入上一层调用完成计算",
+            "第五步：对比 factorial(5) 和 factorial(3) 的栈深度差异，理解空间复杂度 O(n)"
+          ]},
+          {"kind": "table", "heading": "递归 vs 迭代 对比表", "content": "维度 | 递归 | 迭代\n代码行数 | 3行（简洁） | 5-6行（稍长）\n空间开销 | O(n) 调用栈 | O(1) 仅循环变量\n可读性 | 贴近数学定义 | 更直观的过程思维\n调试难度 | 需要理解调用栈 | 变量值可直接观察\n栈溢出风险 | 深度过大时崩溃 | 无此风险\n适用场景 | 树/图遍历、分治 | 简单循环、流式处理\n优化可能 | 尾递归可优化 | 循环展开"},
+          {"kind": "warnings", "heading": "常见误区 1：忘记基准情形", "content": "误区：写递归函数时只写了递归调用，忘记写停止条件。例如 def factorial(n): return n * factorial(n-1) —— 这会导致无限递归直到栈溢出（RecursionError）。\n正确做法：所有递归函数的第一行必须是基准情形判断，例如 if n <= 1: return 1。"},
+          {"kind": "warnings", "heading": "常见误区 2：混淆递归深度与问题规模", "content": "误区：认为递归深度总是等于问题规模 n。实际上对于树递归（如斐波那契朴素递归），递归树的节点数远大于深度——斐波那契 fib(50) 虽然深度仅 50，但总调用次数约 2^50 ≈ 10^15 次，实际根本无法在合理时间内完成。\n正确认识：区分线性递归（深度=n，总调用=n）和树递归（深度=n，总调用=指数级）。"},
+          {"kind": "practice", "heading": "即时练习", "content": "题目：用递归实现一个函数 sum_digits(n)，计算正整数 n 的各位数字之和。例如 sum_digits(12345) = 1+2+3+4+5 = 15。写出基准情形和递归情形。"},
+          {"kind": "answer_hint", "heading": "练习提示", "content": "提示：n % 10 得到最后一位数字，n // 10 去掉最后一位。基准情形是 n == 0 时返回 0。递归情形是 sum_digits(n) = (n % 10) + sum_digits(n // 10)。完整代码：\ndef sum_digits(n):\n    if n == 0:\n        return 0\n    return (n % 10) + sum_digits(n // 10)"}
         ],
-        "key_concepts": ["基准情形", "递归情形", "调用栈", "栈帧", "尾递归"],
-        "learning_tips": ["画图追踪每次递归调用的参数和返回值", "调试时观察调用栈面板，理解栈帧的创建和销毁"],
-        "recommended_usage": "先用阶乘理解递归基本结构，再画调用栈图追踪过程，最后尝试斐波那契加深理解。",
-        "estimated_time": "20 分钟",
-        "match_reason": "匹配学生图示优先的学习风格和递归调用栈的薄弱点",
-        "personalized_reason": "针对递归出口和函数调用顺序的薄弱点，用图示+步骤双重方式覆盖"
+        "key_concepts": ["基准情形", "递归情形", "调用栈", "栈帧", "尾递归", "线性递归 vs 树递归"],
+        "learning_tips": ["画图追踪每次递归调用的参数和返回值", "调试时观察调用栈面板，理解栈帧的创建和销毁", "先写基准情形，再写递归情形，养成习惯"],
+        "recommended_usage": "先用阶乘理解递归基本结构，再画调用栈图追踪 factorial(3) 的完整过程，完成 sum_digits 练习验证理解，最后尝试斐波那契加深对树递归的认知。",
+        "estimated_time": "25 分钟",
+        "match_reason": "匹配学生图示优先的学习风格和递归调用栈的薄弱点，用图解+示例+练习三重方式覆盖",
+        "personalized_reason": "针对基础薄弱的学习现状，从最基础的阶乘递归入手，逐步建立调用栈的直观图示模型。学习目标为考试复习，因此重点覆盖递归出口（基准情形）这一高频考点和常见失分点。使用 Python 语言演示，配有即时练习帮助巩固理解。"
       },
       {
         "id": "res-002",
@@ -37,20 +46,31 @@
         "knowledge_point": "二叉树遍历",
         "difficulty": "进阶",
         "language": "Python",
-        "summary": "前序、中序、后序遍历的Python递归与非递归实现，包含详细注释和复杂度分析。",
+        "summary": "前序、中序、后序、层序四种遍历的 Python 完整实现，含递归与迭代两种方式，每行附详细注释。适配考试复习场景，覆盖手写代码常见考点。",
         "sections": [
-          {"kind": "highlight", "heading": "代码整体说明", "content": "以下代码展示了二叉树四种遍历的完整 Python 实现。每行附有详细注释，包含递归和迭代两种方式。"},
-          {"kind": "code", "heading": "二叉树节点定义与前序遍历", "content": "class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\n# 前序：根→左→右\ndef preorder(root):\n    if root is None:\n        return []\n    return [root.val] + preorder(root.left) + preorder(root.right)", "language": "Python"},
-          {"kind": "code", "heading": "中序与后序遍历", "content": "# 中序：左→根→右\ndef inorder(root):\n    if root is None:\n        return []\n    return inorder(root.left) + [root.val] + inorder(root.right)\n\n# 后序：左→右→根\ndef postorder(root):\n    if root is None:\n        return []\n    return postorder(root.left) + postorder(root.right) + [root.val]", "language": "Python"},
-          {"kind": "code", "heading": "层序遍历（BFS）", "content": "from collections import deque\n\ndef levelorder(root):\n    if root is None:\n        return []\n    result, q = [], deque([root])\n    while q:\n        node = q.popleft()\n        result.append(node.val)\n        if node.left: q.append(node.left)\n        if node.right: q.append(node.right)\n    return result", "language": "Python"},
-          {"kind": "steps", "heading": "代码阅读指南", "steps": ["第1步：理解 TreeNode 节点结构", "第2步：追踪前序遍历的递归调用过程", "第3步：对比中序和后序的访问顺序差异", "第4步：运行层序遍历，观察 BFS 的队列操作"]}
+          {"kind": "highlight", "heading": "代码整体说明", "content": "以下代码展示了二叉树四种遍历的完整 Python 实现：前序（根→左→右）、中序（左→根→右）、后序（左→右→根）、层序（BFS）。每种遍历提供递归和迭代两种实现，时间复杂度均为 O(n)，空间复杂度递归为 O(h)、迭代为 O(h) 或 O(w)。代码覆盖 LeetCode 94/144/145/102 号题目。"},
+          {"kind": "code", "heading": "二叉树节点定义与前序遍历", "content": "class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\n# 前序：根→左→右（递归）\ndef preorder_recursive(root):\n    if root is None:\n        return []\n    return [root.val] + preorder_recursive(root.left) + preorder_recursive(root.right)\n\n# 前序：迭代（栈）\ndef preorder_iterative(root):\n    if root is None:\n        return []\n    result, stack = [], [root]\n    while stack:\n        node = stack.pop()\n        result.append(node.val)\n        if node.right: stack.append(node.right)  # 先右后左，保证左先出\n        if node.left: stack.append(node.left)\n    return result", "language": "Python"},
+          {"kind": "code", "heading": "中序与后序遍历", "content": "# 中序：左→根→右（递归）\ndef inorder_recursive(root):\n    if root is None:\n        return []\n    return inorder_recursive(root.left) + [root.val] + inorder_recursive(root.right)\n\n# 中序：迭代（栈，指针向左走到底）\ndef inorder_iterative(root):\n    result, stack = [], []\n    cur = root\n    while cur or stack:\n        while cur:           # 一直向左走到底\n            stack.append(cur)\n            cur = cur.left\n        cur = stack.pop()    # 弹出栈顶（最左节点）\n        result.append(cur.val)\n        cur = cur.right      # 转向右子树\n    return result\n\n# 后序：左→右→根（递归）\ndef postorder_recursive(root):\n    if root is None:\n        return []\n    return postorder_recursive(root.left) + postorder_recursive(root.right) + [root.val]\n\n# 后序：迭代（巧用前序反转）\ndef postorder_iterative(root):\n    if root is None:\n        return []\n    result, stack = [], [root]\n    while stack:\n        node = stack.pop()\n        result.append(node.val)\n        if node.left: stack.append(node.left)\n        if node.right: stack.append(node.right)\n    return result[::-1]  # 根→右→左 反转得 左→右→根", "language": "Python"},
+          {"kind": "code", "heading": "层序遍历（BFS）", "content": "from collections import deque\n\ndef levelorder(root):\n    \"\"\"层序遍历：逐层从左到右访问所有节点\"\"\"\n    if root is None:\n        return []\n    result, q = [], deque([root])\n    while q:\n        node = q.popleft()\n        result.append(node.val)\n        if node.left: q.append(node.left)\n        if node.right: q.append(node.right)\n    return result\n\ndef levelorder_by_level(root):\n    \"\"\"分层输出：[[第1层], [第2层], ...]\"\"\"\n    if root is None:\n        return []\n    result, q = [], deque([root])\n    while q:\n        level = []\n        for _ in range(len(q)):  # 关键：记录当前层大小\n            node = q.popleft()\n            level.append(node.val)\n            if node.left: q.append(node.left)\n            if node.right: q.append(node.right)\n        result.append(level)\n    return result", "language": "Python"},
+          {"kind": "steps", "heading": "代码阅读指南", "steps": [
+            "第1步：先运行递归版本理解遍历顺序——前序、中序、后序仅在于根节点访问时机不同",
+            "第2步：手工构建一个 3 层二叉树（如 [1,2,3,4,5,null,6]），用纸笔跟踪每种遍历的访问序列",
+            "第3步：理解中序迭代的关键——'一路向左走到底，弹出后转向右'，这是所有二叉树非递归遍历的核心模式",
+            "第4步：重点理解后序迭代的'前序反转'技巧——前序（根→左→右）改为（根→右→左）再反转，得到后序（左→右→根）",
+            "第5步：对比层序的两种输出——不分层 vs 按层分组（for _ in range(len(q)) 是关键差异）"
+          ]},
+          {"kind": "complexity", "heading": "复杂度分析", "content": "递归遍历：时间 O(n)（每个节点访问一次），空间 O(h)（h 为树高，递归调用栈深度）。平衡树 h=log n，退化链表 h=n。\n迭代遍历：时间 O(n)，空间 O(h)（栈）或 O(w)（层序队列，w 为最大宽度，平衡树最后一层约 n/2 个节点）。\n后序迭代的'前序反转'法需要额外 O(n) 空间存储完整结果再反转，空间常数较大，可通过双栈法优化。"},
+          {"kind": "warnings", "heading": "注意事项 1：空树与单节点边界", "content": "所有遍历都必须先判断 if root is None: return []。单节点树 [5] 的四种遍历结果都是 [5]，用于快速验证代码正确性。"},
+          {"kind": "warnings", "heading": "注意事项 2：前序 ≠ 层序", "content": "初学常见混淆：前序遍历（根→左→右）的结果和层序遍历（逐层从左到右）在某些树上看起来相似，但本质不同。例如树 [1,2,3,null,5,6,null]：前序=[1,2,5,3,6]，层序=[1,2,3,5,6]。层序必须先访问 3 再访问 5，而前序会先深入左子树访问 5。"},
+          {"kind": "practice", "heading": "变式练习", "content": "练习 1：修改中序迭代代码，实现'反向中序遍历'（右→根→左），用于求二叉搜索树的第 k 大元素。\n练习 2：用层序遍历框架实现'二叉树的右视图'——只输出每层最右侧的节点值。提示：在 for _ in range(len(q)) 循环中，当遍历到每层最后一个元素时记录。"},
+          {"kind": "next_action", "heading": "延伸学习建议", "content": "掌握四种遍历后，下一步建议学习'二叉搜索树的验证与操作'——利用中序遍历的有序性来判断 BST 合法性，这是面试高频考点。学有余力可挑战'从前序+中序重建二叉树'，理解遍历序列与树结构的一一对应关系。"}
         ],
-        "key_concepts": ["前序遍历", "中序遍历", "后序遍历", "层序遍历", "BFS", "递归出口"],
-        "learning_tips": ["先运行代码看结果，再对照注释理解每一行", "画一棵3-5个节点的小树，手动模拟每种遍历"],
-        "recommended_usage": "先运行代码观察输出，再改变节点结构观察行为变化，加深对遍历顺序的理解。",
-        "estimated_time": "25 分钟",
-        "match_reason": "匹配学生代码案例学习偏好和二叉树遍历薄弱点",
-        "personalized_reason": "代码逐行注释，覆盖递归与迭代两种方式，直击遍历顺序混淆的薄弱点"
+        "key_concepts": ["前序遍历", "中序遍历", "后序遍历", "层序遍历", "BFS", "递归出口", "迭代栈", "Morris遍历"],
+        "learning_tips": ["先运行代码看结果，再对照注释理解每一行", "画一棵3-5个节点的小树，手动模拟每种遍历", "对比递归和迭代版本，找出'栈模拟递归'的通用模式"],
+        "recommended_usage": "先运行递归版本代码观察输出，再阅读迭代版本理解栈的用法，完成变式练习验证掌握程度。",
+        "estimated_time": "35 分钟",
+        "match_reason": "匹配学生代码案例学习偏好和二叉树遍历薄弱点，提供完整可运行代码覆盖四种遍历",
+        "personalized_reason": "针对考试复习的学习目标，提供递归+迭代双重实现（手写代码常见考点），配有复杂度分析和边界注意事项。使用 Python 语言，覆盖四种遍历的核心代码模式。通过变式练习（右视图、BST验证）巩固理解，直击'遍历顺序混淆'的薄弱环节。"
       },
       {
         "id": "res-003",
@@ -60,19 +80,29 @@
         "knowledge_point": "图遍历",
         "difficulty": "进阶",
         "language": "通用",
-        "summary": "对比广度优先搜索与深度优先搜索的核心思想、实现方式和适用场景，附带图示说明。",
+        "summary": "通过同一张图对比 BFS（广度优先）和 DFS（深度优先）的执行过程，用图示和表格直观展示两种搜索策略的核心差异、适用场景和常见实现错误。",
         "sections": [
-          {"kind": "highlight", "heading": "核心要点", "content": "BFS（广度优先）使用队列，逐层扩展，适合最短路径问题。DFS（深度优先）使用栈或递归，一直走到底再回溯，适合连通性、拓扑排序等问题。"},
-          {"kind": "steps", "heading": "BFS 执行步骤", "steps": ["1. 将起点入队，标记已访问", "2. 取出队首节点并访问", "3. 将该节点的所有未访问邻居入队", "4. 重复 2-3 直到队列为空"]},
-          {"kind": "compare", "heading": "BFS vs DFS 对比", "content": "数据结构：BFS 用队列，DFS 用栈\n空间复杂度：BFS O(w) w为最大宽度，DFS O(h) h为最大深度\n适用场景：BFS 最短路径/层序遍历，DFS 连通性/回溯/拓扑排序\n实现难度：BFS 需要显式队列，DFS 递归实现更简洁"},
-          {"kind": "complexity", "heading": "复杂度分析", "content": "邻接表表示：时间 O(V+E)，空间 O(V)\n邻接矩阵表示：时间 O(V²)，空间 O(V)\nBFS 在宽图中空间消耗大，DFS 在深图中可能栈溢出"}
+          {"kind": "highlight", "heading": "核心要点", "content": "BFS（广度优先搜索）使用队列，逐层向外扩展，天然适合求无权图的最短路径。DFS（深度优先搜索）使用栈或递归，一路走到底再回溯，适合连通性检测、拓扑排序、回溯搜索等问题。两者的本质差异在于数据结构选择——队列 vs 栈，这决定了节点被访问的顺序。"},
+          {"kind": "example", "heading": "具体示例：同一个图，两种遍历", "content": "以 6 个节点的有向图为例：节点 0 连接 1 和 2，节点 1 连接 3 和 4，节点 2 连接 5。从节点 0 出发。\nBFS 访问顺序（逐层）：0 → 1, 2 → 3, 4, 5。队列变化：[0] → pop0 push1,2 → [1,2] → pop1 push3,4 → [2,3,4] → pop2 push5 → [3,4,5] → ...\nDFS 访问顺序（深入到底）：0 → 1 → 3 → 4 → 2 → 5。栈变化：[0] → pop0 push1,2 → [1,2] → pop1 push3,4 → [3,4,2] → pop3 → [4,2] → pop4 → [2] → pop2 push5 → [5] → pop5 → []"},
+          {"kind": "steps", "heading": "BFS 执行步骤", "steps": [
+            "1. 将起点 0 入队，标记 visited[0]=true",
+            "2. 出队队首节点 0，访问它；将所有未访问邻居 1、2 入队并标记 visited",
+            "3. 出队 1，访问它；将未访问邻居 3、4 入队并标记 visited",
+            "4. 出队 2，访问它；将未访问邻居 5 入队并标记 visited",
+            "5. 依次出队 3、4、5（它们都没有未访问邻居），队列为空，BFS 结束"
+          ]},
+          {"kind": "table", "heading": "BFS vs DFS 多维度对比", "content": "比较维度 | BFS（广度优先） | DFS（深度优先）\n核心数据结构 | 队列（FIFO） | 栈（LIFO）或递归\n空间复杂度 | O(w)，w=最大宽度，宽图时很大 | O(h)，h=最大深度，深图时可能栈溢出\n时间复杂度 | O(V+E) 邻接表 | O(V+E) 邻接表\n最短路径 | 天然支持（无权图） | 不支持，需要额外处理\n实现难度 | 需要显式维护队列 | 递归实现极简（3-5行）\n适用问题 | 层序遍历、最短路径、社交网络N度关系 | 连通性、环检测、拓扑排序、回溯、迷宫\nvisited标记时机 | 入队时标记（避免重复入队） | 访问时标记或入栈时标记均可\n典型应用 | LeetCode 102(层序), 127(单词接龙), 200(岛屿数量) | LeetCode 78(子集), 46(全排列), 207(课程表)"},
+          {"kind": "warnings", "heading": "常见误区 1：BFS 的 visited 标记时机", "content": "错误：在出队时才标记 visited，导致同一节点可能被重复入队多次。例如节点 C 同时是 A 和 B 的邻居，A 和 B 都在同一层，出队 A 时 C 入队，出队 B 时 C 又入队——队列中 C 出现两次。\n正确做法：在入队时就标记 visited，保证每个节点只入队一次。"},
+          {"kind": "warnings", "heading": "常见误区 2：DFS 递归过深导致栈溢出", "content": "错误：在退化为链表的图（深度=10^5）上使用递归 DFS，导致 RecursionError。Python 默认递归深度限制约 1000。\n应对方案：(1) 使用显式栈的迭代 DFS 替代递归；(2) 用 sys.setrecursionlimit(100000) 调高限制（不推荐，可能造成 C 栈溢出）；(3) 对于已知深度可能很大的场景，优先选择迭代实现。"},
+          {"kind": "practice", "heading": "即时练习", "content": "题目：给定一个 n×m 的二维字符网格 grid，'1' 表示陆地，'0' 表示水域，上下左右相邻的陆地组成一个岛屿。用 BFS 或 DFS 计算岛屿数量（LeetCode 200）。要求：(1) 用 BFS 实现一次；(2) 再用 DFS 实现一次；(3) 对比两种实现的空间占用差异。"},
+          {"kind": "answer_hint", "heading": "练习提示", "content": "核心思路：遍历每个格子，遇到未访问的 '1' 就岛屿数+1，然后从该点开始 BFS/DFS 标记所有相连的陆地。\nBFS 提示：用 deque 存储坐标元组 (r, c)，四个方向用 directions = [(1,0),(-1,0),(0,1),(0,-1)]。\nDFS 提示：递归进入四个方向，基准情形是越界或遇到 '0'/已访问。\n空间对比：BFS 在最坏情况下（全为陆地）队列大小 = O(min(n,m))；DFS 递归栈深度最大为 O(n×m)（蛇形路径）。"}
         ],
-        "key_concepts": ["BFS", "DFS", "队列", "栈", "邻接表", "连通性"],
-        "learning_tips": ["先理解 BFS 的"逐层"和 DFS 的"一探到底"的直观感觉", "手动在纸上模拟一个小图的 BFS 和 DFS 过程"],
-        "recommended_usage": "先看图解理解两种搜索的直观差异，再对照代码实现验证理解。",
-        "estimated_time": "20 分钟",
-        "match_reason": "匹配学生图示优先的学习风格和图算法模块",
-        "personalized_reason": "用图示和对比表格直观展示 BFS/DFS 差异，适合图示优先型学习者"
+        "key_concepts": ["BFS", "DFS", "队列", "栈", "visited标记时机", "邻接表", "连通性", "最短路径"],
+        "learning_tips": ["先理解 BFS 的'逐层'和 DFS 的'一探到底'的直观感觉", "手动在纸上模拟一个小图的 BFS 和 DFS 过程，感受队列和栈的数据流动", "用岛屿数量这道题同时实现 BFS 和 DFS，感受代码层面的差异"],
+        "recommended_usage": "先看图解理解两种搜索的直观差异，再对照代码实现验证理解，最后用岛屿数量练习同时实现两种方法。",
+        "estimated_time": "30 分钟",
+        "match_reason": "匹配学生图示优先的学习风格和图算法模块，用同一张图对比展示 BFS/DFS 的执行差异",
+        "personalized_reason": "针对进阶难度和图遍历的学习需求，提供 BFS/DFS 的全面对比（包括 visited 标记时机、空间复杂度、适用场景三个维度）。通过岛屿数量练习巩固两种方法的实际编码能力。适合图示优先型学习者，用表格和示例将抽象概念可视化。"
       },
       {
         "id": "res-004",
@@ -82,19 +112,25 @@
         "knowledge_point": "排序算法",
         "difficulty": "进阶",
         "language": "Python",
-        "summary": "梳理快速排序 partition 过程中的常见错误：基准选择、边界条件、递归出口等。",
+        "summary": "聚焦快速排序实现中的高频错误：基准选择、partition 边界条件、递归出口遗漏，以及快速排序不稳定性的本质原因。适合考试复习场景，覆盖手写代码常见扣分点。",
         "sections": [
-          {"kind": "warning", "heading": "易错点 1：基准元素选择不当", "content": "固定选第一个或最后一个元素作基准，在已排序数组上会导致 O(n²) 的最差时间复杂度。建议使用随机选取或三数取中法。"},
-          {"kind": "warning", "heading": "易错点 2：partition 边界条件", "content": "while 循环中指针移动条件容易写错。注意：arr[i] < pivot（严格小于）和 arr[j] > pivot（严格大于），等号情况需要正确处理以避免无限循环。"},
-          {"kind": "compare", "heading": "错误 vs 正确实现", "content": "错误：忘记递归出口 if low >= high: return\n错误：partition 返回了错误的轴位置\n正确：先判断递归出口，partition 返回轴的正确位置后分别递归左右子数组"},
-          {"kind": "code", "heading": "正确实现参考", "content": "def quicksort(arr, low, high):\n    if low >= high:          # 递归出口（容易遗漏！）\n        return\n    pivot = arr[(low + high) // 2]\n    i, j = low, high\n    while i <= j:\n        while arr[i] < pivot: i += 1\n        while arr[j] > pivot: j -= 1\n        if i <= j:\n            arr[i], arr[j] = arr[j], arr[i]\n            i += 1; j -= 1\n    quicksort(arr, low, j)\n    quicksort(arr, i, high)", "language": "Python"}
+          {"kind": "highlight", "heading": "本主题高频错误类别", "content": "快速排序最常见的三类错误：(1) 基准元素选择不当导致 O(n²) 退化；(2) partition 中的指针移动条件写错导致无限循环或结果错误；(3) 递归出口遗漏或写错导致栈溢出。此外，约 70% 的学习者不理解为什么快速排序不稳定。"},
+          {"kind": "warnings", "heading": "易错点 1：基准选择不当导致 O(n²) 退化", "content": "错误现象：固定选第一个或最后一个元素作基准，在已排序（或逆序）数组上每次 partition 只减少一个元素，递归深度=n，时间复杂度退化到 O(n²)。\n根因分析：理想的基准应使左右子数组大小尽量均分（各约 n/2）。固定选端点破坏了这一均衡性。\n正确做法：随机选取基准（random pivot）或三数取中法（median-of-three，比较首、尾、中间三个元素取中间值），将退化概率降到极低。"},
+          {"kind": "warnings", "heading": "易错点 2：partition 边界条件错误", "content": "错误现象：while 循环中指针移动条件写成 arr[i] <= pivot（加了等号），导致等值元素被跳过，最终 partition 分割点不准。或者忘记 i <= j 的最终判断，导致指针交错后继续交换。\n根因分析：partition 核心逻辑是'小于基准放左边，大于基准放右边'，等于基准的元素可以放任意一边——但如果条件写错了（<= 而不是 <），元素移动方向会出错。\n正确做法：严格使用 arr[i] < pivot 和 arr[j] > pivot（不含等号），等号情况由后续 swap 处理。while 循环条件是 i <= j（含等号），确保交错的指针能被正确处理。"},
+          {"kind": "warnings", "heading": "易错点 3：递归出口遗漏", "content": "错误现象：忘记写 if low >= high: return，直接调用 quicksort(arr, low, j) 和 quicksort(arr, i, high)，当子数组为空或单个元素时仍继续递归，最终栈溢出。\n根因分析：递归出口是递归算法的第一行代码，但快速排序有两个递归调用（左右子数组），容易在 focus 在 partition 逻辑时忘记。\n正确做法：快速排序的第一行永远是 if low >= high: return。low > high 处理空子数组，low == high 处理单元素子数组。"},
+          {"kind": "compare", "heading": "快速排序稳定性反例 [3a, 2, 3b, 1]", "content": "演示快速排序为什么不稳定（使用 Lomuto partition，基准选最后一个元素）：\n\n初始数组（相等元素用编号区分）：[3a, 2, 3b, 1]\n基准 = 1（最后一个元素）\n\npartition 过程：\ni = -1, j = 0: arr[0]=3a > 1，不交换\ni = -1, j = 1: arr[1]=2 > 1，不交换\ni = -1, j = 2: arr[2]=3b > 1，不交换\n最终 i=-1+1=0，交换 arr[0] 和 arr[3]：\n→ [1, 2, 3b, 3a]\n\n结果：3a 原本在 3b 前面，排序后跑到了 3b 后面——相对顺序被破坏，快速排序不稳定。\n\n对比：归并排序在合并时遇到相等元素优先取左半部分的元素，保证了稳定性。"},
+          {"kind": "example", "heading": "具体犯错场景", "content": "场景：面试手写快速排序时，将 partition 的 while 循环写成：\nwhile arr[i] <= pivot: i += 1  # 错误！加了等号\nwhile arr[j] >= pivot: j -= 1  # 错误！加了等号\n\n测试输入 [5, 5, 5, 5]（全等数组）：i 和 j 都无法移动，导致无限循环。\n\n修复：改为严格小于/大于（< 和 >），让等号情况由 i <= j 判断后的交换来处理。"},
+          {"kind": "text", "heading": "错误原因与修复思路", "content": "为什么容易写错 partition：partition 算法涉及双指针相向移动和交换，是'代码量不多但逻辑密度极高'的代码段。大脑容易在追踪两个指针的同时移动时出错。\n\n修复思路：(1) 死记模板——快速排序的 partition 代码模式是高度固定的，直接背诵标准模板（如下方的正确代码）是最可靠的策略；(2) 理解不变量——partition 过程中维护'[low..i] 全部 ≤ pivot，[j..high] 全部 ≥ pivot'这一不变量；(3) 用三个测试用例验证：已排序数组 [1,2,3,4]、逆序数组 [4,3,2,1]、全等数组 [5,5,5,5]。"},
+          {"kind": "code", "heading": "正确实现参考", "content": "def quicksort(arr, low, high):\n    if low >= high:          # 递归出口（第一行！）\n        return\n    pivot = arr[(low + high) // 2]  # 三数取中更好\n    i, j = low, high\n    while i <= j:\n        while arr[i] < pivot:  # 严格小于\n            i += 1\n        while arr[j] > pivot:  # 严格大于\n            j -= 1\n        if i <= j:\n            arr[i], arr[j] = arr[j], arr[i]\n            i += 1\n            j -= 1\n    quicksort(arr, low, j)   # 递归左半\n    quicksort(arr, i, high)  # 递归右半\n\n# 测试用例\ndef test_quicksort():\n    tests = [\n        [3, 1, 4, 1, 5, 9, 2, 6],  # 随机\n        [1, 2, 3, 4, 5],             # 已排序\n        [5, 4, 3, 2, 1],             # 逆序\n        [5, 5, 5, 5],                # 全等\n    ]\n    for arr in tests:\n        a = arr[:]\n        quicksort(a, 0, len(a) - 1)\n        print(f\"{arr} → {a}\")", "language": "Python"},
+          {"kind": "practice", "heading": "判断纠错练习", "content": "练习 1：以下快速排序代码有 bug，找出并修复——\ndef broken_qs(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[0]  # 固定选第一个\n    left = [x for x in arr[1:] if x < pivot]\n    right = [x for x in arr[1:] if x > pivot]\n    return broken_qs(left) + [pivot] + broken_qs(right)\n（提示：等于 pivot 的元素去哪了？）\n\n练习 2：用 Python 内置的 sort() 和上面实现的 quicksort 分别对包含元组 [(3,'a'), (2,'b'), (3,'c'), (1,'d')] 按第一个元素排序，观察 3a 和 3c 的相对顺序变化，验证稳定性差异。"},
+          {"kind": "answer_hint", "heading": "纠错练习提示与答案", "content": "练习 1 答案：等于 pivot 的元素（x == pivot）被 left 和 right 都丢弃了，导致排序后它们消失。修复：将 right 条件改为 x >= pivot，或单独处理 equal 列表。\n练习 2 答案：Python 内置的 sort() 使用 Timsort 算法，是稳定的，所以 (3,'a') 保持在 (3,'c') 前面。而上面的 quicksort 是不稳定的，（3,'a'）和（3,'c'）的相对顺序可能改变。"}
         ],
-        "key_concepts": ["基准选择", "partition", "递归出口", "边界条件", "时间复杂度退化"],
-        "learning_tips": ["手动模拟 partition 过程，特别注意指针相遇时的处理", "测试已排序数组、逆序数组、全等数组三种边界情况"],
-        "recommended_usage": "先看错误示例理解常见陷阱，再对照正确代码逐行理解 partition 逻辑。",
-        "estimated_time": "25 分钟",
-        "match_reason": "匹配学生递归出口薄弱点和排序算法学习需求",
-        "personalized_reason": "聚焦 partition 边界条件和递归出口两大易错点，直击学生薄弱环节"
+        "key_concepts": ["基准选择", "partition", "递归出口", "边界条件", "时间复杂度退化", "排序稳定性", "[3a,2,3b,1] 反例"],
+        "learning_tips": ["背诵 partition 的标准模板，这是手写快排最常见的考察点", "测试已排序、逆序、全等数组三种边界情况", "理解快速排序为什么不稳定——partition 的交换操作打乱了相等元素的相对顺序"],
+        "recommended_usage": "先看三个易错点理解常见陷阱，再重点理解稳定性反例 [3a,2,3b,1]，然后对照正确代码逐行理解 partition 逻辑，最后完成纠错练习。",
+        "estimated_time": "35 分钟",
+        "match_reason": "匹配学生递归出口薄弱点和排序算法学习需求，聚焦 partition 边界条件和稳定性两大核心易错点",
+        "personalized_reason": "针对考试复习的学习目标，重点覆盖快速排序手写代码的三个常见扣分点（基准选择、边界条件、递归出口）。使用 Python 语言展示完整正确实现。特别通过 [3a,2,3b,1] 反例深入解释'快速排序为什么不稳定'这一面试高频问题。纠错练习帮助自检理解程度。"
       },
       {
         "id": "res-005",
@@ -104,19 +140,25 @@
         "knowledge_point": "动态规划",
         "difficulty": "基础",
         "language": "通用",
-        "summary": "从斐波那契记忆化搜索到背包问题的分层练习，帮助建立状态定义和转移方程思维。",
+        "summary": "从斐波那契记忆化搜索到 0/1 背包问题的三层递进式练习，每层配详细提示和达标标准。适合基础薄弱的学习者系统建立 DP 思维框架。",
         "sections": [
-          {"kind": "practice", "heading": "基础层：DP 概念理解", "content": "1. 用记忆化搜索实现斐波那契数列 fib(n)，对比朴素递归的运行时间差异\n2. 爬楼梯问题：每次爬 1 或 2 阶，n 阶楼梯有多少种爬法？写出状态转移方程\n3. 判断对错："动态规划的核心是穷举，然后用状态转移方程优化""},
-          {"kind": "practice", "heading": "进阶层：经典 DP 问题", "content": "4. 0/1 背包：给定价值和重量，容量为 W，求最大价值。写出 dp[i][w] 的定义和转移方程\n5. 最长公共子序列 (LCS)：给定两个字符串，求最长公共子序列长度\n6. 最小路径和：给定 m×n 网格，从左上到右下，求最小路径和"},
-          {"kind": "practice", "heading": "提高层：DP 进阶", "content": "7. 最长递增子序列 (LIS)：O(n²) → 能否优化到 O(n log n)？\n8. 编辑距离：将 word1 转换为 word2 的最少操作数（插入、删除、替换）"},
-          {"kind": "answer_hint", "heading": "提示与参考答案", "content": "基础层提示：爬楼梯的转移方程为 dp[i] = dp[i-1] + dp[i-2]\n进阶层提示：背包 dp[i][w] = max(dp[i-1][w], dp[i-1][w-wt[i]] + val[i])\n提高层提示：LIS 可以用 patience sorting 优化到 O(n log n)"}
+          {"kind": "highlight", "heading": "练习整体说明", "content": "本练习按'基础层（理解 DP 核心概念）→ 进阶层（经典问题实践）→ 提高层（优化与拓展）'三层递进设计。基础层通过记忆化搜索和简单 DP 建立'状态+转移'的核心思维；进阶层通过 0/1 背包等经典问题巩固 DP 解题套路；提高层挑战优化和变式。完成全部三层预计 60 分钟。核心学习目标：能独立写出'定义状态 → 推出转移方程 → 确定计算顺序'的 DP 解题流程。"},
+          {"kind": "practice", "heading": "基础层：DP 核心概念理解（3 题）", "content": "题目 1：用记忆化搜索（自顶向下）和自底向上 DP 两种方法实现 fib(n)，对比两种方法的代码差异和运行时间。输入 n=35，记录朴素递归、记忆化搜索、自底向上 DP 三种方法的运行时间。\n题目 2：爬楼梯问题——每次可以爬 1 阶或 2 阶，n 阶楼梯有多少种不同的爬法？写出 dp[i] 的状态定义和转移方程。\n题目 3：判断对错并解释——'动态规划的核心是穷举所有可能，然后用状态转移方程和备忘录来优化重复计算。'"},
+          {"kind": "answer_hint", "heading": "基础层提示", "content": "题目 1 提示：自底向上用循环 for i in range(2, n+1): dp[i] = dp[i-1] + dp[i-2]，空间可优化到 O(1)。朴素递归 O(2ⁿ) ≈ fib(35) 需要数秒甚至更久。\n题目 2 答案：dp[i] 表示爬到第 i 阶的方法数，dp[i] = dp[i-1] + dp[i-2]，初始 dp[1]=1, dp[2]=2。本质就是斐波那契数列。\n题目 3 答案：正确。DP 本质是'聪明地穷举'——利用最优子结构和重叠子问题来避免重复计算。"},
+          {"kind": "practice", "heading": "进阶层：经典 DP 问题（3 题）", "content": "题目 4：0/1 背包问题——n 件物品，重量 wt[i]，价值 val[i]，背包容量 W。每种物品只能选 0 或 1 件。求最大价值。写出 dp[i][w] 的定义和状态转移方程，并手算 n=3, wt=[2,1,3], val=[4,2,3], W=4 时的 dp 表格。\n题目 5：最长公共子序列 (LCS)——给定 text1 和 text2，求最长公共子序列的长度。text1='abcde', text2='ace' 的 LCS 长度是多少？写出转移方程。\n题目 6：最小路径和——m×n 网格，从左上到右下只能向右或向下，求最小路径和。grid = [[1,3,1],[1,5,1],[4,2,1]] 的答案是多少？"},
+          {"kind": "answer_hint", "heading": "进阶层提示", "content": "题目 4 答案：dp[i][w] = 前 i 件物品，容量 w 时的最大价值。转移：dp[i][w] = max(dp[i-1][w], dp[i-1][w-wt[i]] + val[i])（如果 w >= wt[i]）。手算结果：dp[3][4] = 6（选物品 0 和物品 2）。\n题目 5 答案：dp[i][j] = text1 前 i 个和 text2 前 j 个的 LCS。text1[i]==text2[j] 时 dp[i][j]=1+dp[i-1][j-1]，否则 dp[i][j]=max(dp[i-1][j], dp[i][j-1])。答案=3 ('ace')。\n题目 6 答案：dp[i][j] = grid[i][j] + min(dp[i-1][j], dp[i][j-1])。答案=7（路径 1→3→1→1→1）。"},
+          {"kind": "practice", "heading": "提高层：DP 优化与进阶（2 题）", "content": "题目 7：空间优化——将题目 4 的 0/1 背包从二维 dp 优化到一维 dp（滚动数组），为什么内层循环必须从 W 向 0 反向遍历？\n题目 8：最长递增子序列 (LIS)——nums=[10,9,2,5,3,7,101,18]，求 LIS 长度。O(n²) DP 解法如何？能否优化到 O(n log n)？"},
+          {"kind": "answer_hint", "heading": "提高层提示", "content": "题目 7 提示：一维 dp[w] = max(dp[w], dp[w-wt[i]] + val[i])。反向遍历是为了保证 dp[w-wt[i]] 是上一轮（不包含当前物品）的值，正向遍历会导致同一物品被重复选（变成完全背包）。\n题目 8 答案：O(n²) DP：dp[i]=以 nums[i] 结尾的 LIS 长度，dp[i]=max(dp[j]+1) for j<i if nums[j]<nums[i]。O(n log n)：维护一个 tails 数组，对每个数二分查找插入位置（patience sorting）。LIS 长度=4：[2,3,7,101] 或 [2,5,7,101]。"},
+          {"kind": "check_criteria", "heading": "每层达标标准", "content": "基础层达标：能独立写出记忆化搜索和自底向上 DP 两种 fib 实现，理解两者的方向差异（自顶向下 vs 自底向上）。\n进阶层达标：能独立写出 0/1 背包和 LCS 的转移方程，并能手算 3-4 个物品的小规模 dp 表格。\n提高层达标：能解释一维背包为什么反向遍历，能用 patience sorting 思想理解 LIS 的 O(n log n) 解法。"},
+          {"kind": "warnings", "heading": "练习中的常见陷阱", "content": "陷阱 1：把 DP 数组下标直接对应问题规模，忘记偏移——例如背包的 dp[0][w] 表示 0 件物品，需要多开一行。\n陷阱 2：混淆 0/1 背包（每件物品最多一次）和完全背包（每件物品无限次），两者转移方程和内层循环方向不同。\n陷阱 3：只关注状态定义，忽略了计算顺序——DP 必须保证计算 dp[i] 时其依赖的子问题 dp[i-1] 等已经算完。对于二维 DP，通常是按行遍历。"},
+          {"kind": "next_action", "heading": "完成后建议", "content": "完成三层练习后，建议进入'动态规划进阶'模块学习：区间 DP（矩阵链乘）、树形 DP（打家劫舍 III）、状态压缩 DP（旅行商问题 TSP）。其中区间 DP 是面试中的高频考点，用一个二维区间 dp[l][r] 表示 [l,r] 区间的最优解，理解从短区间向长区间递推的模式。"}
         ],
-        "key_concepts": ["状态定义", "转移方程", "记忆化搜索", "自底向上", "最优子结构"],
-        "learning_tips": ["先理解状态定义，再写转移方程，最后写代码", "DP 问题统一套路：定义状态 → 找转移方程 → 确定初始值 → 确定计算顺序"],
-        "recommended_usage": "按顺序完成三层练习：基础层理解 DP 思想，进阶层巩固经典问题，提高层挑战进阶。",
-        "estimated_time": "45 分钟",
-        "match_reason": "匹配学生动态规划模块的学习需求和分层练习偏好",
-        "personalized_reason": "从斐波那契逐步过渡到背包问题，符合'基础薄弱'到'较好'的渐进式学习路径"
+        "key_concepts": ["状态定义", "转移方程", "记忆化搜索", "自底向上", "最优子结构", "重叠子问题", "0/1背包", "LCS", "LIS"],
+        "learning_tips": ["DP 解题套路：定义状态 → 找转移方程 → 确定初始值 → 确定计算顺序（四步法）", "先手算小规模 dp 表格，验证转移方程正确后再写代码", "记忆化搜索和自底向上 DP 是同一思路的两种实现方向，理解它们等价但空间效率不同"],
+        "recommended_usage": "按顺序完成三层练习：基础层用 15 分钟理解 DP 核心概念，进阶层用 25 分钟巩固三个经典问题，提高层用 20 分钟挑战优化。每层做完后对照达标标准自检。",
+        "estimated_time": "60 分钟",
+        "match_reason": "匹配学生动态规划模块的学习需求和分层练习偏好，三层递进覆盖从基础到提高的完整学习路径",
+        "personalized_reason": "针对基础薄弱的学习现状，从最基础的斐波那契记忆化搜索入手，逐步过渡到 0/1 背包等经典问题。通过'递归→记忆化→DP'的渐进路径帮助建立 DP 思维。每道题配有详细提示和达标标准，适合自主学习。三层次设计确保从简单到复杂的平滑过渡，避免一开始就面对困难题目导致的挫败感。"
       }
     ],
     "topic": "动态规划入门",
@@ -125,13 +167,13 @@
     "programming_language_used": "Python",
     "personalization_source": "defaults",
     "personalization_summary": {
-      "foundation_level": "",
-      "learning_goal": "",
-      "current_difficulties": [],
-      "expression_preferences": [],
+      "foundation_level": "基础薄弱",
+      "learning_goal": "考试复习",
+      "current_difficulties": ["递归出口", "遍历顺序混淆"],
+      "expression_preferences": ["图示优先", "代码案例学习"],
       "matched_module": "动态规划入门"
     },
-    "generation_signature": "动态规划入门|代码示例|分层练习|图解讲解|易错点|Python|未指定目标|未指定基础",
+    "generation_signature": "动态规划入门|图解讲解|代码示例|易错点|分层练习|Python|考试复习|基础薄弱",
     "fallback": false
   },
   "path": {

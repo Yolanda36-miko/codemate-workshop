@@ -19,7 +19,8 @@ router = APIRouter()
 class ResourceGenerateRequest(BaseModel):
     course_id: str
     knowledge_point: str
-    learning_topic: str = ""       # frontend compat alias
+    topic: str = ""                # highest-priority topic field (Phase 3C-3)
+    learning_topic: str = ""       # frontend compat alias for topic
     difficulty: str = "入门"
     language: str = "Python"
     resource_types: list[str] | None = None
@@ -29,16 +30,36 @@ class ResourceGenerateRequest(BaseModel):
     @classmethod
     def normalize_fields(cls, data):
         if isinstance(data, dict):
+            # ── resource_types backward-compat aliases (Phase 14B-4) ──
+            # resource_types is primary; fall back to legacy field names
+            rt = data.get('resource_types')
+            if not rt:
+                for legacy_key in ('selected_types', 'preferred_types', 'resourceType', 'formats'):
+                    val = data.get(legacy_key)
+                    if isinstance(val, list) and val:
+                        rt = val
+                        break
+            if rt is not None:
+                data = {**data, 'resource_types': rt}
+
+            # topic > learning_topic > knowledge_point
             kp = data.get('knowledge_point', '')
             lt = data.get('learning_topic', '')
+            tp = data.get('topic', '')
             if not kp and lt:
                 data = {**data, 'knowledge_point': lt}
+            if not lt and kp:
+                data = {**data, 'learning_topic': kp}
+            if not tp and lt:
+                data = {**data, 'topic': lt}
+            if not tp and kp:
+                data = {**data, 'topic': kp}
         return data
 
     @model_validator(mode='after')
     def check_knowledge_point(self):
         if not self.knowledge_point.strip():
-            raise ValueError('knowledge_point 或 learning_topic 至少需要提供一个非空值')
+            raise ValueError('knowledge_point 或 learning_topic 或 topic 至少需要提供一个非空值')
         return self
 
 
@@ -52,6 +73,7 @@ def generate_resources(req: ResourceGenerateRequest):
         resource_types=req.resource_types,
         quick_profile=req.quick_profile,
         learning_topic=req.learning_topic,
+        topic=req.topic,
     )
 
 
