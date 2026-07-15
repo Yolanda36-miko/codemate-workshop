@@ -23,6 +23,7 @@ class ResourceGenerateRequest(BaseModel):
     difficulty: str = "入门"
     language: str = "Python"
     resource_types: list[str] | None = None
+    quick_profile: dict | None = None  # Phase 3B: quick personalization
 
     @model_validator(mode='before')
     @classmethod
@@ -44,7 +45,13 @@ class ResourceGenerateRequest(BaseModel):
 @router.post("/resources/generate")
 def generate_resources(req: ResourceGenerateRequest):
     return resource_service.generate_resources(
-        req.course_id, req.knowledge_point, req.difficulty, req.language, req.resource_types
+        course_id=req.course_id,
+        knowledge_point=req.knowledge_point,
+        difficulty=req.difficulty,
+        language=req.language,
+        resource_types=req.resource_types,
+        quick_profile=req.quick_profile,
+        learning_topic=req.learning_topic,
     )
 
 
