@@ -306,9 +306,11 @@ backend/
 
 ### 7.2 资源库（Resource Library）
 
-- **元数据**：`data/resource_library/index.json` 包含所有资源的元信息（id、title、course、topic、type、difficulty、language、tags、estimatedTime、summary、contentPath）
-- **存储结构**：`data_structures/` 下 14 个主题子目录，每个目录内存放 Markdown 格式的资源文件
-- **主题覆盖**：复杂度分析、线性表、栈与队列、递归与调用栈、树与二叉树、图结构与图算法、排序与查找、散列表、动态规划入门、综合项目实践等
+- **元数据索引**：`data/resource_library/index.json` 包含所有资源的元信息，关键字段包括 `id`、`title`、`topic`、`topicCode`、`type`、`resource_type`、`module`、`difficulty`、`language`、`tags`、`summary`、`contentPath`、`path`
+- **存储结构**：`data_structures/` 下 14 个主题子目录，每个目录内存放 Markdown 格式的资源文件（讲解文档、图解说明、代码示例、易错点分析、练习题集、项目案例等）
+- **主题覆盖**：二叉树遍历、递归调用栈、BFS 和 DFS 图遍历、快速排序与排序稳定性、二分查找边界、动态规划入门、散列表与哈希冲突、栈与队列应用、线性表与链表、复杂度分析、排序算法综合、树结构综合、图算法综合、综合项目实践
+- **资源类型**：图解讲解、代码示例、易错点、分层练习、项目案例
+- **检索方式**：资源生成时通过 `_search_library()` 根据 topic、module 和 tags 进行匹配，检索结果作为 generation_context 的一部分注入 LLM prompt 或 fallback 生成逻辑
 
 ### 7.3 Mock 数据体系
 
@@ -356,7 +358,7 @@ LLMProvider (ABC)
 
 ## 9. 资源生成流程
 
-资源生成是系统的核心业务流程，完整链路如下：
+资源生成是系统的核心业务流程，采用"资源库检索 + 用户画像融合 + LLM/mock 生成 + 动态 fallback + 后端结构化校验"的混合式机制。完整链路如下：
 
 ```
 用户输入
@@ -369,30 +371,35 @@ LLMProvider (ABC)
           ▼
 ┌─────────────────────────────────────────┐
 │  Router: resources.py                   │
-│  参数校验、默认值填充                      │
+│  参数校验、字段兼容、默认值填充             │
 └─────────────────────────────────────────┘
           ▼
 ┌─────────────────────────────────────────┐
 │  Service: resource_service.py           │
-│  1. 解析 topic → topic_code             │
-│  2. 查询 resource_library 匹配资源       │
-│  3. 构建 generation_context             │
-│  4. 调用 prompt_service 渲染 Prompt      │
-│  5. 调用 llm_service.chat_json()        │
-│  6. finalize_resource_cards() 后处理     │
-│     - 结构化 sections 完整性检查          │
-│     - 编程语言一致性校验与修正             │
-│     - 个性化描述注入                      │
-│     - 代码块语言标签修正                  │
-│  7. 构建完整响应（含 verification 字段）   │
+│  1. 主题识别 → topic_key + module       │
+│  2. 画像读取（学习目标/基础/困难/偏好）    │
+│  3. 查询 resource_library 匹配资源       │
+│  4. 构建 generation_context             │
+│  5. 调用 prompt_service 渲染 Prompt      │
+│  6. 调用 llm_service.chat_json()        │
+│  7. LLM 失败 → 动态 fallback 兜底        │
+│  8. finalize_resource_cards() 后处理     │
+│     ├─ resource_types 严格过滤           │
+│     ├─ 代码语言一致性校验与修正           │
+│     ├─ 主题相关性检查（防交叉污染）        │
+│     ├─ 内容厚度与质量校验                 │
+│     ├─ 占位符/模板残留检测               │
+│     ├─ 重点主题专用模板兜底               │
+│     └─ 个性化描述注入                    │
+│  9. 构建完整响应（含 verification 字段）   │
 └─────────────────────────────────────────┘
           ▼
 ┌─────────────────────────────────────────┐
 │  LLM Provider                           │
-│  Mock: _build_fallback_resources()      │
+│  Mock: _build_full_fallback_cards()     │
 │        动态生成（10 模块 × 5 类型 ×       │
 │        4 语言 × 画像感知）                 │
-│  Real: OpenAI / Anthropic / DeepSeek    │
+│  Real: DeepSeek / OpenAI / Anthropic    │
 └─────────────────────────────────────────┘
           ▼
       ResourceGenerateResponse

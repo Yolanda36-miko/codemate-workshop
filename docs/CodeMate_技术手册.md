@@ -237,17 +237,21 @@ CodeMate 智学工坊的建设目标如下：
 
 ### 6.1 资源生成流程
 
-个性化资源生成是平台的核心流程，其完整链路如下：
+个性化资源生成采用"资源库检索 + 用户画像融合 + LLM/mock 生成 + 动态 fallback + 后端结构化校验"的混合式机制，完整链路如下：
 
 1. **用户输入**：学习者在 ResourceGen 页面输入数据结构知识点（如"快速排序为什么不稳定"），选择资源类型（可多选）、编程语言和快速定制信息。
-2. **画像获取**：系统读取已有的学习画像（DB 或 localStorage），与当前快速定制信息合并，形成本次生成使用的完整画像。
-3. **模块识别**：后端通过关键词匹配将用户输入映射到对应的数据结构模块（如"快速排序"映射到"排序与查找"）。
-4. **资源库检索**：系统在资源库中搜索与当前模块和学习者画像标签匹配的参考资料，提取关键知识点作为 LLM prompt 的上下文。
-5. **Prompt 构造**：系统将模块信息、画像数据、资源库摘要和资源类型要求填入 prompt 模板 `generate_resources.txt`。
-6. **LLM 调用**：通过统一的 LLM Provider 接口调用大语言模型，传入构造好的 prompt。
-7. **后处理**：对 LLM 返回的资源卡片进行后处理，包括代码语言校验与替换、文本字段清理、结构规范化。
-8. **返回结果**：返回结构化的资源卡片数组，附带 generation_signature、normalized_module 等验证字段。
-9. **前端展示**：前端以可展开卡片形式展示资源，学习者可查看详细内容并加入资源包。
+2. **主题识别与模块归类**：后端通过关键词匹配将用户输入映射到对应的数据结构模块（如"快速排序"映射到"排序与查找"），确定 normalized_module。
+3. **画像获取与合并**：系统读取已有的学习画像（DB 或 localStorage），提取学习目标、基础水平、当前困难点、表达偏好和编程语言，与当前快速定制信息合并。
+4. **本地资源库匹配**：系统在资源库 `resource_library/` 中搜索与当前主题和模块匹配的参考资料，读取相关资源摘要或正文片段，作为后续生成的领域知识上下文。
+5. **构造 generation_context**：将模块信息、画像数据、资源库匹配结果、资源类型和编程语言要求统一封装为 generation_context 结构体。
+6. **构造 Prompt**：将 generation_context 中的字段填入 prompt 模板 `generate_resources.txt`，生成完整的 LLM 调用 prompt。
+7. **LLM / mock 生成**：通过统一的 LLM Provider 接口调用大语言模型或 mock 模式，生成初步的资源卡片。
+8. **动态 fallback 兜底**：当 LLM 调用失败或返回无效数据时，系统自动降级到动态 fallback，根据 topic、resource_types、language 和 quick_profile 生成结构化资源卡片。
+9. **resource_types 严格过滤**：根据用户请求的 resource_types 严格控制最终输出的卡片类型，过滤掉任何不属于用户请求类型的卡片；如果过滤后无卡片则自动构建最小兜底卡片。
+10. **主题相关性检查**：检测资源卡片内容是否与请求主题匹配，识别跨主题污染（如二叉树内容出现在排序主题的卡片中）并触发重新生成。
+11. **内容厚度与质量校验**：对每张卡片进行深度校验（各类型 section 数量、内容字数、代码行数、语言一致性），不达标的卡片触发自动补全或专用模板替换。
+12. **返回结果**：返回结构化的资源卡片数组，附带 generation_signature、normalized_module、resource_types_used、programming_language_used 等验证字段。
+13. **前端展示**：前端以可展开卡片形式展示资源，学习者可查看详细内容并通过 ResourceDetailModal 查看完整的结构化章节。
 
 ### 6.2 五种资源类型及生成特点
 
@@ -268,6 +272,50 @@ CodeMate 智学工坊的建设目标如下：
 - 编程语言（决定代码示例的语言和语法）
 - 当前困难点（在资源中增加针对性解释）
 - 表达偏好（影响资源的呈现形式）
+
+### 6.4 资源生成质量控制机制
+
+系统不再仅依赖 prompt 约束来保证生成质量，而是在后端 `resource_service.py` 中建立了多层质量控制机制，对 LLM 输出和 fallback 结果进行结构化校验和自动修正。
+
+**质量控制层次：**
+
+| 层次 | 机制 | 说明 |
+|------|------|------|
+| 类型过滤 | resource_types 严格过滤 | 根据用户请求的 resource_types 严格控制输出卡片类型，过滤不属于请求类型的卡片；过滤后为空时自动构建 minimal fallback |
+| 语言校验 | 代码语言一致性检查 | 扫描所有 section 中的 language 字段和代码块，确保与用户选择的编程语言一致；不一致时自动替换 |
+| 主题校验 | 主题相关性检查 | 检测卡片内容中的关键概念是否与请求主题匹配，识别并修复跨主题污染（如二叉树代码出现在排序主题中） |
+| 深度校验 | 内容厚度检查 | 按资源类型对 section 数量、内容字数、代码行数进行硬性最低标准校验；不达标卡片自动触发 enrich 补全 |
+| 残留检测 | 占位符与模板残留扫描 | 扫描内容中的占位符（如 O(?)、???????）和无关模板残留（如 factorial、fib_memo），检测到后触发强制重新生成 |
+| 专用模板 | 重点主题专用模板兜底 | 对 4 个重点主题（二叉树前序遍历 + C++、快速排序稳定性、BFS/DFS 图遍历、动态规划入门）提供硬编码专用模板，确保关键教学内容的准确性和完整性 |
+| 二次校验 | fallback 结果二次校验 | 对 fallback 生成的结果再次执行上述校验流程，确保兜底路径的输出质量与主路径一致 |
+
+**核心回归测试：**
+
+系统已通过以下四组核心回归测试，覆盖五种资源类型和四种编程语言：
+
+| 测试组 | 主题 | 资源类型 | 语言 | 核心验证点 |
+|--------|------|---------|------|-----------|
+| A | 二叉树前序遍历 | 代码示例 | C++ | 只返回代码示例；包含 TreeNode、preorder、nullptr 等 C++ 特征；O(n)/O(h) 复杂度分析；非递归栈遍历练习 |
+| B | 快速排序为什么不稳定 | 易错点 | Java | 只返回易错点；包含 [3a, 2, 3b, 1] 稳定性反例演示；解释相等元素相对顺序变化 |
+| C | BFS 和 DFS 图遍历算法对比 | 图解讲解 + 分层练习 | C | 只返回图解讲解和分层练习两张卡片；分层练习包含明确的"基础题""进阶题""综合题"三级标注 |
+| D | 动态规划入门（0/1 背包） | 项目案例 | Python | 只返回项目案例；包含状态定义、状态转移、初始化、遍历顺序、Python 项目骨架 |
+
+### 6.5 resource_service.py 职责说明
+
+`services/resource_service.py` 是资源生成的核心服务模块，负责以下功能：
+
+1. 接收来自 `routers/resources.py` 的资源生成请求，解析 course_id、knowledge_point、topic 等参数；
+2. 识别用户输入的主题（topic / knowledge_point / learning_topic），通过关键词匹配确定主题代码（topic_key）；
+3. 将主题映射到十大数据结构模块之一，归一化为 normalized_module；
+4. 读取 quick_profile 中的学习目标（learning_goal）、基础水平（foundation_level）、当前困难点（current_difficulties）、表达偏好（expression_preferences）和编程语言（language）；
+5. 在本地资源库 `resource_library/` 中匹配与当前主题和模块相关的参考资料，提取摘要和正文片段；
+6. 将以上所有信息封装为 generation_context 结构体，作为后续 LLM 调用和 fallback 生成的统一输入；
+7. 调用 LLM Provider（mock 或 DeepSeek）生成资源卡片，或在 LLM 失败时自动降级到动态 fallback（`_build_full_fallback_cards()`）；
+8. 在 `finalize_resource_cards()` 中根据用户选择的 resource_types 严格控制输出卡片类型，过滤不属于用户请求类型的卡片；
+9. 对重点主题（二叉树前序遍历、快速排序稳定性、BFS/DFS 图遍历、动态规划入门）提供专用硬编码模板兜底，确保关键内容的教学准确性；
+10. 通过交叉主题污染检查机制，防止某一主题的模板内容（如二叉树代码）污染其他主题（如排序、BFS/DFS、动态规划）的生成结果；
+11. 扫描并清除占位符（如 O(?)、???????）和无关模板残留（如 factorial、fib_memo），检测到后触发强制重新生成；
+12. 返回结构化 resource_cards 数组，附带 generation_signature、normalized_module、resource_types_used、programming_language_used、personalization_source 和 personalization_summary 等验证字段。
 
 ---
 
@@ -592,7 +640,29 @@ backend/
 
 ### 12.2 资源库组织结构
 
-资源库 `resource_library/data_structures/` 按数据结构模块分为 14 个主题子目录，每个子目录包含该主题的多种资源文件：
+资源库 `resource_library/` 由索引文件和按主题组织的资源子目录构成：
+
+```
+backend/data/resource_library/
+├── index.json                         # 资源库元数据索引
+└── data_structures/                   # 数据结构主题资源（14 个子目录）
+    ├── binary_tree_traversal/         # 二叉树遍历
+    ├── recursion_call_stack/          # 递归调用栈
+    ├── bfs_dfs/                       # BFS 和 DFS 图遍历
+    ├── quicksort/                     # 快速排序与排序稳定性
+    ├── binary_search/                 # 二分查找边界
+    ├── dynamic_programming/           # 动态规划入门
+    ├── hash_table/                    # 散列表与哈希冲突
+    ├── stack_queue/                   # 栈与队列应用
+    ├── linked_list/                   # 线性表与链表
+    ├── complexity_analysis/           # 复杂度分析
+    ├── sorting_algorithms/            # 排序算法综合
+    ├── tree_structures/               # 树结构综合
+    ├── graph_algorithms/              # 图算法综合
+    └── comprehensive_project/         # 综合项目实践
+```
+
+每个主题子目录包含该主题的多种资源文件：
 
 | 资源文件类型 | 格式 | 说明 |
 |-------------|------|------|
@@ -608,20 +678,42 @@ backend/
 
 ### 12.3 资源库索引
 
-`index.json` 以统一格式管理所有资源文件的元数据。每条记录包含：
+`index.json` 以统一格式管理所有资源文件的元数据。每条记录包含以下关键字段：
 
-- `id`：资源唯一标识
-- `title`：资源标题
-- `type`：资源类型（图解讲解、代码示例、易错点、分层练习、项目案例等）
-- `courseCode`：课程代码（`data_structures`）
-- `topicCode`：主题代码（如 `binary_tree_traversal`）
-- `difficulty`：难度等级
-- `language`：编程语言（如有）
-- `tags`：标签列表（用于搜索和匹配）
-- `file`：相对路径指向资源文件
-- `summary`：资源摘要
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 资源唯一标识符 |
+| `title` | string | 资源标题（含主题和类型描述） |
+| `topic` | string | 所属主题名称（如"二叉树遍历"） |
+| `topicCode` | string | 主题代码（如 `binary_tree_traversal`） |
+| `type` | string | 资源展示类型 |
+| `resource_type` | string | 资源类型（图解讲解、代码示例、易错点、分层练习、项目案例） |
+| `module` | string | 所属数据结构模块（如"树与二叉树"） |
+| `difficulty` | string | 难度等级（入门 / 进阶 / 提高） |
+| `language` | string | 编程语言（Python / C / C++ / Java，无代码资源为空） |
+| `tags` | string[] | 标签列表（用于搜索匹配和主题归类） |
+| `summary` | string | 资源内容摘要（1-2 句话） |
+| `contentPath` | string | 资源正文文件的相对路径 |
+| `path` | string | 资源库内的逻辑路径 |
 
-资源库在资源生成流程中通过 `_search_library()` 函数检索，检索结果作为参考资料嵌入 LLM prompt 的上下文中。
+资源库覆盖的数据结构与算法主题包括但不限于：
+
+- 二叉树遍历（binary_tree_traversal）
+- 递归调用栈（recursion_call_stack）
+- BFS 和 DFS 图遍历（bfs_dfs）
+- 快速排序与排序稳定性（quicksort）
+- 二分查找边界（binary_search）
+- 动态规划入门（dynamic_programming）
+- 散列表与哈希冲突（hash_table）
+- 栈与队列应用（stack_queue）
+- 线性表与链表（linked_list）
+- 复杂度分析（complexity_analysis）
+
+支持的资源类型包括：图解讲解、代码示例、易错点、分层练习、项目案例。
+
+资源库在资源生成流程中通过 `_search_library()` 函数检索，匹配结果中的摘要和正文片段作为参考资料嵌入 generation_context，为 LLM 生成和 fallback 构建提供领域知识上下文。
+
+### 12.4 资源管理脚本
 
 ---
 

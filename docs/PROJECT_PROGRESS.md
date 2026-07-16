@@ -1,7 +1,7 @@
 # CodeMate 项目进度报告
 
-> 生成日期：2026-07-06
-> 当前分支：`phase14-data-structure-focus`
+> 生成日期：2026-07-15
+> 当前分支：`phase14B-resource-generation-quality`
 > 目标分支（PR 目标）：`real-system-upgrade`
 
 ---
@@ -67,35 +67,52 @@
 - [x] 中央配置文件 `frontend/src/config/courseFocus.ts`，导出 `dataStructureModules`
 - [x] 10 个 DS 模块：复杂度分析、线性表、栈与队列、递归与调用栈、树与二叉树、图结构与图算法、排序与查找、散列表、动态规划入门、综合项目实践
 
-### Phase 3 深度修复（最近两轮会话）
+### Phase 3B：资源生成框架优化
 
-**根因修复 — "输入变化但结果始终相同"：**
-- [x] 后端 `resource_service.py` Mock 路径改为调用动态 `_build_fallback_resources()`（不再加载固定 JSON）
-- [x] 生成上下文 `gen_context` 包含 topic/topic_code/resource_types/foundation_level/learning_goal/programming_language/current_difficulties/expression_preferences/matched_library_resources
-- [x] `generation_signature` 格式：`{topic_code}|{sorted_types}|{language}|{goal}|{foundation}`
+- [x] `generation_signature` 机制：`{module}|{sorted_types}|{language}|{goal}|{foundation}`
 - [x] 三条返回路径（Mock/LLM/Fallback）均返回完整 verification 字段
-- [x] 前端 `api.ts` Mock 响应重写，包含完整 verification 字段 + `resolveModuleName()` 辅助函数
 - [x] 前端 `mock/resources.ts` 完全重写（~500 行）：10 模块 × 4 语言 × 5 资源类型 × 画像感知，全动态生成
-- [x] `finalize_resource_cards()` 综合后处理（结构化完整性检查、编程语言一致性校验、个性化注入、代码块标签修正）
+- [x] 前端 ResourceDetailModal.tsx 详情弹窗（11 种 section.kind 结构化渲染）
+- [x] ResourceCard 简化为摘要展示
 
-**资源卡片展开/收起优化：**
-- [x] ResourceCard 展开/收起（Framer Motion AnimatePresence）
-- [x] CompactSection 组件支持 highlight/steps/code/warning/practice/compare 等 section.kind
-- [x] mock_responses.json 质量提升（5 个卡片覆盖全部资源类型，内容详细）
+### Phase 3C-2：资源生成质量控制
 
-**资源详情展示重构（本轮会话）：**
-- [x] 新增 `ResourceDetailModal.tsx` — 居中详情弹窗，支持全屏/退出全屏
-- [x] 11 种 section.kind 结构化渲染 + 未知 kind 兜底
-- [x] ResourceCard 简化为摘要展示（不再内嵌展开/收起）
-- [x] ResourceGen.tsx 将 ResourceDetailPanel 替换为 ResourceDetailModal
-- [x] 类型系统增强：`SectionKind` 增加 `answer_hint`/`complexity`，`ResourceSection.content` 支持多类型
+- [x] **resource_types 管道修复**：Router 层添加 backward-compat 别名（selected_types / preferred_types / resourceType / formats → resource_types）；Service 层只在用户未发送任何 resource_types 时才默认 triple；finalize_resource_cards 严格过滤卡片类型
+- [x] **resource_types_used** 从实际卡片类型计算，不再硬编码
+- [x] **类型归一化**：`normalize_resource_type()` 支持中英文别名映射
+- [x] **空结果兜底**：`_build_minimal_cards()` 当过滤后无卡片时自动构建
+- [x] **代码语言校验**：`_validate_and_fix_code_language()` 确保所有代码块语言标签与用户选择一致
+- [x] **主题相关性校验**：`validate_resource_relevance()` 检测内容是否与请求主题匹配
+- [x] **内容厚度校验**：`validate_resource_depth()` 按资源类型校验 section 数量、字数、代码行数
+- [x] **占位符/模板残留检测**：扫描 O(?)、???????、factorial、fib_memo 等禁止内容，触发强制 enrich
+- [x] **交叉主题污染检查**：`_check_cross_topic_contamination()` 防止二叉树代码污染排序/BFS/DP 等主题
+- [x] **4 个重点主题专用模板**：
+  - A. `build_preorder_cpp_code_card()` — 二叉树前序遍历 + C++ 代码示例
+  - B. `build_quicksort_stability_mistake_card()` — 快速排序稳定性 + 易错点（含 [3a,2,3b,1] 反例）
+  - C. `build_bfs_dfs_visual_card()` + `build_bfs_dfs_practice_card()` — BFS/DFS 图解讲解 + 分层练习
+  - D. `build_dp_project_card()` — 动态规划入门 + 项目案例（含状态定义/转移/初始化/遍历顺序）
+- [x] **关键词二次校验**：在 `finalize_resource_cards` Step 8b 中，对 bfs_dfs+分层练习 检查"基础题""进阶题""综合题"关键词，对 dp+项目案例 检查"遍历顺序"关键词，缺失时重新生成
+- [x] **10 模块知识库**：`_MODULE_CONTENT` 字典提供每个模块的 topic-specific 内容模板
+- [x] **模块识别优化**：`TOPIC_TO_MODULE` 按关键词长度降序排列，避免"递归调用栈"被误匹配到"栈与队列"
+
+### Phase 14B：资源库导入与标准化
+
+- [x] 资源库已导入到 `backend/data/resource_library/`
+- [x] `index.json` 已标准化，每条记录包含 module、resource_type、path 字段
+- [x] 14 个主题子目录覆盖数据结构核心主题
 
 ---
 
 ## 2. 当前正在做的任务
 
-### 刚完成（本轮会话）
-- **资源详情展示方式重构** — `ResourceDetailModal.tsx` 已创建并集成，TypeScript 检查通过，前端 build 通过
+### 刚完成（Phase 14B）
+- **资源生成质量控制全面加固** — resource_types 管道修复、4 个专用模板、交叉污染检查、关键词二次校验、占位符扫描均已实现
+- **8 组回归测试全部通过**（4 组核心回归 A/B/C/D + 4 组非特殊主题 E/F/G/H）
+
+### 当前状态
+- **后端**：`resource_service.py` 已完成质量控制管线（`finalize_resource_cards` 含 10 步后处理 + Step 8b 关键词检查）
+- **测试**：`test_phase14b_verify.py` 全部 8 组通过
+- **文档**：`CodeMate_技术手册.md`、`CodeMate_项目技术栈说明.md`、`PROJECT_PROGRESS.md` 已同步更新
 
 ### 待办（task list 中的 pending 项）
 - **#86**：更新 Sidebar — 条件性用户显示
@@ -104,8 +121,13 @@
 - **#173**：扫描所有页面，排查 demo 痕迹、null 安全和空状态问题
 - **#214**：最终验证 — 后端加载 + 前端构建
 
-### 下一步计划（用户在本轮会话中提到）
-- 资源详情展示前端承接已完成，下一步应进入**资源内容质量提升**阶段（修改后端生成逻辑，让每种资源类型都生成详细、具体的内容）
+### 下一步建议
+目前资源生成已具备基本的可控性和教学可用性。后续阶段建议继续做：
+1. 泛化测试：更多主题、更多资源类型组合的覆盖测试
+2. 更多主题专用模板：扩充当前 4 个重点模板到其余 6 个模块
+3. 真实 LLM 接入后的生成稳定性评估
+4. 前端详情展示优化
+5. 技术报告和项目演示材料完善
 
 ---
 
@@ -113,57 +135,48 @@
 
 ### 当前工作区（未提交的修改 — Modified）
 
-**前端（9 个文件）：**
+**后端（核心修改）：**
 | 文件 | 修改内容 |
 |------|---------|
-| `frontend/src/types/index.ts` | SectionKind 扩展、ResourceSection.content 多类型支持、ResourceCard 增加可选字段 |
-| `frontend/src/mock/resources.ts` | 完全重写为动态生成（~500 行，10 模块 × 4 语言 × 5 类型） |
-| `frontend/src/services/api.ts` | `generateResources()` Mock 响应增加 verification 字段、新增 `resolveModuleName()` |
-| `frontend/src/components/resources/ResourceWorkbench.tsx` | 快速画像表单、sessionStorage 持久化 |
-| `frontend/src/components/resources/ResourceCard.tsx` | 简化为摘要展示，移除展开/收起 |
-| `frontend/src/components/resources/ResourceDetailPanel.tsx` | 兼容性修复（`safeStr()` 包装 section.content） |
-| `frontend/src/pages/ResourceGen.tsx` | 替换 ResourceDetailPanel → ResourceDetailModal |
+| `backend/services/resource_service.py` | Phase 14B 质量控制管线：resource_types 严格过滤、normalize_resource_type()、_build_minimal_cards()、4 个专用硬编码模板、交叉主题污染检查、占位符扫描、关键词二次校验、_MODULE_CONTENT 知识库、TOPIC_TO_MODULE 优化 |
+| `backend/routers/resources.py` | backward-compat 字段别名（selected_types / preferred_types / resourceType / formats → resource_types） |
+| `backend/prompts/generate_resources.txt` | Phase 3C-2 加厚：每种资源类型 ≥7 section、内容厚度硬约束、8 个重点主题 rich content 规范 |
+| `backend/data/sections_test.json` | 4 组核心回归测试的预期 section 结构定义 |
 
-**后端（7 个文件）：**
+**文档（本次更新）：**
 | 文件 | 修改内容 |
 |------|---------|
-| `backend/config.py` | DeepSeek 配置变量 |
-| `backend/services/llm_service.py` | DeepSeekProvider + 工厂模式 |
-| `backend/services/resource_service.py` | Mock 路径改为动态 fallback、generation_context、finalize 后处理 |
-| `backend/routers/resources.py` | quick_profile 参数 + 字段兼容 |
-| `backend/prompts/generate_resources.txt` | 重写 Prompt 模板 |
-| `backend/data/mock_responses.json` | 重写为 DS 场景的 5 个高质量卡片 |
+| `docs/CodeMate_技术手册.md` | 更新资源生成流程（混合式机制）、新增质量控制机制章节、更新 resource_service.py 职责说明、扩充资源库描述 |
+| `docs/CodeMate_项目技术栈说明.md` | 更新资源生成流程图、扩充资源库章节 |
+| `docs/PROJECT_PROGRESS.md` | 补充 Phase 3B/3C-2/14B 进展、更新当前状态和后续建议 |
 
-**配置（1 个文件）：**
+**测试：**
 | 文件 | 修改内容 |
 |------|---------|
-| `.claude/settings.local.json` | 本地 Claude Code 配置 |
+| `backend/test_phase14b_verify.py` | 8 组回归测试（4 核心 + 4 非特殊），覆盖 card count/types/sections/language/keywords/cross-contamination |
 
 ### 新增文件（Untracked）
 
-**文档（4 个）：**
-- `docs/CodeMate_技术手册.md` — 正式系统技术手册（~600 行，16 章）
+**文档（3 个）：**
+- `docs/CodeMate_技术手册.md`
+- `docs/CodeMate_项目技术栈说明.md`
+- `docs/PROJECT_PROGRESS.md`
+
+**参考文件（不在版本控制中）：**
 - `docs/CodeMate_技术手册_参考样稿_完整版.md`
 - `docs/CodeMate_技术手册_参考样稿_简版.md`
 - `docs/CodeMate_文档撰写补充材料清单.md`
-- `docs/CodeMate_项目技术栈说明.md` — 技术栈文档（~635 行，15 章）
-
-**参考资料（1 个目录）：**
 - `docs_reference/` — 文档撰写参考素材
 
-**前端组件（1 个）：**
-- `frontend/src/components/resources/ResourceDetailModal.tsx` — 居中详情弹窗（本次新建）
-
-### 已提交的 commit（HEAD → phase14-data-structure-focus）
+### 已提交的 commit（HEAD → phase14B-resource-generation-quality）
 
 ```
+1251c10 docs add codemate technical documentation
+c183f14 docs add project progress handoff
+8d3460e phase 14 improve resource display workflow
 5cdcab5 phase 14 refocus backend data on data structures course
 e3541bf phase 14 refocus frontend on data structures course
 124504c phase 12 finalize deployment docs
-fa301e1 phase 11 fix full flow integration issues
-b89b2a0 phase 10 implement contextual tutoring assessment
-eaf7970 phase 9 implement personalized learning path
-fbd2c77 phase 8A personalize course center and learning path
 ...
 ```
 
@@ -171,34 +184,36 @@ fbd2c77 phase 8A personalize course center and learning path
 
 ## 4. 还没完成的问题
 
-1. **资源内容质量**：后端 LLM / fallback 生成的内容仍需进一步丰富。当前 fallback 生成器已有 topic-specific 内容，但每种资源类型（图解讲解、代码示例、易错点、分层练习、项目案例）的内容深度和针对性还有提升空间。
+1. **泛化测试不足**：当前 8 组测试（4 核心 + 4 非特殊）覆盖了主要路径，但尚未对所有 10 个模块 × 5 种资源类型 × 4 种语言进行全面交叉测试。
 
-2. **Sidebar 条件显示**（任务 #86）：Sidebar 的用户信息显示逻辑未完成。
+2. **专用模板覆盖面有限**：当前只有 4 个重点主题有专用硬编码模板（前序/C++、快排稳定性、BFS/DFS、DP），其余 6 个模块（复杂度分析、线性表、栈与队列、散列表、综合项目等）依赖通用 fallback 逻辑。
 
-3. **Demo 残留清理**（任务 #173）：部分页面可能仍存在演示痕迹、null 安全问题或空状态处理不完善。
+3. **真实 LLM 接入后稳定性未验证**：当前所有测试在 mock 模式下运行，DeepSeek 接入后的生成一致性、格式遵守率和 fallback 触发频率尚未评估。
 
-4. **Path 组件适配**（任务 #160）：学习路径组件的 `stage` / `reason` 等新字段可能未完全适配。
+4. **Sidebar 条件显示**（任务 #86）：Sidebar 的用户信息显示逻辑未完成。
 
-5. **工作区文件未提交**：当前有 16 个修改文件 + 7 个未跟踪文件，均未 commit。
+5. **Demo 残留清理**（任务 #173）：部分页面可能仍存在演示痕迹、null 安全问题或空状态处理不完善。
 
-6. **后端代码未实际运行验证**：后端修改后只做了 import check，未启动 uvicorn 进行端到端测试。
+6. **Path 组件适配**（任务 #160）：学习路径组件的 `stage` / `reason` 等新字段可能未完全适配。
+
+7. **工作区文件未提交**：当前分支有未提交的修改文件，均未 commit。
 
 ---
 
 ## 5. 当前代码是否能运行
 
 ### 前端
-- **TypeScript 检查**：✅ `npx tsc --noEmit` 通过（0 错误）
-- **Vite 构建**：✅ `npm run build` 成功，输出 `dist/`（511KB JS + 41KB CSS）
-- **开发服务器**：✅ `npm run dev` 理论可启动（端口 5173）
-- **Mock 模式**：✅ 默认 `VITE_USE_MOCK=true`，前端可独立运行
+- **TypeScript 检查**：`npx tsc --noEmit` 通过（0 错误）
+- **Vite 构建**：`npm run build` 成功
+- **开发服务器**：`npm run dev` 可启动（端口 5173）
+- **Mock 模式**：默认 `VITE_USE_MOCK=true`，前端可独立运行
 
 ### 后端
-- **Import 检查**：✅（上一次已验证）
-- **数据库初始化**：✅ `python scripts/init_db.py` 理论可运行
-- **种子数据**：✅ `python scripts/seed_db.py` 理论可运行
-- **服务启动**：未实际验证，但代码结构完整
-- **LLM Mock 模式**：✅ 默认 `LLM_PROVIDER=mock`，后端可独立运行
+- **Import 检查**：通过
+- **8 组回归测试**：`python test_phase14b_verify.py` 全部通过
+- **数据库初始化**：`python scripts/init_db.py` 可运行
+- **种子数据**：`python scripts/seed_db.py` 可运行
+- **LLM Mock 模式**：默认 `LLM_PROVIDER=mock`，后端可独立运行
 
 ### 结论
 **前后端在 Mock 模式下均可独立运行。** 真实 LLM 模式需配置 API Key。
@@ -209,22 +224,22 @@ fbd2c77 phase 8A personalize course center and learning path
 
 ### 推荐优先级
 
-1. **资源内容质量提升**（最重要的后续工作）
-   - 修改后端 `_build_fallback_resources()` 和 `_generate_fallback_sections()`
-   - 让每种资源类型都生成更详细、更有针对性的内容
-   - Prompt 模板继续优化
-   - 前端 `ResourceDetailModal` 已做好展示基础
+1. **泛化测试与更多专用模板**
+   - 对剩余 6 个模块进行交叉测试，识别薄弱点
+   - 为高频主题（如二分查找、哈希表、栈与队列）添加专用模板
 
 2. **提交当前工作**
-   - 16 个修改文件 + 7 个未跟踪文件需要 review 和 commit
-   - 建议分 2–3 个 commit：文档类、前端资源详情重构、后端根因修复
+   - Review 当前分支所有修改并提交
 
 3. **清理收尾任务**
    - 任务 #86（Sidebar）、#160（Path 组件）、#173（Demo 残留清理）
-   - 后端启动验证 + 端到端测试
 
-4. **合并到主分支**
-   - 将 `phase14-data-structure-focus` 合并到 `real-system-upgrade`
+4. **真实 LLM 接入测试**
+   - 配置 DeepSeek API Key，运行回归测试评估生成一致性
+   - 统计 fallback 触发频率
+
+5. **合并到主分支**
+   - 将 `phase14B-resource-generation-quality` 合并到 `real-system-upgrade`
 
 ---
 
@@ -233,24 +248,23 @@ fbd2c77 phase 8A personalize course center and learning path
 ```
 继续 CodeMate 项目开发。
 
-当前分支：phase14-data-structure-focus
+当前分支：phase14B-resource-generation-quality
 项目进度文档：docs/PROJECT_PROGRESS.md（请先阅读此文件了解完整上下文）
 
-上次会话完成了"资源详情展示方式重构"：
-- 新增 ResourceDetailModal.tsx（居中弹窗、全屏切换、11 种 section 渲染）
-- ResourceCard 简化为摘要展示
-- 类型系统增强（SectionKind、ResourceSection.content）
-- tsc + build 均已通过
+上次会话完成了"资源生成质量控制"阶段工作：
+- resource_types 管道修复
+- 4 个重点主题专用模板（前序/C++、快排稳定性、BFS/DFS、DP）
+- 交叉主题污染检查
+- 占位符/模板残留检测
+- 关键词二次校验
+- 8 组回归测试全部通过（A/B/C/D + E/F/G/H）
+- 技术文档已同步更新
 
-当前工作区有 16 个修改文件 + 7 个未跟踪文件，均未提交。
+当前工作区有未提交的修改。
 
-请从 PROJECT_PROGRESS.md 了解完整进度后，告诉我你想继续进行哪个方向的工作：
-1. 资源内容质量提升（后端生成逻辑优化）
-2. 提交当前工作区变更
-3. 清理收尾任务（Sidebar、Path 组件、Demo 残留）
-4. 其他
+请从 PROJECT_PROGRESS.md 了解完整进度后，确认下一步方向。
 ```
 
 ---
 
-*本文档由 Claude Code 生成，用于记录 CodeMate 项目在 2026-07-06 的进度快照。*
+*本文档由 Claude Code 生成，用于记录 CodeMate 项目在 2026-07-15 的进度快照。*
