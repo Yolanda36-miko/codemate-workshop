@@ -86,7 +86,7 @@ export default function Assessment() {
       <AnimatedSection>
         <div className="flex items-center gap-2">
           <ClipboardCheck className="w-6 h-6 text-primary-600" />
-          <h1 className="text-2xl font-bold text-gray-900">数据结构与算法 · 智能辅导与闯关评估</h1>
+          <h1 className="text-2xl font-bold text-gray-900">智能辅导与闯关评估</h1>
         </div>
       </AnimatedSection>
 
@@ -109,7 +109,6 @@ export default function Assessment() {
             <ChallengePanel
               context={context}
               pathNodes={pathNodes.length > 0 ? pathNodes : undefined}
-              onViewResource={handleViewResource}
             />
           </AnimatedSection>
         </div>

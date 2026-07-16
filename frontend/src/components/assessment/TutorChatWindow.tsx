@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, Code, BookOpen, Lightbulb, MessageCircle } from 'lucide-react'
+import { Send, Sparkles, Lightbulb, MessageCircle } from 'lucide-react'
 import type { TutorChatResponse, ConversationContext, PathNode } from '../../types'
 import { getTutorResponse, getContextualExampleQuestions, inferConversationContextMock } from '../../mock/assessment'
 import SuggestedQuestions from './SuggestedQuestions'
@@ -70,11 +70,7 @@ export default function TutorChatWindow({ onQuestionAsked, onViewResource, pathN
             <Sparkles className="w-4.5 h-4.5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800">CodeBuddy 智能辅导</p>
-            <p className="text-[10px] text-gray-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-              在线 · 智能辅导中
-            </p>
+            <p className="text-sm font-semibold text-gray-800">智能辅导</p>
           </div>
         </div>
 
@@ -112,50 +108,55 @@ export default function TutorChatWindow({ onQuestionAsked, onViewResource, pathN
                   <p className="text-xs leading-relaxed">{msg.content}</p>
                 </div>
               ) : msg.tutorResponse ? (
-                <div className="flex-1 min-w-0 space-y-2.5">
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* 核心解释 */}
                   <div className="bg-gray-50 rounded-2xl rounded-bl-md px-4 py-3 border border-gray-100">
-                    <p className="text-xs text-gray-700 leading-relaxed">{msg.tutorResponse.greeting}</p>
-                    <p className="text-[11px] text-primary-500 italic mt-1">{msg.tutorResponse.approach}</p>
+                    <p className="text-xs text-gray-700 leading-relaxed">{msg.tutorResponse.core_explanation}</p>
                   </div>
 
+                  {/* 关键点 */}
                   <div className="bg-white rounded-xl px-4 py-3 border border-primary-100">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-[11px] font-medium text-gray-700">分步讲解</span>
+                      <span className="text-[11px] font-medium text-gray-700">关键点</span>
                     </div>
-                    <ol className="space-y-2">
-                      {msg.tutorResponse.steps.map((s, i) => (
+                    <ul className="space-y-1.5">
+                      {msg.tutorResponse.key_points.map((kp, i) => (
                         <li key={i} className="text-[11px] text-gray-600 flex gap-1.5 leading-relaxed">
-                          <span className="text-primary-500 font-medium shrink-0">{i + 1}.</span>
-                          {s}
+                          <span className="text-primary-500 shrink-0">·</span>
+                          {kp}
                         </li>
                       ))}
-                    </ol>
+                    </ul>
                   </div>
 
+                  {/* 代码示例 (optional) */}
                   {msg.tutorResponse.code_example && (
                     <div className="bg-gray-900 rounded-xl px-3 py-2.5 overflow-x-auto">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Code className="w-3 h-3 text-gray-400" />
-                        <span className="text-[10px] text-gray-400">Python</span>
-                      </div>
                       <pre className="text-[10px] text-green-400 leading-relaxed whitespace-pre">{msg.tutorResponse.code_example}</pre>
                     </div>
                   )}
 
-                  {msg.tutorResponse.recommended_resources.length > 0 && (
+                  {/* 下一步建议 */}
+                  <div className="bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-100">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-[10px] font-medium text-amber-800">下一步建议</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-relaxed">{msg.tutorResponse.next_step}</p>
+                  </div>
+
+                  {/* 推荐资源 (optional) */}
+                  {msg.tutorResponse.recommended_resources && msg.tutorResponse.recommended_resources.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <BookOpen className="w-3 h-3 text-primary-500" />
-                        <span className="text-[10px] text-gray-500">推荐资源</span>
-                      </div>
+                      <span className="text-[10px] text-gray-400 block mb-1.5">相关资源</span>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.tutorResponse.recommended_resources.map((res) => (
                           <button
                             key={res.title}
                             onClick={() => onViewResource({
                               title: res.title,
-                              type: res.title.includes('思维导图') ? '知识点思维导图' : res.title.includes('代码') ? '代码示例与注释' : res.title.includes('练习') ? '分层练习题' : '个性化讲解文档',
+                              type: '个性化讲解文档',
                               estimatedTime: '20 分钟',
                               topic: context.pathNode,
                             })}
@@ -165,16 +166,6 @@ export default function TutorChatWindow({ onQuestionAsked, onViewResource, pathN
                           </button>
                         ))}
                       </div>
-                    </div>
-                  )}
-
-                  {msg.tutorResponse.suggested_exercise && (
-                    <div className="bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-100">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-[10px] font-medium text-amber-800">小练习</span>
-                      </div>
-                      <p className="text-[11px] text-amber-700 leading-relaxed">{msg.tutorResponse.suggested_exercise}</p>
                     </div>
                   )}
                 </div>

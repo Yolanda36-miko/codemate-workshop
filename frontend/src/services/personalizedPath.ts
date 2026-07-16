@@ -1,8 +1,154 @@
-import type { BackendProfile, Course, PathNode, PersonalizedPathResult } from '../types'
+import type { BackendProfile, Course, PathNode, PersonalizedPathResult, DSProfileData } from '../types'
+import { mockLearningPath } from '../mock/path'
 
-// ========== Profile usability check ==========
+// =====================================================================
+// Types
+// =====================================================================
+
+export interface NormalizedSignals {
+  difficulties: string[]
+  goals: string[]
+  preferences: string[]
+  foundationLevel: string | null
+  knowledgeLevel: number | null
+  practiceLevel: number | null
+  programmingLanguage: string | null
+  learnedCourses: string[]
+  errorPronePoints: string[]
+}
+
+// =====================================================================
+// localStorage profile draft
+// =====================================================================
+
+export function loadLocalProfileDraft(): Record<string, unknown> | null {
+  try {
+    const raw = localStorage.getItem('codemate_profile_draft')
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) return null
+    return data as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Check if localStorage draft has any key fields that can drive path personalization.
+ * A draft is "usable" if it has current_difficulties, learning_difficulties,
+ * learning_goal, or expression_preferences.
+ */
+export function hasUsableLocalProfileDraft(): boolean {
+  const draft = loadLocalProfileDraft()
+  if (!draft) return false
+
+  const hasDiffs =
+    splitTags(draft.current_difficulties).length > 0 ||
+    splitTags(draft.learning_difficulties).length > 0
+  const hasGoal = splitTags(draft.learning_goal).length > 0
+  const hasPrefs = splitTags(draft.expression_preferences).length > 0
+
+  return hasDiffs || hasGoal || hasPrefs
+}
+
+// =====================================================================
+// Tag helpers — handles both string ("a、b") and array (["a","b"])
+// =====================================================================
+
+function splitTags(val: unknown): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) return val.map((t) => String(t).trim()).filter(Boolean)
+  if (typeof val === 'string') return val.split('、').map((t) => t.trim()).filter(Boolean)
+  return []
+}
+
+function parseJsonArray(field: string | null): string[] {
+  if (!field) return []
+  try {
+    const arr = JSON.parse(field)
+    return Array.isArray(arr) ? arr : []
+  } catch {
+    return []
+  }
+}
+
+// =====================================================================
+// Normalize profile signals from any source
+// =====================================================================
+
+export function normalizeProfileSignals(
+  source: BackendProfile | Record<string, unknown> | null,
+): NormalizedSignals | null {
+  if (!source) return null
+
+  // localStorage draft (Record<string, unknown>)
+  if (!('user_id' in source) && !('diagnosis_status' in source)) {
+    const draft = source as Record<string, unknown>
+    const rawDiffs = [
+      ...splitTags(draft.current_difficulties),
+      ...splitTags(draft.learning_difficulties),
+    ]
+    return {
+      difficulties: [...new Set(rawDiffs)],
+      goals: splitTags(draft.learning_goal),
+      preferences: splitTags(draft.expression_preferences),
+      foundationLevel: (draft.foundation_level as string) || null,
+      knowledgeLevel: null,
+      practiceLevel: null,
+      programmingLanguage: (draft.programming_language as string) || null,
+      learnedCourses: splitTags(draft.learned_courses),
+      errorPronePoints: splitTags(draft.error_prone_points),
+    }
+  }
+
+  // BackendProfile
+  const bp = source as BackendProfile
+  let dsProfile: DSProfileData | null = null
+  if (bp.profile_summary) {
+    try {
+      dsProfile = JSON.parse(bp.profile_summary)
+    } catch {
+      /* ignore malformed JSON */
+    }
+  }
+
+  const difficulties = [
+    ...parseJsonArray(bp.error_patterns),
+    ...(dsProfile?.current_difficulties ?? []),
+    ...(dsProfile?.learning_difficulties ?? []),
+    ...(dsProfile?.error_prone_points ?? []),
+  ]
+  const goals = [
+    ...parseJsonArray(bp.learning_goals),
+    ...(dsProfile?.learning_goal ? [dsProfile.learning_goal] : []),
+  ]
+  const preferences = [
+    ...parseJsonArray(bp.resource_preferences),
+    ...(dsProfile?.expression_preferences ?? []),
+  ]
+
+  return {
+    difficulties: [...new Set(difficulties)],
+    goals: [...new Set(goals)],
+    preferences: [...new Set(preferences)],
+    foundationLevel: dsProfile?.foundation_level ?? null,
+    knowledgeLevel: bp.knowledge_base_score,
+    practiceLevel: bp.practice_ability_score,
+    programmingLanguage: dsProfile?.programming_language ?? null,
+    learnedCourses: dsProfile?.learned_courses ?? [],
+    errorPronePoints: dsProfile?.error_prone_points ?? [],
+  }
+}
+
+// =====================================================================
+// Profile usability check
+// =====================================================================
 
 export function hasUsableProfile(profile: BackendProfile | null): boolean {
+  // Priority 1: localStorage draft (highest priority)
+  if (hasUsableLocalProfileDraft()) return true
+
+  // Priority 2: backend profile fields
   if (!profile) return false
 
   const hasTags = (field: string | null): boolean => {
@@ -19,60 +165,102 @@ export function hasUsableProfile(profile: BackendProfile | null): boolean {
   if (hasTags(profile.error_patterns)) return true
   if (hasTags(profile.learning_goals)) return true
   if (hasTags(profile.resource_preferences)) return true
-
   if (profile.knowledge_base_score !== null && profile.knowledge_base_score !== undefined) return true
   if (profile.practice_ability_score !== null && profile.practice_ability_score !== undefined) return true
-
   if (profile.profile_summary && profile.profile_summary.trim().length > 0) return true
-
   if (profile.diagnosis_status && profile.diagnosis_status !== 'not_started') return true
 
   return false
 }
 
-// ========== Helper: parse JSON-encoded tag fields ==========
+// =====================================================================
+// Difficulty → DS module mapping
+// Order matters: more specific matches must come first.
+// ds-4 before ds-3 so "递归调用栈" matches "递归" not bare "栈".
+// =====================================================================
 
-function parseTags(field: string | null): string[] {
-  if (!field) return []
-  try {
-    const arr = JSON.parse(field)
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
+const DIFFICULTY_MODULE_MAP: [string[], string, string][] = [
+  [['复杂度', '大O', '时间复杂度', '空间复杂度', '渐进分析', 'O(', 'O(n)', 'O(log'], 'ds-1', '复杂度分析与基础概念'],
+  [['链表', '顺序表', '线性表', '单链表', '双向链表', '循环链表', '链式存储'], 'ds-2', '线性表'],
+  // ds-4 BEFORE ds-3 so "递归调用栈" hits "递归" not bare "栈"
+  [['递归', '调用栈', '递归调用栈', '栈帧', '尾递归', '汉诺塔', '全排列', '终止条件'], 'ds-4', '递归与调用栈'],
+  [['栈', '队列', 'LIFO', 'FIFO', '单调栈', '循环队列', '括号匹配', '表达式求值'], 'ds-3', '栈与队列'],
+  [['树遍历', '树', '二叉树', 'BST', '前序', '中序', '后序', '层序', '堆', '优先队列', '二叉搜索树', '遍历顺序'], 'ds-5', '树与二叉树'],
+  [['图遍历', '图', 'BFS', 'DFS', 'Dijkstra', '拓扑排序', '邻接表', '邻接矩阵', '最短路径', '连通'], 'ds-6', '图结构与图算法'],
+  [['排序', '快排', '快速排序', '归并排序', '堆排序', '二分查找', '二分', '查找', '稳定性'], 'ds-7', '排序与查找'],
+  [['哈希', '散列', '散列表', '冲突', '链地址', '开放地址', '负载因子', 'unordered'], 'ds-8', '散列表'],
+  [['动态规划', 'DP', '背包', '状态转移', '记忆化搜索', '最优子结构', '重叠子问题', '状态定义'], 'ds-9', '动态规划入门'],
+]
+
+function mapDifficultiesToModules(difficulties: string[]): Map<string, string[]> {
+  const result = new Map<string, string[]>()
+  for (const diff of difficulties) {
+    for (const [terms, moduleId] of DIFFICULTY_MODULE_MAP) {
+      if (terms.some((t) => diff.includes(t))) {
+        const existing = result.get(moduleId) || []
+        if (!existing.includes(diff)) existing.push(diff)
+        result.set(moduleId, existing)
+        break
+      }
+    }
   }
+  return result
 }
 
-// ========== Helper: extract keywords from profile ==========
+// =====================================================================
+// Goal / Preference → Resource type mapping (ordered by priority)
+// =====================================================================
 
-function extractProfileKeywords(profile: BackendProfile): {
-  difficulties: string[]
-  goals: string[]
-  preferences: string[]
-  styles: string[]
-  knowledgeLevel: number | null
-  practiceLevel: number | null
-} {
-  return {
-    difficulties: parseTags(profile.error_patterns),
-    goals: parseTags(profile.learning_goals),
-    preferences: parseTags(profile.resource_preferences),
-    styles: parseTags(profile.cognitive_styles),
-    knowledgeLevel: profile.knowledge_base_score,
-    practiceLevel: profile.practice_ability_score,
+function getPreferredResourceTypes(signals: NormalizedSignals): string[] {
+  const types: string[] = []
+
+  // Preferences first (higher weight)
+  for (const pref of signals.preferences) {
+    if (pref.includes('图解')) addOnce(types, '图解讲义')
+    if (pref.includes('代码示例') || pref.includes('代码')) addOnce(types, '代码示例与注释')
+    if (pref.includes('易错')) addOnce(types, '个性化讲解文档')
+    if (pref.includes('练习') || pref.includes('分层')) addOnce(types, '分层练习题')
+    if (pref.includes('项目') || pref.includes('案例')) addOnce(types, '项目式学习案例')
+    if (pref.includes('思维导图') || pref.includes('知识梳理')) addOnce(types, '知识点思维导图')
   }
+
+  // Goals second
+  for (const goal of signals.goals) {
+    if (goal.includes('刷题')) { addOnce(types, '分层练习题'); addOnce(types, '代码示例与注释') }
+    if (goal.includes('考试')) { addOnce(types, '个性化讲解文档'); addOnce(types, '知识点思维导图') }
+    if (goal.includes('项目')) { addOnce(types, '项目式学习案例'); addOnce(types, '代码示例与注释') }
+    if (goal.includes('概念') || goal.includes('理解')) { addOnce(types, '图解讲义'); addOnce(types, '个性化讲解文档') }
+  }
+
+  return types
 }
 
-// ========== Helper: text matching ==========
-
-function hasAnyMatch(texts: string[], terms: string[]): boolean {
-  return texts.some((t) => terms.some((term) => t.includes(term)))
+function addOnce(arr: string[], val: string) {
+  if (!arr.includes(val)) arr.push(val)
 }
 
-function findFirstMatch(texts: string[], terms: string[]): string | undefined {
-  return texts.find((t) => terms.some((term) => t.includes(term)))
+// =====================================================================
+// Supplementary resource title helper
+// =====================================================================
+
+const TYPE_SHORT_LABEL: Record<string, string> = {
+  '图解讲义': '图解讲义',
+  '代码示例与注释': '代码示例',
+  '个性化讲解文档': '核心讲解',
+  '分层练习题': '分层练习',
+  '项目式学习案例': '项目案例',
+  '知识点思维导图': '思维导图',
+  '拓展阅读资料': '拓展阅读',
 }
 
-// ========== Personalized course recommendations ==========
+function suppTitle(nodeName: string, resType: string): string {
+  const label = TYPE_SHORT_LABEL[resType] || resType
+  return `${nodeName}${label}`
+}
+
+// =====================================================================
+// Personalized transition (used by CourseCenter)
+// =====================================================================
 
 export interface PersonalizedTransition {
   from: string
@@ -83,419 +271,213 @@ export interface PersonalizedTransition {
 }
 
 export function buildPersonalizedTransition(
-  profile: BackendProfile,
+  profile: BackendProfile | null,
   courses: Course[],
 ): PersonalizedTransition | null {
-  const kw = extractProfileKeywords(profile)
-  if (!hasUsableProfile(profile)) return null
-
-  const baseModule = courses.find((c) => c.stage === '基础模块')
-  const coreModule = courses.find((c) => c.stage === '核心模块')
-
-  const reasons: string[] = []
-  const basedOn: string[] = []
-
-  const recursionTerms = ['递归', '调用栈', '栈', '树', '二叉树', '遍历']
-  if (hasAnyMatch(kw.difficulties, recursionTerms)) {
-    reasons.push('你在递归与树结构方面存在学习困难')
-    basedOn.push(...kw.difficulties.filter((d) => recursionTerms.some((t) => d.includes(t))))
+  let signals: NormalizedSignals | null = null
+  if (profile) {
+    signals = normalizeProfileSignals(profile)
+  }
+  if (!signals) {
+    const draft = loadLocalProfileDraft()
+    if (draft) signals = normalizeProfileSignals(draft)
+  }
+  if (!signals || signals.difficulties.length === 0) {
+    if (courses.length > 0) {
+      return {
+        from: courses[0].name,
+        to: courses.length > 1 ? courses[1].name : courses[0].name,
+        reason: '根据你的学习画像，建议从基础模块开始逐步深入。',
+        basedOn: ['学习画像综合分析'],
+        isPersonalized: true,
+      }
+    }
+    return null
   }
 
-  if (kw.practiceLevel !== null && kw.practiceLevel < 50) {
-    reasons.push('你的代码实践能力有待加强')
-    basedOn.push('实践能力偏弱')
-  }
+  const moduleMap = mapDifficultiesToModules(signals.difficulties)
+  const allDiffs = [...new Set([...moduleMap.values()].flat())]
+  const firstModule = courses[0]
+  if (!firstModule) return null
 
-  if (kw.knowledgeLevel !== null && kw.knowledgeLevel < 50) {
-    reasons.push('你的基础知识需要巩固')
-    basedOn.push('基础知识薄弱')
-  }
-
-  const projectTerms = ['项目', '实践', '开发', '应用']
-  if (hasAnyMatch(kw.goals, projectTerms)) {
-    reasons.push('你的学习目标偏向项目实践')
-    basedOn.push(...kw.goals.filter((g) => projectTerms.some((t) => g.includes(t))))
-  }
-
-  if (reasons.length > 0 && baseModule) {
+  const matchedModules = [...moduleMap.entries()]
+  if (matchedModules.length > 0) {
+    const [, diffs] = matchedModules[0]
+    // Find module name from DIFFICULTY_MODULE_MAP
+    const entry = DIFFICULTY_MODULE_MAP.find(([, id]) => id === matchedModules[0][0])
+    const moduleName = entry?.[2] || '相关模块'
     return {
-      from: baseModule.name,
-      to: coreModule?.name ?? '树与二叉树',
-      reason: reasons.join('；') + '，建议优先从基础模块入手逐步深入。',
-      basedOn: [...new Set(basedOn)].slice(0, 6),
+      from: firstModule.name,
+      to: moduleName,
+      reason: `根据你的学习画像，你在「${diffs.join('、')}」方面存在学习困难，建议重点学习「${moduleName}」模块。`,
+      basedOn: allDiffs.slice(0, 6),
       isPersonalized: true,
     }
   }
 
-  if (baseModule && coreModule) {
-    return {
-      from: baseModule.name,
-      to: coreModule.name,
-      reason: '根据你的学习画像，建议从基础模块开始，逐步进入核心模块学习。',
-      basedOn: ['学习画像综合分析'],
-      isPersonalized: true,
-    }
+  return {
+    from: firstModule.name,
+    to: courses.length > 1 ? courses[1].name : firstModule.name,
+    reason: '根据你的学习画像，建议从基础模块开始逐步深入。',
+    basedOn: signals.difficulties.slice(0, 3),
+    isPersonalized: true,
   }
-
-  return null
 }
 
 // =====================================================================
-// Personalized learning path generation (Phase 9)
-//
-// Always produces exactly 5 stages in strict prerequisite order:
-//   基础概念 → 核心理解 → 代码实现 → 练习巩固 → 项目应用
-//
-// Each stage is personalized using profile data:
-//   - error_patterns    → topic focus, difficulty keywords
-//   - learning_goals    → project stage focus
-//   - resource_preferences → resource type selection
-//   - knowledge_base_score  → pace and depth
-//   - practice_ability_score → practice emphasis
-//   - cognitive_styles  → resource format hints
+// Build personalized learning path (10 DS modules)
 // =====================================================================
 
-const STAGE_ORDER = ['基础概念', '核心理解', '代码实现', '练习巩固', '项目应用'] as const
-
-const BASIC_TERMS = ['数组', '函数', '循环', '基础', '变量', '语法', '指针', '类型']
-const DS_TERMS = ['递归', '栈', '树', '二叉树', '遍历', '队列', '链表', '图']
-const ALGO_TERMS = ['排序', '搜索', '算法', '复杂度', '动态规划', '贪心']
-const PROJECT_TERMS = ['项目', '实践', '开发', '综合', '应用', '系统']
-const EXAM_TERMS = ['考试', '通过', '成绩', '期末', '测试']
-const DIAGRAM_TERMS = ['图解', '导图', '可视化', '图示', '画图']
-const CODE_TERMS = ['代码', '示例', '编程', '实现']
-const PRACTICE_TERMS = ['练习', '题目', '实操', '做题']
-
 export function buildPersonalizedPath(
-  profile: BackendProfile,
-  courses: Course[],
+  profile: BackendProfile | null,
+  _courses: Course[],
 ): PersonalizedPathResult | null {
-  if (!hasUsableProfile(profile)) return null
+  let signals: NormalizedSignals | null = null
+  let source: 'backend' | 'localStorage' = 'backend'
 
-  const kw = extractProfileKeywords(profile)
-  const nodes: PathNode[] = []
+  // Priority 1: localStorage draft (always highest priority)
+  const draft = loadLocalProfileDraft()
+  if (draft && hasUsableLocalProfileDraft()) {
+    signals = normalizeProfileSignals(draft)
+    source = 'localStorage'
+  }
 
-  // ---- Extract profile signals ----
-  const hasBasicIssue = hasAnyMatch(kw.difficulties, BASIC_TERMS)
-  const hasDSIssue = hasAnyMatch(kw.difficulties, DS_TERMS)
-  const hasAlgoIssue = hasAnyMatch(kw.difficulties, ALGO_TERMS)
-  const hasProjectGoal = hasAnyMatch(kw.goals, PROJECT_TERMS)
-  const hasExamGoal = hasAnyMatch(kw.goals, EXAM_TERMS)
-  const prefersDiagrams = hasAnyMatch(kw.preferences, DIAGRAM_TERMS) || hasAnyMatch(kw.styles, DIAGRAM_TERMS)
-  const prefersCode = hasAnyMatch(kw.preferences, CODE_TERMS) || hasAnyMatch(kw.styles, CODE_TERMS)
-  const prefersPractice = hasAnyMatch(kw.preferences, PRACTICE_TERMS)
-  const knowledgeLow = kw.knowledgeLevel !== null && kw.knowledgeLevel < 50
-  const practiceLow = kw.practiceLevel !== null && kw.practiceLevel < 60
+  // Priority 2: fall back to backend profile only if no usable localStorage
+  if (!signals && profile) {
+    signals = normalizeProfileSignals(profile)
+    source = 'backend'
+  }
 
-  // ---- Determine topic focus ----
-  const difficultyTopics = [
-    ...kw.difficulties.filter((d) => [...BASIC_TERMS, ...DS_TERMS, ...ALGO_TERMS].some((t) => d.includes(t))),
-  ]
-  const primaryTopic = difficultyTopics[0] || kw.goals[0] || '数据结构基础'
-  const primaryCourse = courses[0]
-  const primaryCourseName = primaryCourse?.name ?? '数据结构与算法'
+  if (!signals) return null
 
-  // ---- Resource type preference ----
-  const preferredResourceType = prefersDiagrams ? '图解讲义' : prefersCode ? '代码示例' : '讲解文档'
-  const altResourceType = prefersPractice ? '分层练习题' : '代码示例与注释'
+  const modulePriorities = mapDifficultiesToModules(signals.difficulties)
+  const preferredTypes = getPreferredResourceTypes(signals)
+  const focusModuleIds = new Set(modulePriorities.keys())
 
-  // ---- Build personalized basis ----
-  const profileFieldsUsed: string[] = []
+  // ---- Step 1: build enriched node objects ----
+  const enrichedNodes: PathNode[] = mockLearningPath.nodes.map((baseNode) => {
+    const isFocus = focusModuleIds.has(baseNode.id)
+
+    // Reorder defaultResources so preferred types come first
+    let resources = [...baseNode.defaultResources]
+    if (preferredTypes.length > 0) {
+      resources.sort((a, b) => {
+        const aIdx = preferredTypes.indexOf(a.type)
+        const bIdx = preferredTypes.indexOf(b.type)
+        if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx
+        if (aIdx >= 0) return -1
+        if (bIdx >= 0) return 1
+        return 0
+      })
+
+      // For focus nodes: add up to 2 supplementary resources for missing preferred types
+      if (isFocus) {
+        let added = 0
+        for (const pt of preferredTypes) {
+          if (added >= 2) break
+          const hasType = resources.some((r) => r.type === pt)
+          if (!hasType) {
+            resources.push({
+              resourceId: `${baseNode.id}-sup-${added}`,
+              title: suppTitle(baseNode.name, pt),
+              type: pt,
+              estimatedTime: '20 分钟',
+              source: 'default',
+            })
+            added++
+          }
+        }
+      }
+    }
+
+    // Adjust duration based on foundation level
+    let duration = baseNode.duration
+    if (signals!.foundationLevel === '基础薄弱') {
+      if (duration === '1-3 天') duration = '2-4 天'
+      else if (duration === '2-3 天') duration = '3-5 天'
+      else if (duration === '2-4 天') duration = '3-5 天'
+    } else if (signals!.foundationLevel === '较好') {
+      if (duration === '4-6 天') duration = '3-4 天'
+      else if (duration === '5-7 天') duration = '4-5 天'
+      else if (duration === '4-7 天') duration = '3-5 天'
+      else if (duration === '1-2 周') duration = '5-7 天'
+    }
+
+    return {
+      ...baseNode,
+      duration,
+      defaultResources: resources,
+      matchedResources: [],
+      isFocus,
+      reason: baseNode.reason,
+    }
+  })
+
+  // ---- Step 2: reorder — ds-1 first, then focus modules, then rest ----
+  const reordered: PathNode[] = []
+
+  // ds-1 always first
+  const ds1 = enrichedNodes.find((n) => n.id === 'ds-1')
+  if (ds1) reordered.push(ds1)
+
+  // Focus modules in original relative order
+  for (const node of enrichedNodes) {
+    if (node.id !== 'ds-1' && focusModuleIds.has(node.id)) {
+      reordered.push(node)
+    }
+  }
+
+  // Non-focus modules in original relative order
+  for (const node of enrichedNodes) {
+    if (node.id !== 'ds-1' && !focusModuleIds.has(node.id)) {
+      reordered.push(node)
+    }
+  }
+
+  // ---- Step 3: build result metadata ----
   const basisParts: string[] = []
-
-  if (kw.difficulties.length > 0) {
-    profileFieldsUsed.push('error_patterns')
-    basisParts.push(`学习困难：${kw.difficulties.slice(0, 4).join('、')}`)
+  if (signals.difficulties.length > 0) {
+    basisParts.push(`学习困难：${signals.difficulties.slice(0, 4).join('、')}`)
   }
-  if (kw.goals.length > 0) {
-    profileFieldsUsed.push('learning_goals')
-    basisParts.push(`学习目标：${kw.goals.slice(0, 3).join('、')}`)
+  if (signals.goals.length > 0) {
+    basisParts.push(`学习目标：${signals.goals.slice(0, 3).join('、')}`)
   }
-  if (kw.preferences.length > 0) {
-    profileFieldsUsed.push('resource_preferences')
-    basisParts.push(`资源偏好：${kw.preferences.slice(0, 3).join('、')}`)
-  }
-  if (kw.knowledgeLevel !== null) {
-    profileFieldsUsed.push('knowledge_base_score')
-    basisParts.push(`知识基础：${kw.knowledgeLevel}/100`)
-  }
-  if (kw.practiceLevel !== null) {
-    profileFieldsUsed.push('practice_ability_score')
-    basisParts.push(`实践能力：${kw.practiceLevel}/100`)
-  }
-  if (kw.styles.length > 0) {
-    profileFieldsUsed.push('cognitive_styles')
+  if (source === 'localStorage') {
+    basisParts.push('基于本地学习画像生成')
   }
 
-  const personalizedBasis = basisParts.length > 0 ? basisParts.join('；') : null
+  const profileFieldsUsed: string[] = []
+  if (signals.difficulties.length > 0) profileFieldsUsed.push('current_difficulties')
+  if (signals.goals.length > 0) profileFieldsUsed.push('learning_goal')
+  if (signals.preferences.length > 0) profileFieldsUsed.push('expression_preferences')
+  if (signals.foundationLevel) profileFieldsUsed.push('foundation_level')
+  if (profileFieldsUsed.length === 0) profileFieldsUsed.push('profile_summary')
 
-  let nodeId = 1
-
-  // ================================================================
-  // STAGE 1: 基础概念
-  // ================================================================
-  {
-    const topic = hasBasicIssue
-      ? (findFirstMatch(kw.difficulties, BASIC_TERMS) || '编程基础')
-      : (hasDSIssue ? '数据结构前置基础' : '核心概念入门')
-    const isSlowPace = knowledgeLow || hasBasicIssue
-
-    nodes.push({
-      id: `stage-${nodeId++}`,
-      name: `${topic}概念梳理`,
-      course: primaryCourseName,
-      goal: hasBasicIssue
-        ? `消除${topic}相关的知识盲区，建立完整的基础概念体系`
-        : `建立${topic}的清晰概念框架，为后续学习打好基础`,
-      duration: isSlowPace ? '3-5 天' : '1-3 天',
-      status: 'pending',
-      keywords: hasBasicIssue
-        ? kw.difficulties.filter((d) => BASIC_TERMS.some((t) => d.includes(t)))
-        : [topic, '基础概念', '定义与原理', '前置知识'],
-      learningObjectives: [
-        `理解${topic}的定义、分类和核心原理`,
-        `梳理${topic}相关的知识体系与依赖关系`,
-        '明确学习路径和阶段性目标',
-      ],
-      defaultResources: [
-        { resourceId: `s1-r1`, title: `${topic}核心概念讲解`, type: preferredResourceType, estimatedTime: '25 分钟', source: 'default' },
-        { resourceId: `s1-r2`, title: `${topic}知识体系导图`, type: '知识点思维导图', estimatedTime: '15 分钟', source: 'default' },
-      ],
-      matchedResources: [],
-      growthDimensions: [
-        { label: '知识基础', value: knowledgeLow ? 15 : 8 },
-        { label: '概念清晰度', value: 10 },
-      ],
-      taskDescription: hasBasicIssue
-        ? `根据你的学习画像，你在${topic}方面存在困难，建议先从基础概念入手，消除知识盲区。`
-        : `从${topic}入手建立清晰的概念框架，为后续深入学习做好准备。`,
-      stage: '基础概念',
-      reason: hasBasicIssue
-        ? `你的学习画像显示在「${topic}」方面需要加强，打好基础是后续学习的关键`
-        : '建立清晰的概念框架是高效学习的第一步',
-    })
-  }
-
-  // ================================================================
-  // STAGE 2: 核心理解
-  // ================================================================
-  {
-    const topic = hasDSIssue
-      ? (findFirstMatch(kw.difficulties, DS_TERMS) || '数据结构核心机制')
-      : (hasAlgoIssue
-        ? (findFirstMatch(kw.difficulties, ALGO_TERMS) || '算法核心机制')
-        : primaryTopic)
-    const isSlowPace = knowledgeLow
-
-    nodes.push({
-      id: `stage-${nodeId++}`,
-      name: `${topic}原理深入`,
-      course: primaryCourseName,
-      goal: `深入理解${topic}的工作原理、内部机制和关键过程`,
-      duration: isSlowPace ? '1-2 周' : '3-5 天',
-      status: 'pending',
-      keywords: kw.difficulties.length > 0
-        ? kw.difficulties.filter((d) => [...DS_TERMS, ...ALGO_TERMS].some((t) => d.includes(t)))
-        : [topic, '原理分析', '工作机制', '推导过程'],
-      learningObjectives: [
-        `深入理解${topic}的内部工作机制和关键过程`,
-        `掌握${topic}的推导、分析和验证方法`,
-        '能够用自己的语言解释核心概念和原理',
-      ],
-      defaultResources: [
-        {
-          resourceId: `s2-r1`,
-          title: prefersDiagrams ? `${topic}原理图解讲义` : `${topic}原理深度讲解`,
-          type: prefersDiagrams ? '图解讲义' : '个性化讲解文档',
-          estimatedTime: '35 分钟',
-          source: 'default',
-        },
-        {
-          resourceId: `s2-r2`,
-          title: `${topic}易错点与常见误区`,
-          type: '个性化讲解文档',
-          estimatedTime: '20 分钟',
-          source: 'default',
-        },
-      ],
-      matchedResources: [],
-      growthDimensions: [
-        { label: '理解深度', value: 15 },
-        { label: '分析能力', value: 10 },
-      ],
-      taskDescription: hasDSIssue || hasAlgoIssue
-        ? `根据你的学习画像，重点突破${topic}的核心理解。${prefersDiagrams ? '推荐先看图解建立直观认识，再深入文字讲解。' : ''}`
-        : `深入理解${topic}的核心原理，为后续代码实现打好理论基础。`,
-      stage: '核心理解',
-      reason: hasDSIssue || hasAlgoIssue
-        ? `你的学习画像显示在「${topic}」方面存在困难，需要重点突破核心概念`
-        : '深入理解核心机制是写好代码的前提条件',
-    })
-  }
-
-  // ================================================================
-  // STAGE 3: 代码实现
-  // ================================================================
-  {
-    const topic = hasDSIssue
-      ? (findFirstMatch(kw.difficulties, DS_TERMS) || '数据结构')
-      : primaryTopic
-
-    nodes.push({
-      id: `stage-${nodeId++}`,
-      name: `${topic}代码实现`,
-      course: primaryCourseName,
-      goal: `将${topic}的理论知识转化为可运行、可验证的代码实现`,
-      duration: practiceLow ? '1-2 周' : '3-5 天',
-      status: 'pending',
-      keywords: [topic, '代码实现', '编程', '调试', '测试'],
-      learningObjectives: [
-        `用代码实现${topic}的核心数据结构和算法`,
-        `理解代码的执行流程、边界条件和结果验证`,
-        '掌握基本的调试技巧和错误排查方法',
-      ],
-      defaultResources: [
-        {
-          resourceId: `s3-r1`,
-          title: `${topic}代码实现与逐行注释`,
-          type: '代码示例与注释',
-          estimatedTime: '40 分钟',
-          source: 'default',
-        },
-        {
-          resourceId: `s3-r2`,
-          title: `${topic}编程模板与测试用例`,
-          type: '代码示例与注释',
-          estimatedTime: '25 分钟',
-          source: 'default',
-        },
-      ],
-      matchedResources: [],
-      growthDimensions: [
-        { label: '代码能力', value: practiceLow ? 18 : 12 },
-        { label: '实现能力', value: 12 },
-      ],
-      taskDescription: practiceLow
-        ? `你的代码实践能力需要加强（当前 ${kw.practiceLevel}/100），建议仔细阅读代码示例，逐行理解后动手修改运行。`
-        : `动手实现${topic}的核心代码，运行测试用例验证理解是否正确。`,
-      stage: '代码实现',
-      reason: practiceLow
-        ? `你的实践能力评分为 ${kw.practiceLevel}/100，建议通过代码实现加强动手能力`
-        : '将理论知识转化为代码是检验理解的最佳方式',
-    })
-  }
-
-  // ================================================================
-  // STAGE 4: 练习巩固
-  // ================================================================
-  {
-    const topic = hasDSIssue
-      ? (findFirstMatch(kw.difficulties, DS_TERMS) || '数据结构')
-      : primaryTopic
-    const weakPoints = kw.difficulties.slice(0, 3)
-
-    nodes.push({
-      id: `stage-${nodeId++}`,
-      name: `${topic}分层练习`,
-      course: primaryCourseName,
-      goal: `通过分层递进练习巩固${topic}知识，发现并修正薄弱环节`,
-      duration: practiceLow ? '1-2 周' : '3-5 天',
-      status: 'pending',
-      keywords: [topic, '练习', '错题', '巩固', '分层', '测试', '复习'],
-      learningObjectives: [
-        '通过基础层练习验证核心概念掌握程度',
-        '通过进阶层练习提升分析和解题能力',
-        '收集错题并针对薄弱点进行回顾复习',
-      ],
-      defaultResources: [
-        {
-          resourceId: `s4-r1`,
-          title: `${topic}分层练习题集`,
-          type: '分层练习题',
-          estimatedTime: '45 分钟',
-          source: 'default',
-        },
-        {
-          resourceId: `s4-r2`,
-          title: `${topic}错题分析与回顾指南`,
-          type: '拓展阅读资料',
-          estimatedTime: '20 分钟',
-          source: 'default',
-        },
-      ],
-      matchedResources: [],
-      growthDimensions: [
-        { label: '解题能力', value: 15 },
-        { label: '熟练度', value: 12 },
-      ],
-      taskDescription: weakPoints.length > 0
-        ? `重点练习以下薄弱环节：${weakPoints.join('、')}。完成练习后检查错题并回顾对应知识点。`
-        : '按顺序完成三层练习（基础→进阶→提高），针对错题回顾对应知识点。',
-      stage: '练习巩固',
-      reason: weakPoints.length > 0
-        ? `针对你的薄弱环节（${weakPoints.join('、')}）进行刻意练习`
-        : '通过刻意练习发现知识盲区并加以巩固',
-    })
-  }
-
-  // ================================================================
-  // STAGE 5: 项目应用
-  // ================================================================
-  {
-    const projectFocus = hasProjectGoal
-      ? (findFirstMatch(kw.goals, PROJECT_TERMS) || '综合实战')
-      : (hasExamGoal ? '考试重点应用' : (hasDSIssue ? '数据结构综合实战' : '综合应用'))
-
-    nodes.push({
-      id: `stage-${nodeId++}`,
-      name: `${projectFocus}实战`,
-      course: primaryCourseName,
-      goal: hasProjectGoal
-        ? `结合${projectFocus}需求，综合运用所学知识完成实战项目`
-        : `将所学知识应用到实际场景中，完成综合案例练习`,
-      duration: '1-2 周',
-      status: 'pending',
-      keywords: [primaryTopic, '项目', '应用', '综合', '实战', '案例', '项目式学习'],
-      learningObjectives: [
-        '综合运用多个知识点解决实际场景中的问题',
-        '完成一个完整的项目式学习案例',
-        '培养知识迁移和综合应用能力',
-      ],
-      defaultResources: [
-        {
-          resourceId: `s5-r1`,
-          title: hasProjectGoal ? `${projectFocus}项目案例` : `${primaryTopic}综合应用案例`,
-          type: '项目式学习案例',
-          estimatedTime: '60 分钟',
-          source: 'default',
-        },
-        {
-          resourceId: `s5-r2`,
-          title: '知识迁移与拓展方向',
-          type: '拓展阅读资料',
-          estimatedTime: '25 分钟',
-          source: 'default',
-        },
-      ],
-      matchedResources: [],
-      growthDimensions: [
-        { label: '综合应用', value: 18 },
-        { label: '知识迁移', value: 15 },
-      ],
-      taskDescription: hasProjectGoal
-        ? `根据你的学习目标（${kw.goals.filter((g) => PROJECT_TERMS.some((t) => g.includes(t))).join('、')}），通过实战项目巩固和迁移所学知识。`
-        : '将分散的知识点串联起来，在实际场景中综合运用，检验学习成果。',
-      stage: '项目应用',
-      reason: hasProjectGoal
-        ? `你的学习目标偏向项目实践，通过实战巩固所学内容`
-        : '综合应用是检验学习成果、培养知识迁移能力的最佳方式',
+  // ---- DEV debug output ----
+  if (import.meta.env.DEV) {
+    const localDraft = loadLocalProfileDraft()
+    console.log('[Path personalization]', {
+      localDraft: localDraft
+        ? {
+            learning_goal: localDraft.learning_goal,
+            current_difficulties: localDraft.current_difficulties,
+            learning_difficulties: localDraft.learning_difficulties,
+            expression_preferences: localDraft.expression_preferences,
+            foundation_level: localDraft.foundation_level,
+            programming_language: localDraft.programming_language,
+          }
+        : null,
+      source,
+      focusModules: [...focusModuleIds],
+      orderedModuleTitles: reordered.map((n) => n.name),
+      resourcePreferences: preferredTypes,
     })
   }
 
   return {
-    name: 'CodeBuddy 为你定制的个性化学习路径',
-    nodes,
-    personalizedBasis,
+    name: '数据结构与算法个性化学习路径',
+    nodes: reordered,
+    personalizedBasis: basisParts.length > 0 ? basisParts.join('；') : null,
     profileFieldsUsed,
   }
 }

@@ -269,6 +269,8 @@ export interface PathNode {
   stage: string
   /** Phase 9: 个性化推荐理由，画像不足时显示通用说明 */
   reason: string
+  /** Phase 14B: 画像匹配的重点模块，用于 UI 标记 */
+  isFocus?: boolean
 }
 
 export interface PersonalizedPathResult {
@@ -308,12 +310,11 @@ export interface AssessmentResult {
 }
 
 export interface TutorChatResponse {
-  greeting: string
-  approach: string
-  steps: string[]
-  code_example: string | null
-  recommended_resources: Array<{ title: string; url: string }>
-  suggested_exercise: string
+  core_explanation: string
+  key_points: string[]
+  next_step: string
+  code_example?: string | null
+  recommended_resources?: Array<{ title: string; url: string }>
 }
 
 // ========== Assessment Context ==========

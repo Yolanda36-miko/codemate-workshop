@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Swords, ChevronRight } from 'lucide-react'
+import { Swords } from 'lucide-react'
 import type { ChallengeQuestion, ChallengeResult } from '../../mock/assessment'
 import type { ConversationContext, PathNode } from '../../types'
-import { generateChallengeByContextMock, generateChallengeResult, recommendResourcesByContextMock } from '../../mock/assessment'
+import { generateChallengeByContextMock, generateChallengeResult } from '../../mock/assessment'
 import ChallengeCard from './ChallengeCard'
 
 interface ChallengePanelProps {
   context: ConversationContext
   pathNodes?: PathNode[]
-  onViewResource: (resource: { title: string; type: string; estimatedTime: string; topic: string }) => void
 }
 
-export default function ChallengePanel({ context, pathNodes, onViewResource }: ChallengePanelProps) {
+export default function ChallengePanel({ context, pathNodes }: ChallengePanelProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<ChallengeResult | null>(null)
@@ -64,7 +63,6 @@ export default function ChallengePanel({ context, pathNodes, onViewResource }: C
 
   const completedCount = submittedIds.size
   const totalCount = questions.length
-  const recommendedResources = recommendResourcesByContextMock(context)
 
   return (
     <div className="bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden">
@@ -162,77 +160,28 @@ export default function ChallengePanel({ context, pathNodes, onViewResource }: C
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="px-4 pb-4 space-y-3"
+          className="px-4 pb-4 space-y-2"
         >
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-100">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <Swords className="w-4 h-4 text-green-600" />
-              <span className="text-xs font-semibold text-green-700">闯关完成！</span>
+              <span className="text-xs font-semibold text-green-700">闯关完成</span>
               <span className="text-[10px] text-green-500">
-                {result.correctCount}/{result.totalLevels} 关通过
+                {result.correctCount}/{result.totalLevels} 通过 · {result.score} 分
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="text-green-700">
-                知识基础 <span className="font-bold text-green-600">+{result.growth.knowledge_base}</span>
-              </span>
-              <span className="text-green-700">
-                实践能力 <span className="font-bold text-green-600">+{result.growth.practice_ability}</span>
-              </span>
-            </div>
-            {result.badges.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-2">
-                {result.badges.map((b) => (
-                  <motion.span
-                    key={b}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
-                    className="px-2 py-1 rounded-lg bg-amber-100 text-[10px] font-semibold text-amber-700 border border-amber-200"
-                  >
-                    {b}
-                  </motion.span>
-                ))}
-              </div>
-            )}
           </div>
 
           {result.wrongPoints.length > 0 && (
             <div>
-              <span className="text-[10px] text-gray-500 block mb-1.5">需要回顾：</span>
-              <div className="space-y-1">
-                {result.wrongPoints.map((wp) => (
-                  <div key={wp.knowledge_point} className="flex items-start gap-1.5 text-[10px] text-gray-500">
-                    <ChevronRight className="w-3 h-3 text-orange-400 shrink-0 mt-0.5" />
-                    <span><span className="text-gray-700 font-medium">{wp.knowledge_point}</span>：{wp.reason}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <span className="text-[10px] text-gray-500 block mb-1.5">推荐补救资源：</span>
-            <div className="space-y-1">
-              {recommendedResources.map((r) => (
-                <button
-                  key={r.title}
-                  onClick={() => onViewResource({ ...r, topic: r.topic })}
-                  className="w-full text-left px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px] text-gray-600 hover:border-primary-200 hover:text-primary-600 transition-colors"
-                >
-                  {r.title} · {r.estimatedTime}
-                </button>
+              <span className="text-[10px] text-gray-500 block mb-1">需回顾的知识点：</span>
+              {result.wrongPoints.map((wp) => (
+                <p key={wp.knowledge_point} className="text-[10px] text-gray-500 leading-relaxed">
+                  <span className="text-gray-700 font-medium">{wp.knowledge_point}</span>：{wp.reason}
+                </p>
               ))}
             </div>
-          </div>
-
-          <div className="bg-primary-50 rounded-xl p-3 border border-primary-100">
-            <span className="text-[10px] text-primary-600 block leading-relaxed">
-              {result.correctCount === result.totalLevels
-                ? '全部通关！继续提问或进入学习路径进行项目实践。'
-                : '回顾上述推荐资源，重点关注薄弱知识点，然后再次挑战剩余关卡。'}
-            </span>
-          </div>
+          )}
         </motion.div>
       )}
     </div>

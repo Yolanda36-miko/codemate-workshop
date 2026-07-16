@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, BookOpen, ArrowRight, TrendingUp, Clock, Tag, Eye, Plus, Check, Lightbulb } from 'lucide-react'
+import { Target, BookOpen, ArrowRight, TrendingUp, Clock, Tag, Eye, Plus, Check } from 'lucide-react'
 import type { PathNode, PathNodeResource } from '../../types'
-import { getTypeTag } from '../../utils/pathResources'
 
 const STAGE_COLORS: Record<string, string> = {
   '基础概念': 'bg-blue-50 text-blue-600 border-blue-100',
@@ -9,12 +8,6 @@ const STAGE_COLORS: Record<string, string> = {
   '代码实现': 'bg-emerald-50 text-emerald-600 border-emerald-100',
   '练习巩固': 'bg-amber-50 text-amber-600 border-amber-100',
   '项目应用': 'bg-rose-50 text-rose-600 border-rose-100',
-}
-
-const PRIORITY_COLORS: Record<string, string> = {
-  '必学': 'text-red-500 bg-red-50',
-  '推荐': 'text-primary-500 bg-primary-50',
-  '拓展': 'text-gray-400 bg-gray-50',
 }
 
 interface PathNodeDetailProps {
@@ -39,13 +32,10 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-gray-50">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STAGE_COLORS[node.stage] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-                  {node.stage}
-                </span>
-                <span className="text-[10px] text-gray-400">{node.course}</span>
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${STAGE_COLORS[node.stage] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                {node.stage}
+              </span>
               <span
                 className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                   node.status === 'completed' ? 'bg-green-50 text-green-600' : node.status === 'in_progress' ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-400'
@@ -54,45 +44,35 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
                 {node.status === 'completed' ? '已完成' : node.status === 'in_progress' ? '学习中' : '未开始'}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-800">{node.name}</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mt-1">{node.name}</h3>
+            <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-400">
+              <Clock className="w-3 h-3" />
+              <span>预计 {node.duration}</span>
+            </div>
           </div>
 
-          <div className="p-4 space-y-4">
-            {/* Reason */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-medium text-gray-700">推荐理由</span>
+          <div className="p-4 space-y-3">
+            {/* Learning objective — single sentence */}
+            {node.learningObjectives.length > 0 && (
+              <div className="flex items-start gap-1.5">
+                <Target className="w-3.5 h-3.5 text-primary-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  <span className="font-medium text-gray-700">学习目标：</span>
+                  {node.learningObjectives[0]}
+                </p>
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed bg-amber-50/50 rounded-xl px-3 py-2 border border-amber-100/50">
-                {node.reason}
-              </p>
-            </div>
+            )}
 
-            {/* Learning objectives */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Target className="w-3.5 h-3.5 text-primary-500" />
-                <span className="text-xs font-medium text-gray-700">学习目标</span>
+            {/* Task description — single sentence */}
+            {node.taskDescription && (
+              <div className="flex items-start gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-primary-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  <span className="font-medium text-gray-700">任务说明：</span>
+                  {node.taskDescription.replace(/^[-•·]\s*/, '')}
+                </p>
               </div>
-              <ul className="space-y-1">
-                {node.learningObjectives.map((obj, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-gray-500">
-                    <span className="text-primary-400 mt-0.5">·</span>
-                    {obj}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Task description */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-primary-500" />
-                <span className="text-xs font-medium text-gray-700">任务说明</span>
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed">{node.taskDescription}</p>
-            </div>
+            )}
 
             {/* Matched resources from package */}
             {node.matchedResources.length > 0 && (
@@ -105,22 +85,10 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
                   </span>
                 </div>
                 <div className="space-y-1.5">
-                  {node.matchedResources.map((r) => {
-                    const tag = getTypeTag(r.type)
-                    return (
+                  {node.matchedResources.map((r) => (
                       <div key={r.resourceId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary-50/30 border border-primary-100">
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-medium text-gray-700 truncate">{r.title}</p>
-                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                            <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${tag.color}`}>{tag.label}</span>
-                            <span className="flex items-center gap-0.5 text-[9px] text-gray-400">
-                              <Clock className="w-2.5 h-2.5" />
-                              {r.estimatedTime}
-                            </span>
-                            <span className="text-[9px] text-primary-500 font-medium bg-primary-50 px-1 py-0.5 rounded">
-                              已保存资源
-                            </span>
-                          </div>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); onViewResource(r) }}
@@ -130,78 +98,45 @@ export default function PathNodeDetail({ node, addedResourceIds, onStatusChange,
                           打开资源
                         </button>
                       </div>
-                    )
-                  })}
+                    ))}
                 </div>
               </div>
             )}
 
-            {/* System recommended resources */}
+            {/* System recommended resources — simplified, max 3 */}
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Tag className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-xs font-medium text-gray-700">系统推荐资源</span>
                 <span className="text-[10px] text-gray-400">({node.defaultResources.length} 项)</span>
               </div>
-              <div className="space-y-1.5">
-                {node.defaultResources.map((r) => {
-                  const tag = getTypeTag(r.type)
+              <div className="space-y-1">
+                {node.defaultResources.slice(0, 3).map((r) => {
                   const isAdded = addedResourceIds.has(r.resourceId)
                   return (
-                    <div key={r.resourceId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-gray-700 truncate">{r.title}</p>
-                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                          <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${tag.color}`}>{tag.label}</span>
-                          <span className="flex items-center gap-0.5 text-[9px] text-gray-400">
-                            <Clock className="w-2.5 h-2.5" />
-                            {r.estimatedTime}
-                          </span>
-                          <span className="text-[9px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
-                            系统推荐
-                          </span>
-                        </div>
-                      </div>
+                    <div key={r.resourceId} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                      <span className="text-[11px] text-gray-600 truncate flex-1 min-w-0">{r.title}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); onViewResource(r) }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-primary-500 border border-primary-200 hover:bg-primary-50 transition-colors shrink-0"
+                        className="text-[10px] text-primary-500 hover:text-primary-600 shrink-0"
                       >
-                        <Eye className="w-3 h-3" />
-                        打开资源
+                        查看
                       </button>
                       {isAdded ? (
-                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-green-500 bg-green-50 shrink-0">
-                          <Check className="w-3 h-3" />
-                          已加入
+                        <span className="text-[10px] text-green-500 shrink-0">
+                          <Check className="w-3 h-3 inline" />
                         </span>
                       ) : (
                         <button
                           onClick={(e) => { e.stopPropagation(); onAddToPackage(r) }}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-primary-500 border border-primary-100 hover:bg-primary-50 transition-colors shrink-0"
+                          className="text-[10px] text-primary-500 hover:text-primary-600 shrink-0"
                         >
-                          <Plus className="w-3 h-3" />
-                          加入资源包
+                          <Plus className="w-3 h-3 inline" />
                         </button>
                       )}
                     </div>
                   )
                 })}
-              </div>
-            </div>
-
-            {/* Growth dimensions */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingUp className="w-3.5 h-3.5 text-primary-500" />
-                <span className="text-xs font-medium text-gray-700">完成后预计提升</span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {node.growthDimensions.map((gd) => (
-                  <span key={gd.label} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary-50 border border-primary-100">
-                    <span className="text-[10px] text-primary-700 font-medium">{gd.label}</span>
-                    <span className="text-[10px] text-primary-500 font-bold">+{gd.value}</span>
-                  </span>
-                ))}
               </div>
             </div>
 

@@ -31,16 +31,17 @@ export interface ChallengeResult {
 // =====================================================================
 
 export const TOPIC_KEYWORDS: Record<string, string[]> = {
-  'recursion': ['递归', '调用栈', '出口', '基准情形', '栈帧', '递推'],
+  'complexity': ['复杂度', '大O', '时间复杂度', '空间复杂度', '渐进', '效率分析'],
+  'recursion': ['递归', '调用栈', '出口', '基准情形', '栈帧', '递推', '终止条件'],
   'binary-tree': ['二叉树', '前序', '中序', '后序', '遍历', '层序', '树'],
   'array': ['数组', '下标', '越界', '边界', '列表索引'],
   'linked-list': ['链表', '节点指针', '头结点', '尾结点'],
-  'sorting': ['排序', '查找', '搜索', '冒泡', '快速排序', '二分', '归并', '选择排序', '插入排序'],
+  'graph': ['图', 'DFS', 'BFS', '邻接表', '邻接矩阵', '最短路径', '拓扑排序', 'visited', '连通'],
+  'sorting': ['排序', '查找', '搜索', '冒泡', '快速排序', '二分', '归并', '选择排序', '插入排序', '稳定性'],
+  'hash-table': ['散列表', '哈希', 'hash', '冲突', '负载因子', '链地址', '开放地址', 'unordered_map'],
   'dp': ['动态规划', '状态转移', '最优子结构', '重叠子问题', '记忆化', '背包'],
-  'function-call': ['函数', '调用', '参数', '返回值', '作用域', '嵌套调用'],
-  'debug': ['调试', 'debug', '报错', '错误', '异常', '排错', '排查'],
-  'project': ['项目', '实践', '开发', '应用构建', '综合实战'],
 }
+
 
 function detectTopics(input: string): string[] {
   const lower = input.toLowerCase()
@@ -607,16 +608,6 @@ export function getContextualExampleQuestions(context: ConversationContext): str
     questions.push('记忆化搜索和动态规划有什么区别？')
   }
 
-  if (inferredTopics.includes('function-call')) {
-    questions.push('函数调用时参数是怎么传递的？')
-    questions.push('如何理解函数的作用域？')
-  }
-
-  if (inferredTopics.includes('debug')) {
-    questions.push('代码报错后应该怎么排查？')
-    questions.push('如何高效地调试递归函数？')
-  }
-
   if (resourceCount > 0) {
     questions.push('我加入的资源应该先学哪一个？')
   }
@@ -663,9 +654,9 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
         'linked-list': ['链表', '节点', '指针'],
         'sorting': ['排序', '查找', '搜索', '二分'],
         'dp': ['动态规划', '状态', '转移方程', '最优子结构'],
-        'function-call': ['函数', '调用', '参数', '返回'],
-        'debug': ['调试', 'debug', '错误', '报错'],
-        'project': ['项目', '实践', '开发'],
+        'graph': ['图', 'DFS', 'BFS', '邻接', '遍历'],
+        'hash-table': ['散列表', '哈希', 'hash', '冲突'],
+        'complexity': ['复杂度', '大O', '分析'],
       }
       return (kwMap[t] || []).some((kw) => text.includes(kw))
     })
@@ -711,13 +702,17 @@ export function recommendResourcesByContextMock(context: ConversationContext): A
       { title: '动态规划入门讲解', type: '个性化讲解文档', estimatedTime: '30 分钟', topic: '动态规划' },
       { title: '经典DP问题代码示例', type: '代码示例与注释', estimatedTime: '25 分钟', topic: 'DP' },
     ],
-    'function-call': [
-      { title: '函数调用机制深度讲解', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '函数调用' },
-      { title: 'Python 函数调用示例', type: '代码示例与注释', estimatedTime: '20 分钟', topic: '函数' },
+    'graph': [
+      { title: '图结构与图算法核心讲解', type: '个性化讲解文档', estimatedTime: '30 分钟', topic: '图算法' },
+      { title: 'BFS与DFS对比图解', type: '图解讲义', estimatedTime: '25 分钟', topic: '图遍历' },
     ],
-    'debug': [
-      { title: '代码调试方法论', type: '个性化讲解文档', estimatedTime: '20 分钟', topic: '调试技巧' },
-      { title: '常见错误类型速查手册', type: '拓展阅读资料', estimatedTime: '15 分钟', topic: '调试' },
+    'hash-table': [
+      { title: '散列表核心讲解', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '散列表' },
+      { title: '散列表冲突解决图解', type: '图解讲义', estimatedTime: '20 分钟', topic: '散列表' },
+    ],
+    'complexity': [
+      { title: '复杂度分析核心讲解', type: '个性化讲解文档', estimatedTime: '25 分钟', topic: '复杂度' },
+      { title: '复杂度分析思维导图', type: '知识点思维导图', estimatedTime: '15 分钟', topic: '复杂度' },
     ],
   }
 
@@ -780,211 +775,175 @@ export function generateChallengeResult(answers: Record<string, string>, questio
 
 function buildRecursionResponse(): TutorChatResponse {
   return {
-    greeting: '关于递归这个问题，我来帮你梳理清楚！',
-    approach: '递归的核心是把大问题分解成小问题，每次递归调用都解决一个更小的子问题，直到遇到基准情形（Base Case）为止。',
-    steps: [
-      '第一步：明确递归函数的定义——它要解决什么问题，输入和输出分别是什么。',
-      '第二步：找到基准情形——最简单、不需要再递归的情况，这是递归的出口。',
-      '第三步：写出递归关系——如何把当前问题转化为更小的、同类型的子问题。',
-      '第四步：在纸上模拟调用栈的压入和弹出过程，理解每次递归调用时参数变化和返回值传递。',
+    core_explanation: '递归调用栈容易混，是因为每次函数调用都会生成新的栈帧，执行过程不是"一次走到底"，而是先不断调用，再逐层返回。理解时要同时看清"调用顺序"和"返回顺序"。',
+    key_points: [
+      '每次递归调用都有独立栈帧',
+      '递归出口决定何时停止',
+      '返回过程与调用过程相反',
     ],
-    code_example: 'def factorial(n):\n    if n <= 1:         # 基准情形：递归出口\n        return 1\n    return n * factorial(n - 1)  # 递归关系\n\n# f(4) = 4 × f(3) = 4 × 3 × f(2)\n#      = 4 × 3 × 2 × f(1)\n#      = 4 × 3 × 2 × 1 = 24',
-    recommended_resources: [
-      { title: '递归调用栈图解讲义', url: '#' },
-      { title: '递归代码示例与逐行注释', url: '#' },
-    ],
-    suggested_exercise: '尝试用递归实现斐波那契数列，并在一张纸上画出 f(5) 的完整调用栈图。',
+    next_step: '建议你用一个 3 层递归例子手动画出调用栈变化。',
   }
 }
 
 function buildBinaryTreeResponse(): TutorChatResponse {
   return {
-    greeting: '二叉树遍历是数据结构中最核心的操作之一，让我帮你理清思路！',
-    approach: '三种遍历的核心区别在于"根节点被访问的时机"：前序先访问根，中序中间访问根，后序最后访问根。',
-    steps: [
-      '第一步：理解遍历的本质——遍历就是按照一定顺序访问树中的每个节点，每个节点恰好访问一次。',
-      '第二步：前序遍历（根→左→右）——先处理根节点，再递归左子树，最后递归右子树。',
-      '第三步：中序遍历（左→根→右）——先递归左子树，再处理根节点，最后递归右子树。对二叉搜索树（BST）会得到有序序列。',
-      '第四步：后序遍历（左→右→根）——先递归左右子树，最后处理根。适合需要子节点结果汇总的场景，如计算树的高度。',
+    core_explanation: '三种遍历的核心区别在于根节点的访问时机。前序先访问根，中序中间访问根，后序最后访问根。理解这个就能区分三种遍历。',
+    key_points: [
+      '前序：根→左→右',
+      '中序：左→根→右',
+      '后序：左→右→根',
     ],
-    code_example: 'class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\ndef preorder(root):\n    if root is None: return      # 出口\n    print(root.val, end=" ")     # 根\n    preorder(root.left)          # 左\n    preorder(root.right)         # 右',
-    recommended_resources: [
-      { title: '二叉树遍历图解讲义', url: '#' },
-      { title: '遍历代码示例与注释', url: '#' },
-    ],
-    suggested_exercise: '用同一棵 3 层二叉树分别跑前序、中序、后序遍历，对比三种输出结果的差异。',
+    next_step: '用同一棵 3 层二叉树分别写出三种遍历的输出序列，对比差异。',
   }
 }
 
 function buildArrayResponse(): TutorChatResponse {
   return {
-    greeting: '数组是编程中最常用的数据结构，我来帮你理清基本概念！',
-    approach: '数组操作的核心是理解"索引从 0 开始"和"边界条件"。大部分数组错误都来自越界访问或循环条件写错。',
-    steps: [
-      '第一步：明确索引范围——长度为 n 的数组，有效索引是 0 到 n-1，arr[n] 会越界。',
-      '第二步：遍历数组时，循环条件用 i < n 而不是 i <= n，防止访问 arr[n]。',
-      '第三步：处理多维数组时，逐层理解——arr[i][j] 中 i 是行号，j 是列号。',
-      '第四步：注意边界情况——空数组（len=0）、单元素数组、首尾元素的特殊处理。',
+    core_explanation: '数组操作的核心是理解索引从 0 开始和边界条件。大部分数组错误来自越界访问或循环条件写错。',
+    key_points: [
+      '长度 n，有效索引 0 到 n-1',
+      '循环条件用 i < n 防止越界',
+      '空数组和首尾元素要特殊处理',
     ],
-    code_example: 'arr = [10, 20, 30, 40, 50]\nn = len(arr)              # n = 5\n# 安全的遍历方式\nfor i in range(n):        # range(5) → 0,1,2,3,4\n    print(arr[i])\n# 不安全的访问\n# arr[n]                  # IndexError!',
-    recommended_resources: [
-      { title: '数组操作基础讲解', url: '#' },
-      { title: '数组边界条件练习题', url: '#' },
-    ],
-    suggested_exercise: '写一个函数反转数组，分别用循环遍历和切片两种方式实现，测试空数组和单元素数组的情况。',
+    next_step: '写一个数组反转函数，测试空数组和单元素数组两种边界情况。',
   }
 }
 
 function buildLinkedListResponse(): TutorChatResponse {
   return {
-    greeting: '链表是理解指针和动态数据结构的基础，让我来帮你理清！',
-    approach: '链表的核心是每个节点包含数据域和指向下一个节点的指针。理解指针的"指向关系"是掌握链表的关键。',
-    steps: [
-      '第一步：理解节点结构——每个节点包含数据域（val）和指针域（next），next 指向下一个节点。',
-      '第二步：掌握链表遍历——从头结点开始，沿着 next 指针逐个访问，直到遇到 None。',
-      '第三步：理解插入操作——新节点的 next 先指向后继节点，然后修改前驱节点的 next 指向新节点。',
-      '第四步：注意空链表、头结点操作、尾结点操作的边界情况。',
+    core_explanation: '链表每个节点包含数据和指向下一节点的指针。理解指针的指向关系是掌握链表的关键，插入删除只需修改指针，不需要移动元素。',
+    key_points: [
+      '遍历沿 next 指针逐个访问',
+      '插入：新节点先指向后继，再改前驱',
+      '注意空链表和头尾节点边界',
     ],
-    code_example: 'class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\ndef traverse(head):\n    curr = head\n    while curr is not None:\n        print(curr.val)\n        curr = curr.next',
-    recommended_resources: [
-      { title: '链表数据结构图解讲义', url: '#' },
-      { title: '链表操作代码示例与注释', url: '#' },
-    ],
-    suggested_exercise: '实现链表的三个基本操作：遍历、插入、删除，画出每一步指针变化的图示。',
+    next_step: '实现链表的插入和删除操作，画出每一步指针变化图。',
   }
 }
 
 function buildSortingResponse(): TutorChatResponse {
   return {
-    greeting: '排序和查找是算法学习的经典起点，让我帮你理清思路！',
-    approach: '学习排序算法的推荐路径：先掌握简单排序（冒泡、选择、插入），再学习高效排序（快速、归并），最后理解它们的适用场景和复杂度差异。',
-    steps: [
-      '第一步：从冒泡排序入手——理解比较和交换的基本操作，每轮将最大元素"冒泡"到最后。',
-      '第二步：学习快速排序的分治思想——选基准（pivot）、分区（partition）、递归排序子数组。',
-      '第三步：理解归并排序——先递归分成小数组，再合并有序子数组。是稳定排序的代表。',
-      '第四步：掌握二分查找——前提是数组已排序，每次通过中间值折半缩小搜索范围。',
+    core_explanation: '排序算法的学习路径：先掌握简单排序（冒泡、选择、插入），再学习高效排序（快速、归并），最后理解它们的适用场景和复杂度差异。',
+    key_points: [
+      '冒泡每轮把最大元素浮到最后',
+      '快排选基准、分区、递归',
+      '归并先分后合，是稳定排序',
     ],
-    code_example: 'def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        swapped = False\n        for j in range(n - i - 1):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n                swapped = True\n        if not swapped: break\n    return arr',
-    recommended_resources: [
-      { title: '排序算法可视化对比', url: '#' },
-      { title: '排序算法代码模板集', url: '#' },
-    ],
-    suggested_exercise: '用 Python 实现冒泡排序和快速排序，分别在随机数组和已排序数组上测试性能差异。',
+    next_step: '用 Python 实现冒泡和快排，对比随机数组与已排序数组的性能差异。',
   }
 }
 
 function buildDpResponse(): TutorChatResponse {
   return {
-    greeting: '动态规划是算法中的重点和难点，让我来帮你理清思路！',
-    approach: '动态规划的核心是"状态定义"和"状态转移方程"。把大问题分解成小问题，找到子问题之间的递推关系。',
-    steps: [
-      '第一步：明确状态定义——定义 dp[i] 或 dp[i][j] 表示什么含义，这是最关键的一步。',
-      '第二步：推导状态转移方程——找到当前状态和之前状态的关系，即 dp[i] 如何从 dp[i-1]、dp[i-2] 等推出。',
-      '第三步：确定初始条件——明确 dp[0]、dp[1] 等基础状态的值。',
-      '第四步：考虑空间优化——如果当前状态只依赖前几个状态，可以用滚动数组降低空间复杂度。',
+    core_explanation: '动态规划的核心是状态定义和状态转移方程。把大问题分解成子问题，找到子问题之间的递推关系，然后自底向上计算。',
+    key_points: [
+      '状态定义是 DP 最关键的一步',
+      '转移方程描述状态间递推关系',
+      '从记忆化搜索入门，再过渡到递推',
     ],
-    code_example: '# 斐波那契数列 — 从递归到DP\n# 记忆化搜索（自顶向下）\ndef fib_memo(n, memo={}):\n    if n <= 1: return n\n    if n not in memo:\n        memo[n] = fib_memo(n-1) + fib_memo(n-2)\n    return memo[n]\n\n# 动态规划（自底向上）\ndef fib_dp(n):\n    if n <= 1: return n\n    dp = [0] * (n + 1)\n    dp[1] = 1\n    for i in range(2, n + 1):\n        dp[i] = dp[i-1] + dp[i-2]\n    return dp[n]',
-    recommended_resources: [
-      { title: '动态规划入门讲解', url: '#' },
-      { title: '经典DP问题代码示例', url: '#' },
-    ],
-    suggested_exercise: '从斐波那契数列开始，逐步过渡到爬楼梯、背包问题和最长公共子序列（LCS），每个问题都用记忆化搜索和DP两种方式实现。',
+    next_step: '从斐波那契数列开始，用记忆化和递推两种方式实现，对比差异。',
   }
 }
 
-function buildFunctionCallResponse(): TutorChatResponse {
+function buildComplexityResponse(): TutorChatResponse {
   return {
-    greeting: '函数调用机制是理解程序执行流程的核心，我来帮你讲清楚！',
-    approach: '理解函数调用的关键是三个概念：参数传递方式、返回值机制和调用栈的工作原理。',
-    steps: [
-      '第一步：理解参数传递——Python 中不可变对象（int、str、tuple）传值，可变对象（list、dict）传引用。',
-      '第二步：掌握返回值——函数通过 return 将结果返回给调用者，没有 return 时默认返回 None。',
-      '第三步：理解调用栈——每次函数调用会创建一个栈帧（存储参数、局部变量、返回地址），返回时弹栈。',
-      '第四步：注意作用域规则——函数内部变量是局部的（local），外部无法直接访问；需要访问外部变量时用 global 或 nonlocal。',
+    core_explanation: '复杂度分析关注算法运行时间随输入规模增长的趋势，而非精确时间。大 O 表示法只保留增长最快的那一项。',
+    key_points: [
+      '单层循环 O(n)，嵌套 O(n²)',
+      '每次迭代减半为 O(log n)',
+      '递归问题画递归树分析',
     ],
-    code_example: 'def add(a, b):\n    result = a + b      # result 是局部变量\n    return result        # 返回给调用者\n\nx = add(3, 4)           # x = 7\n# print(result)          # NameError: result 未定义',
-    recommended_resources: [
-      { title: '函数调用机制详解', url: '#' },
-      { title: 'Python 作用域与闭包讲解', url: '#' },
-    ],
-    suggested_exercise: '定义三个嵌套函数（outer → middle → inner），在纸面上追踪每次调用的参数、局部变量和返回值。',
+    next_step: '分别分析遍历数组、二分查找、冒泡排序三种代码的复杂度，写出推导过程。',
   }
 }
 
-function buildDebugResponse(): TutorChatResponse {
+function buildGraphResponse(): TutorChatResponse {
   return {
-    greeting: '调试是每个开发者必须掌握的实用技能，我来分享一些有效的方法！',
-    approach: '调试的核心是"假设→验证"循环：根据错误信息提出假设，用工具或 print 验证假设，逐步缩小问题范围。',
-    steps: [
-      '第一步：仔细阅读错误信息——错误类型（如 IndexError）、出错行号和调用堆栈是最重要的三个线索。',
-      '第二步：从堆栈最底层（你的代码）开始向上追溯，定位问题源头。',
-      '第三步：在可疑位置插入 print 输出关键变量值，验证你的假设是否正确。',
-      '第四步：重点检查边界条件——空值、零值、数组首尾元素、递归出口，这些是最常见的错误来源。',
+    core_explanation: 'BFS 一层一层向外扩展，用队列实现；DFS 沿着一条路径深入到底，用递归或栈实现。二者最容易混的地方是访问顺序和 visited 标记时机。',
+    key_points: [
+      'BFS 适合最短步数问题',
+      'DFS 适合路径搜索和连通性',
+      'visited 要避免重复访问',
     ],
-    code_example: '# 调试技巧示例\ndef binary_search(arr, target):\n    print(f"搜索 {target} 在 {arr} 中")\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        print(f"  left={left}, mid={mid}, right={right}, val={arr[mid]}")\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1',
-    recommended_resources: [
-      { title: '代码调试方法论与技巧', url: '#' },
-      { title: '常见错误类型速查手册', url: '#' },
-    ],
-    suggested_exercise: '故意写一个包含越界错误的数组访问函数，通过阅读错误信息定位问题，然后用 print 调试法验证修复。',
+    next_step: '用同一张小图分别写出 BFS 和 DFS 的访问序列，对比差异。',
   }
 }
 
-function buildProjectResponse(): TutorChatResponse {
+function buildHashTableResponse(): TutorChatResponse {
   return {
-    greeting: '项目实践是把知识转化为真实能力的关键一步！',
-    approach: '项目学习的最佳策略是从小到大、从模仿到创新。先完成一个简单但完整的项目，再逐步增加复杂度。',
-    steps: [
-      '第一步：明确项目目标——确定核心功能和预期效果，不要一开始就追求完美。',
-      '第二步：拆解任务——把大项目分解为独立的小模块，每个模块完成后可以单独测试。',
-      '第三步：先写核心逻辑——从最简单的功能开始，确保基本流程能跑通。',
-      '第四步：逐步完善——添加错误处理、边界条件、用户交互，最后优化代码结构。',
+    core_explanation: '散列表通过哈希函数将键映射到数组下标实现 O(1) 查找。当多个键映射到同一位置时产生冲突，需要链地址法或开放地址法解决。',
+    key_points: [
+      '哈希函数决定键的存储位置',
+      '链地址法用链表存储冲突键',
+      '负载因子过高时需扩容 rehash',
     ],
-    code_example: null,
-    recommended_resources: [
-      { title: '项目式学习案例集', url: '#' },
-      { title: '从零搭建完整项目指南', url: '#' },
-    ],
-    suggested_exercise: '选择一个你感兴趣的小项目（如命令行计算器、待办事项管理器），按上述四步从零开始实现。',
+    next_step: '实现一个简易散列表（链地址法），用它解决两数之和问题。',
   }
 }
+
+// ========== Off-topic detection ==========
+
+const OFF_TOPIC_KEYWORDS = [
+  'SQL', '数据库', '建表', '查询语句', 'MySQL',
+  '网络协议', 'HTTP', 'TCP', 'IP', 'OSI', 'DNS',
+  '进程', '线程', '操作系统', '死锁', '调度',
+  '计算机组成', 'CPU', '内存管理', '指令集',
+  '软件工程', '设计模式', '架构', '需求分析',
+  '编译', '链接', '汇编',
+]
+
+function isOffTopic(input: string): boolean {
+  const lower = input.toLowerCase()
+  return OFF_TOPIC_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()))
+}
+
+function buildOffTopicResponse(input: string): TutorChatResponse {
+  const preview = input.length > 40 ? input.slice(0, 40) + '…' : input
+  return {
+    core_explanation: `关于"${preview}"，当前平台主要聚焦数据结构与算法学习，这个问题超出了当前辅导范围。`,
+    key_points: [
+      '不展开其他计算机领域内容',
+      '可转向相关数据结构问题',
+      '可练习查找、图、散列等主题',
+    ],
+    next_step: '你可以改问"哈希表如何支持快速查询？"或"图搜索如何理解？"',
+  }
+}
+
+// ========== Generic fallback response ==========
 
 function buildGenericResponse(input: string): TutorChatResponse {
   const preview = input.length > 40 ? input.slice(0, 40) + '…' : input
   return {
-    greeting: `关于"${preview}"这个问题，我来帮你分析一下！`,
-    approach: '根据你的问题，我建议从基础概念入手，逐步深入理解相关知识点。',
-    steps: [
-      '第一步：明确问题涉及的核心概念和知识点范围。',
-      '第二步：查阅相关基础资料，建立概念框架。',
-      '第三步：结合代码示例加深理解，动手运行验证。',
-      '第四步：完成相关练习，检验掌握程度。',
+    core_explanation: `关于"${preview}"，建议从数据结构的基础概念入手，逐步理解相关算法和知识点。`,
+    key_points: [
+      '先明确涉及的 DS 知识点',
+      '查阅相关讲解建立概念框架',
+      '结合代码示例加深理解',
     ],
-    code_example: null,
-    recommended_resources: [
-      { title: '个性化讲解文档', url: '#' },
-      { title: '知识点思维导图', url: '#' },
-    ],
-    suggested_exercise: '尝试用自己的语言复述该知识点，然后找一道相关练习题来检验理解。',
+    next_step: '尝试用自己的话复述该知识点，然后做一道相关练习来检验理解。',
   }
 }
 
 // ========== Response Dispatcher ==========
 
 const DOMAIN_BUILDERS: Record<string, () => TutorChatResponse> = {
+  'complexity': buildComplexityResponse,
   'recursion': buildRecursionResponse,
   'binary-tree': buildBinaryTreeResponse,
   'array': buildArrayResponse,
   'linked-list': buildLinkedListResponse,
+  'graph': buildGraphResponse,
   'sorting': buildSortingResponse,
+  'hash-table': buildHashTableResponse,
   'dp': buildDpResponse,
-  'function-call': buildFunctionCallResponse,
-  'debug': buildDebugResponse,
-  'project': buildProjectResponse,
 }
 
 export function getTutorResponse(input: string): TutorChatResponse {
   if (!input.trim()) return buildGenericResponse('')
+
+  // Check for off-topic questions first
+  if (isOffTopic(input)) return buildOffTopicResponse(input)
 
   const topics = detectTopics(input)
 

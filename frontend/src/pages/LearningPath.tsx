@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { GitBranch, BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getUserProfile, getCourses } from '../services/api'
-import { hasUsableProfile, buildPersonalizedPath } from '../services/personalizedPath'
+import { buildPersonalizedPath, loadLocalProfileDraft, hasUsableLocalProfileDraft } from '../services/personalizedPath'
 import { mockLearningPath } from '../mock/path'
 import type { PathNode, PathResourceItem, PathNodeResource, BackendProfile, Course, PersonalizedPathResult } from '../types'
 import {
@@ -35,6 +35,7 @@ export default function LearningPath() {
   const [profile, setProfile] = useState<BackendProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
   const [courses, setCourses] = useState<Course[]>([])
+  const hasLocalDraft = loadLocalProfileDraft() !== null
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -53,27 +54,30 @@ export default function LearningPath() {
       .catch(() => setCourses([]))
   }, [])
 
-  // ---- Generate path: personalized if profile usable, else generic reference ----
+  // ---- Generate path: ONLY localStorage draft triggers personalization ----
   const pathResult = useMemo<PersonalizedPathResult | null>(() => {
-    if (!profileLoading && hasUsableProfile(profile) && courses.length > 0) {
-      const personalized = buildPersonalizedPath(profile!, courses)
+    if (profileLoading || courses.length === 0) return null
+
+    if (hasUsableLocalProfileDraft()) {
+      const personalized = buildPersonalizedPath(null, courses)
       if (personalized) return personalized
     }
+
     return null
-  }, [profile, profileLoading, courses])
+  }, [profileLoading, courses])
 
   const learningPath = useMemo(() => {
     if (pathResult) return pathResult
-    // Fallback: generic reference path
+    // Fallback: generic reference path — explicitly strip any residual isFocus
     return {
       name: '通用参考路径',
-      nodes: mockLearningPath.nodes,
+      nodes: mockLearningPath.nodes.map((node) => ({ ...node, isFocus: false })),
       personalizedBasis: null,
       profileFieldsUsed: [],
     } as PersonalizedPathResult
   }, [pathResult])
 
-  const usable = !profileLoading && hasUsableProfile(profile)
+  const isPersonalizedMode = Boolean(hasUsableLocalProfileDraft() && pathResult)
 
   // ---- Compute nodes with statuses and matched resources ----
   const nodes = useMemo(() => {
@@ -81,9 +85,25 @@ export default function LearningPath() {
     const withStatuses = learningPath.nodes.map((n) => ({
       ...n,
       status: (savedStatuses[n.id] || n.status) as 'pending' | 'in_progress' | 'completed',
+      isFocus: isPersonalizedMode ? Boolean(n.isFocus) : false,
     }))
-    return mapResourcesToPathNodes(withStatuses)
-  }, [learningPath, pathItems])
+    return mapResourcesToPathNodes(withStatuses).map((n) => ({
+      ...n,
+      isFocus: isPersonalizedMode ? Boolean(n.isFocus) : false,
+    }))
+  }, [learningPath, pathItems, isPersonalizedMode])
+
+  // ---- DEV debug output ----
+  if (import.meta.env.DEV) {
+    console.log('[Path mode]', {
+      hasLocalDraft,
+      hasUsableLocalDraft: hasUsableLocalProfileDraft(),
+      isPersonalizedMode,
+      pathResultExists: pathResult !== null,
+      profileLoading,
+      nodeFocus: nodes.map((n) => ({ name: n.name, isFocus: n.isFocus })),
+    })
+  }
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId])
   const completedCount = useMemo(() => getCompletedCount(nodes), [nodes])
@@ -158,16 +178,19 @@ export default function LearningPath() {
         <div className="flex items-center gap-2">
           <GitBranch className="w-6 h-6 text-primary-600" />
           <h1 className="text-2xl font-bold text-gray-900">
-            {usable ? '个性化学习路径' : '学习路径规划'}
+            {isPersonalizedMode ? '个性化学习路径' : '学习路径规划'}
           </h1>
-          {!profileLoading && !usable && (
-            <span className="text-[10px] text-gray-400 ml-2">— 画像不足，使用数据结构与算法通用参考路径</span>
+          {!profileLoading && !isPersonalizedMode && (
+            <span className="text-[10px] text-gray-400 ml-2">当前展示默认数据结构学习路径</span>
+          )}
+          {!profileLoading && isPersonalizedMode && (
+            <span className="text-[10px] text-primary-500 ml-2 bg-primary-50 px-2 py-0.5 rounded-full">已根据学习画像调整重点模块</span>
           )}
         </div>
       </AnimatedSection>
 
       {/* Profile insufficient banner */}
-      {!profileLoading && !usable && (
+      {!profileLoading && !isPersonalizedMode && (
         <AnimatedSection delay={0.03}>
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-100 px-5 py-5 text-center">
             <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-3" />
@@ -226,6 +249,7 @@ export default function LearningPath() {
                     selectedId={selectedId}
                     onSelect={(node) => setSelectedId(node.id)}
                     onStatusChange={handleStatusChange}
+                    isPersonalizedMode={isPersonalizedMode}
                   />
                 </div>
               </AnimatedSection>
