@@ -75,29 +75,29 @@ export default function Dashboard() {
           </div>
 
           {/* Subtitle */}
-          <p className="text-gray-500 text-base max-w-2xl mx-auto mb-7 leading-relaxed">
+          <p className="text-gray-500 text-base max-w-2xl mx-auto mb-4 leading-relaxed">
             数据结构与算法个性化学习资源平台
           </p>
-
-          {/* CTA Buttons */}
-          <div className="flex items-center justify-center gap-3">
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 text-white text-sm font-medium shadow-md hover:shadow-glow hover:-translate-y-0.5 transition-all duration-200"
-            >
-              开始构建画像
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              to="/courses"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-primary-200 text-primary-700 text-sm font-medium bg-white/80 hover:bg-white hover:shadow-card transition-all duration-200"
-            >
-              查看模块中心
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </AnimatedSection>
+
+      {/* CTA Buttons — outside AnimatedSection to avoid Framer Motion event interception */}
+      <div className="flex items-center justify-center gap-3 pb-4">
+        <Link
+          to="/profile"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 text-white text-sm font-medium shadow-md hover:shadow-glow hover:-translate-y-0.5 transition-all duration-200"
+        >
+          开始构建画像
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+        <Link
+          to="/courses"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-primary-200 text-primary-700 text-sm font-medium bg-white/80 hover:bg-white hover:shadow-card transition-all duration-200"
+        >
+          查看模块中心
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
 
       {/* ========== Section 2: Module Overview ========== */}
       <AnimatedSection delay={0.1}>

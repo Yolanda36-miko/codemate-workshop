@@ -40,7 +40,7 @@ export type InterviewStage =
 
 export interface InterviewState {
   messages: Message[]
-  profileDraft: Record<string, string>
+  profileDraft: Record<string, unknown>
   missingFields: string[]
   stage: InterviewStage
 }
@@ -60,11 +60,32 @@ const KEY_FIELDS = [
 const PREREQUISITE_FIELDS = ['foundation_level', 'learned_courses']
 const ERROR_FIELDS = ['error_prone_points']
 
+// ---- Safe value helpers (handle string | string[] | number | null | undefined) ----
+
+export function draftValueToText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) return value.filter(Boolean).join('、')
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return ''
+}
+
+export function hasDraftValue(value: unknown): boolean {
+  return draftValueToText(value).trim().length > 0
+}
+
+export function draftValueToList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean)
+  const text = draftValueToText(value).trim()
+  if (!text) return []
+  return text.split(/[、,，]/).map(t => t.trim()).filter(Boolean)
+}
+
 // ---- Tag helpers ----
 
-function splitTags(val: string): Set<string> {
-  if (!val || !val.trim()) return new Set()
-  return new Set(val.split('、').map(t => t.trim()).filter(Boolean))
+function splitTags(val: unknown): Set<string> {
+  const list = draftValueToList(val)
+  return new Set(list)
 }
 
 function extractLanguage(message: string): string | null {
@@ -150,8 +171,8 @@ function extractCourses(message: string): string[] {
 
 // ---- Profile merge (core) ----
 
-function mergeProfile(profile: Record<string, string>, message: string): Record<string, string> {
-  const merged = { ...profile }
+function mergeProfile(profile: Record<string, unknown>, message: string): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...profile }
 
   // Single-value: only set if detected in current message
   const lang = extractLanguage(message)
@@ -195,16 +216,16 @@ function mergeProfile(profile: Record<string, string>, message: string): Record<
   return merged
 }
 
-function computeMissingFields(profile: Record<string, string>): string[] {
-  return KEY_FIELDS.filter(f => !profile[f] || (typeof profile[f] === 'string' && !profile[f].trim()))
+function computeMissingFields(profile: Record<string, unknown>): string[] {
+  return KEY_FIELDS.filter(f => !hasDraftValue(profile[f]))
 }
 
 // ---- Stage transition engine ----
 
-function determineNextStage(profile: Record<string, string>, currentStage: InterviewStage): InterviewStage {
-  const hasPrereq = PREREQUISITE_FIELDS.some(f => profile[f] && profile[f].trim())
-  const hasErrors = ERROR_FIELDS.some(f => profile[f] && profile[f].trim())
-  const keyFieldsFilled = KEY_FIELDS.filter(f => profile[f] && profile[f].trim()).length >= 4
+function determineNextStage(profile: Record<string, unknown>, currentStage: InterviewStage): InterviewStage {
+  const hasPrereq = PREREQUISITE_FIELDS.some(f => hasDraftValue(profile[f]))
+  const hasErrors = ERROR_FIELDS.some(f => hasDraftValue(profile[f]))
+  const keyFieldsFilled = KEY_FIELDS.filter(f => hasDraftValue(profile[f])).length >= 4
 
   if (currentStage === 'collect_profile') {
     if (keyFieldsFilled && !hasPrereq) return 'ask_prerequisite'
@@ -214,14 +235,14 @@ function determineNextStage(profile: Record<string, string>, currentStage: Inter
   }
 
   if (currentStage === 'ask_prerequisite') {
-    const nowHasPrereq = PREREQUISITE_FIELDS.some(f => profile[f] && profile[f].trim())
+    const nowHasPrereq = PREREQUISITE_FIELDS.some(f => hasDraftValue(profile[f]))
     if (nowHasPrereq && hasErrors) return 'summary'
     if (nowHasPrereq && !hasErrors) return 'ask_error_points'
     return 'ask_prerequisite'
   }
 
   if (currentStage === 'ask_error_points') {
-    const nowHasErrors = ERROR_FIELDS.some(f => profile[f] && profile[f].trim())
+    const nowHasErrors = ERROR_FIELDS.some(f => hasDraftValue(profile[f]))
     return nowHasErrors || keyFieldsFilled ? 'summary' : 'ask_error_points'
   }
 
@@ -229,14 +250,14 @@ function determineNextStage(profile: Record<string, string>, currentStage: Inter
   return 'summary'
 }
 
-function generateReply(stage: InterviewStage, profile: Record<string, string>, _userMessage: string): string {
+function generateReply(stage: InterviewStage, profile: Record<string, unknown>, _userMessage: string): string {
+  const diffs = draftValueToText(profile.current_difficulties)
+  const lang = draftValueToText(profile.programming_language)
+  const goal = draftValueToText(profile.learning_goal)
+  const prefs = draftValueToText(profile.expression_preferences)
+
   switch (stage) {
     case 'collect_profile': {
-      const diffs = profile.current_difficulties
-      const lang = profile.programming_language
-      const goal = profile.learning_goal
-      const prefs = profile.expression_preferences
-
       if (diffs && lang && goal && prefs) {
         return `好的，我记下了：你主要用 ${lang}，目标是${goal}，困难点在${diffs}，偏好${prefs}。接下来能跟我说说你之前的先修基础吗？比如学过程序设计基础、离散数学吗？基础水平如何？`
       }
@@ -260,12 +281,12 @@ function generateReply(stage: InterviewStage, profile: Record<string, string>, _
 
     case 'summary': {
       const lines: string[] = []
-      if (profile.programming_language) lines.push(`编程语言：${profile.programming_language}`)
-      if (profile.learning_goal) lines.push(`学习目标：${profile.learning_goal}`)
-      if (profile.foundation_level) lines.push(`基础水平：${profile.foundation_level}`)
-      if (profile.current_difficulties) lines.push(`薄弱模块：${profile.current_difficulties}`)
-      if (profile.expression_preferences) lines.push(`偏好资源：${profile.expression_preferences}`)
-      if (profile.error_prone_points) lines.push(`易错点：${profile.error_prone_points}`)
+      if (hasDraftValue(profile.programming_language)) lines.push(`编程语言：${lang}`)
+      if (hasDraftValue(profile.learning_goal)) lines.push(`学习目标：${goal}`)
+      if (hasDraftValue(profile.foundation_level)) lines.push(`基础水平：${draftValueToText(profile.foundation_level)}`)
+      if (hasDraftValue(profile.current_difficulties)) lines.push(`薄弱模块：${diffs}`)
+      if (hasDraftValue(profile.expression_preferences)) lines.push(`偏好资源：${prefs}`)
+      if (hasDraftValue(profile.error_prone_points)) lines.push(`易错点：${draftValueToText(profile.error_prone_points)}`)
 
       if (lines.length > 0) {
         return `你的学习画像已经比较完整了！以下是摘要：\n${lines.join('\n')}\n\n你可以继续补充更多信息，我会实时更新画像。也可以切换到资源生成页面查看个性化资源。`
@@ -307,7 +328,20 @@ export function processMessage(state: InterviewState, userText: string): Intervi
   }
 }
 
-export function createInitialState(existingProfile?: Record<string, string>): InterviewState {
+// Normalize profile draft values: convert arrays to '、'-joined strings for internal consistency
+function normalizeDraft(draft: Record<string, unknown>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(draft)) {
+    if (Array.isArray(value)) {
+      normalized[key] = value.filter(Boolean).join('、')
+    } else {
+      normalized[key] = value
+    }
+  }
+  return normalized
+}
+
+export function createInitialState(existingProfile?: Record<string, unknown>): InterviewState {
   const savedVersion = (() => { try { return localStorage.getItem(STORAGE_KEYS.version) } catch { return null } })()
 
   // Clear stale caches if version changed
@@ -328,7 +362,8 @@ export function createInitialState(existingProfile?: Record<string, string>): In
 
     if (savedMessages && savedDraft && savedStage) {
       const messages = JSON.parse(savedMessages) as Message[]
-      const profileDraft = JSON.parse(savedDraft) as Record<string, string>
+      const rawDraft = JSON.parse(savedDraft) as Record<string, unknown>
+      const profileDraft = normalizeDraft(rawDraft)
       const stage = savedStage as InterviewStage
 
       if (messages.length > 0 && ['collect_profile', 'ask_prerequisite', 'ask_error_points', 'summary', 'complete'].includes(stage)) {
@@ -368,7 +403,7 @@ export function persistState(state: InterviewState): void {
 
 export function buildMockChatResponse(
   message: string,
-  currentProfile: Record<string, string>,
+  currentProfile: Record<string, unknown>,
   currentStage: string,
 ): ProfileChatResponse {
   // 1. Merge profile
@@ -400,7 +435,7 @@ export function buildMockChatResponse(
 // =====================================================================
 
 export function generateFinalProfileMock(
-  profileDraft: Record<string, string>,
+  profileDraft: Record<string, unknown>,
 ): StudentProfile {
   const baseStudent = USE_MOCK ? { ...mockStudentProfile.student } : {
     name: '小栈',
@@ -413,23 +448,23 @@ export function generateFinalProfileMock(
 
   baseProfile.programming_language = {
     label: '编程语言',
-    tags: profileDraft.programming_language ? [profileDraft.programming_language] : [],
+    tags: hasDraftValue(profileDraft.programming_language) ? [draftValueToText(profileDraft.programming_language)] : [],
   }
   baseProfile.learning_goal = {
     label: '学习目标',
-    tags: profileDraft.learning_goal ? profileDraft.learning_goal.split('、') : [],
+    tags: draftValueToList(profileDraft.learning_goal),
   }
   baseProfile.learning_difficulties = {
     label: '学习困难',
-    tags: profileDraft.current_difficulties ? profileDraft.current_difficulties.split('、') : [],
+    tags: draftValueToList(profileDraft.current_difficulties),
   }
   baseProfile.expression_preferences = {
     label: '资源偏好',
-    tags: profileDraft.expression_preferences ? profileDraft.expression_preferences.split('、') : [],
+    tags: draftValueToList(profileDraft.expression_preferences),
   }
   baseProfile.weak_points = {
     label: '易错点',
-    tags: profileDraft.error_prone_points ? profileDraft.error_prone_points.split('、') : [],
+    tags: draftValueToList(profileDraft.error_prone_points),
   }
 
   baseProfile.knowledge_base = baseProfile.knowledge_base || { label: '知识基础', max_score: 100 }

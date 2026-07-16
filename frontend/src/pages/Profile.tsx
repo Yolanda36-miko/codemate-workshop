@@ -11,6 +11,9 @@ import {
   persistState,
   generateFinalProfileMock,
   PROFILE_STORAGE_VERSION,
+  draftValueToText,
+  hasDraftValue,
+  draftValueToList,
   type InterviewState,
   type InterviewStage,
 } from '../services/profileInterview'
@@ -78,7 +81,7 @@ export default function Profile() {
 
       setState((prev) => {
         // Merge profile
-        const mergedProfile: Record<string, string> = { ...prev.profileDraft }
+        const mergedProfile: Record<string, unknown> = { ...prev.profileDraft }
         for (const [key, value] of Object.entries(responseProfile)) {
           if (typeof value === 'string' && value.trim()) {
             mergedProfile[key] = value
@@ -135,12 +138,8 @@ export default function Profile() {
             programming_language: prev.profileDraft.programming_language || undefined,
             learning_goal: prev.profileDraft.learning_goal || undefined,
             foundation_level: prev.profileDraft.foundation_level || undefined,
-            current_difficulties: prev.profileDraft.current_difficulties
-              ? prev.profileDraft.current_difficulties.split('、')
-              : [],
-            expression_preferences: prev.profileDraft.expression_preferences
-              ? prev.profileDraft.expression_preferences.split('、')
-              : [],
+            current_difficulties: draftValueToList(prev.profileDraft.current_difficulties),
+            expression_preferences: draftValueToList(prev.profileDraft.expression_preferences),
           }
           sessionStorage.setItem(QUICK_PROFILE_KEY, JSON.stringify(qp))
         } catch { /* ignore */ }
@@ -201,7 +200,7 @@ export default function Profile() {
                       ? '画像基本完成，可以继续补充或查看摘要'
                       : undefined
                   }
-                  currentRound={Object.keys(state.profileDraft).filter(k => state.profileDraft[k] && state.profileDraft[k].trim()).length}
+                  currentRound={Object.keys(state.profileDraft).filter(k => hasDraftValue(state.profileDraft[k])).length}
                   totalRounds={7}
                 />
               </div>
@@ -212,63 +211,63 @@ export default function Profile() {
               <div className="rounded-2xl bg-white border border-gray-100 p-4">
                 <h3 className="text-sm font-semibold text-gray-800 mb-3">学习画像草稿</h3>
 
-                {Object.keys(state.profileDraft).length === 0 || !Object.values(state.profileDraft).some(v => v && v.trim()) ? (
+                {Object.keys(state.profileDraft).length === 0 || !Object.values(state.profileDraft).some(hasDraftValue) ? (
                   <p className="text-xs text-gray-400">开始对话后，这里会逐步显示你的学习画像</p>
                 ) : (
                   <div className="space-y-2">
-                    {state.profileDraft.programming_language && (
+                    {hasDraftValue(state.profileDraft.programming_language) && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0">编程语言</span>
-                        <span className="px-1.5 py-0.5 bg-primary-50 text-primary-600 text-[10px] rounded-full">{state.profileDraft.programming_language}</span>
+                        <span className="px-1.5 py-0.5 bg-primary-50 text-primary-600 text-[10px] rounded-full">{draftValueToText(state.profileDraft.programming_language)}</span>
                       </div>
                     )}
-                    {state.profileDraft.learning_goal && (
+                    {hasDraftValue(state.profileDraft.learning_goal) && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0">学习目标</span>
-                        <span className="text-xs text-gray-700">{state.profileDraft.learning_goal}</span>
+                        <span className="text-xs text-gray-700">{draftValueToText(state.profileDraft.learning_goal)}</span>
                       </div>
                     )}
-                    {state.profileDraft.foundation_level && (
+                    {hasDraftValue(state.profileDraft.foundation_level) && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0">基础水平</span>
-                        <span className="text-xs text-gray-700">{state.profileDraft.foundation_level}</span>
+                        <span className="text-xs text-gray-700">{draftValueToText(state.profileDraft.foundation_level)}</span>
                       </div>
                     )}
-                    {state.profileDraft.current_difficulties && (
+                    {hasDraftValue(state.profileDraft.current_difficulties) && (
                       <div className="flex items-start gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">薄弱模块</span>
                         <div className="flex flex-wrap gap-1">
-                          {state.profileDraft.current_difficulties.split('、').map(t => (
+                          {draftValueToList(state.profileDraft.current_difficulties).map(t => (
                             <span key={t} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-[10px] rounded-full">{t}</span>
                           ))}
                         </div>
                       </div>
                     )}
-                    {state.profileDraft.expression_preferences && (
+                    {hasDraftValue(state.profileDraft.expression_preferences) && (
                       <div className="flex items-start gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">资源偏好</span>
                         <div className="flex flex-wrap gap-1">
-                          {state.profileDraft.expression_preferences.split('、').map(t => (
+                          {draftValueToList(state.profileDraft.expression_preferences).map(t => (
                             <span key={t} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full">{t}</span>
                           ))}
                         </div>
                       </div>
                     )}
-                    {state.profileDraft.error_prone_points && (
+                    {hasDraftValue(state.profileDraft.error_prone_points) && (
                       <div className="flex items-start gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">易错点</span>
                         <div className="flex flex-wrap gap-1">
-                          {state.profileDraft.error_prone_points.split('、').map(t => (
+                          {draftValueToList(state.profileDraft.error_prone_points).map(t => (
                             <span key={t} className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded-full">{t}</span>
                           ))}
                         </div>
                       </div>
                     )}
-                    {state.profileDraft.learned_courses && (
+                    {hasDraftValue(state.profileDraft.learned_courses) && (
                       <div className="flex items-start gap-2">
                         <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">先修课程</span>
                         <div className="flex flex-wrap gap-1">
-                          {state.profileDraft.learned_courses.split('、').map(t => (
+                          {draftValueToList(state.profileDraft.learned_courses).map(t => (
                             <span key={t} className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full">{t}</span>
                           ))}
                         </div>
