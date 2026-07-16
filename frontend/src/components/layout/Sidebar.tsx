@@ -9,6 +9,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { getCurrentUserDisplay } from '../../config/appConfig'
+import DsAvatar from '../common/DsAvatar'
+import { useState } from 'react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '首页' },
@@ -21,7 +23,7 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation()
-  const currentUser = getCurrentUserDisplay()
+  const [userDisplay] = useState(() => getCurrentUserDisplay())
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[240px] bg-white border-r border-gray-200 flex flex-col z-40 shadow-sm">
@@ -64,12 +66,10 @@ export default function Sidebar() {
       {/* Footer — Current User */}
       <div className="px-4 py-3 border-t border-gray-100">
         <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-default">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm shrink-0">
-            {currentUser.avatarText}
-          </div>
+          <DsAvatar size="sm" />
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-gray-800">{currentUser.name}</p>
-            <p className="text-[10px] text-gray-400">{currentUser.role}</p>
+            <p className="text-xs font-semibold text-gray-800">{userDisplay.name}</p>
+            <p className="text-[10px] text-gray-400">{userDisplay.role}</p>
           </div>
         </div>
       </div>

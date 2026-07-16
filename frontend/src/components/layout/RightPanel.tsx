@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MessageCircle, Sparkles, FileText, GitBranch, ClipboardCheck } from 'lucide-react'
 import { generateProfile, getUserProfile, USE_MOCK } from '../../services/api'
 import { mapBackendProfileToStudentProfile, isProfileComplete } from '../../services/profileInterview'
+import DsAvatar from '../common/DsAvatar'
 import type { StudentProfile } from '../../types'
 
 const agents = [
@@ -80,19 +81,13 @@ export default function RightPanel() {
         ) : profile ? (
           <div className="rounded-2xl bg-white border border-gray-100 p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-semibold shadow-sm shrink-0">
-                {profile.student.name.charAt(0)}
-              </div>
+              <DsAvatar size="md" />
               <div>
-                <p className="text-sm font-semibold text-gray-800">{profile.student.name}</p>
-                <p className="text-xs text-gray-400">
-                  {profile.student.major} · {profile.student.grade}
+                <p className="text-sm font-semibold text-gray-800">
+                  {profile.student.display_name || profile.student.name || '小栈'}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed line-clamp-3">
-              {profile.student.background}
-            </p>
           </div>
         ) : (
           <div className="rounded-2xl bg-white border border-gray-100 p-4 text-center">
@@ -124,9 +119,7 @@ export default function RightPanel() {
                     {'☆'.repeat(5 - profile.profile.knowledge_base.stars)}
                     {' '}{profile.profile.knowledge_base.score}/{profile.profile.knowledge_base.max_score}
                   </span>
-                ) : (
-                  <span className="text-xs text-gray-400">--/100</span>
-                )}
+                ) : null}
               </div>
               {profile.profile.knowledge_base?.score != null ? (
                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -136,7 +129,7 @@ export default function RightPanel() {
                   />
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400">暂未评估</p>
+                <p className="text-[10px] text-gray-400">完成画像后将补充此信息</p>
               )}
             </div>
 
@@ -150,9 +143,7 @@ export default function RightPanel() {
                     {'☆'.repeat(5 - profile.profile.practice_ability.stars)}
                     {' '}{profile.profile.practice_ability.score}/{profile.profile.practice_ability.max_score}
                   </span>
-                ) : (
-                  <span className="text-xs text-gray-400">--/100</span>
-                )}
+                ) : null}
               </div>
               {profile.profile.practice_ability?.score != null ? (
                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -162,7 +153,7 @@ export default function RightPanel() {
                   />
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400">暂未评估</p>
+                <p className="text-[10px] text-gray-400">完成画像后将补充此信息</p>
               )}
             </div>
 

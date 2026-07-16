@@ -15,7 +15,8 @@ import type {
   ConversationItem,
   ConversationCreateRequest,
 } from '../types'
-import { mockProfileChat, mockStudentProfile, mockBackendProfile, mockConversations } from '../mock/profile'
+import { mockStudentProfile, mockBackendProfile, mockConversations } from '../mock/profile'
+import { buildMockChatResponse } from './profileInterview'
 import { mockCourses } from '../mock/courses'
 import { mockResources, generateResourcesMock } from '../mock/resources'
 import type { ResourceGenerateParams } from '../types'
@@ -42,16 +43,24 @@ export async function profileChat(
   message: string,
   history: Array<{ role: string; content: string }> = [],
   extractedFields?: Record<string, unknown>,
-  missingFields?: string[],
+  stage?: string,
 ) {
-  if (USE_MOCK) return mockProfileChat
+  if (USE_MOCK) {
+    const stringFields: Record<string, string> = {}
+    if (extractedFields) {
+      for (const [k, v] of Object.entries(extractedFields)) {
+        if (typeof v === 'string') stringFields[k] = v
+      }
+    }
+    return buildMockChatResponse(message, stringFields, stage || 'collect_profile')
+  }
   return request<ProfileChatResponse>('/profile/chat', {
     method: 'POST',
     body: JSON.stringify({
       message,
       history,
-      extracted_fields: extractedFields,
-      missing_fields: missingFields,
+      current_profile: extractedFields,
+      stage: stage || 'collect_profile',
     }),
   })
 }

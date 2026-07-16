@@ -14,22 +14,22 @@ export function isDemoMode(): boolean {
 
 /** Demo student — used only in Demo Mode */
 export const demoCurrentUser = {
-  name: '当前用户',
+  name: '小栈',
   role: '学习者',
   avatarText: '学',
 }
 
-/** Get current user display info. Returns demo data in Demo Mode, placeholder otherwise. */
+/** Get current user display info. Uses default values — no longer synced from Profile. */
 export function getCurrentUserDisplay(): {
   name: string
   role: string
   avatarText: string
 } {
   if (isDemoMode()) return demoCurrentUser
-  return { name: '当前用户', role: '画像待完善', avatarText: '?' }
+  return { name: '小栈', role: '数据结构学习者', avatarText: '栈' }
 }
 
 /** Get the student name for display in resource/agent copy. */
 export function getStudentDisplayName(): string {
-  return '当前学习者'
+  return '小栈'
 }

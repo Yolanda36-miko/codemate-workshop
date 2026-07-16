@@ -1,41 +1,41 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { UserRound } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import CodeBuddyAvatar from '../components/profile/CodeBuddyAvatar'
 import ChatPanel from '../components/profile/ChatPanel'
-import ProfileDraftPanel from '../components/profile/ProfileDraftPanel'
-import DiagnosisQuiz from '../components/profile/DiagnosisQuiz'
 import LearningProfileCard from '../components/profile/LearningProfileCard'
-import { isDemoMode } from '../config/appConfig'
-import { profileChat, updateUserProfile } from '../services/api'
+import { profileChat } from '../services/api'
 import {
   createInitialState,
   processMessage,
-  startDiagnosis,
-  submitDiagnosis,
-  generateProfile,
-  applyDemoFill,
-  ALL_FIELDS,
-  mapStudentProfileToBackend,
+  persistState,
+  generateFinalProfileMock,
+  PROFILE_STORAGE_VERSION,
   type InterviewState,
+  type InterviewStage,
 } from '../services/profileInterview'
 
-const CURRENT_USER_ID = 1 // MVP: single-user mode
+const CURRENT_USER_ID = 1
+const QUICK_PROFILE_KEY = 'codemate_resource_quick_profile'
 
 type BuddyState = 'welcome' | 'thinking' | 'generating'
 
 export default function Profile() {
-  const [state, setState] = useState<InterviewState>(createInitialState)
+  const [state, setState] = useState<InterviewState>(() => createInitialState())
   const [buddyState, setBuddyState] = useState<BuddyState>('welcome')
-  const [diagnosisAnswers, setDiagnosisAnswers] = useState<Record<string, string>>({})
+  const initializedRef = useRef(false)
 
-  const conversationFields = ALL_FIELDS.filter((f) => f.key !== 'diagnosis_result').map((f) => f.key)
-  const collectedConvFields = conversationFields.filter((k) => k in state.collectedFields)
-  const missingConvFields = conversationFields.filter((k) => !(k in state.collectedFields))
+  // Persist on every state change
+  useEffect(() => {
+    if (initializedRef.current) {
+      persistState(state)
+    } else {
+      initializedRef.current = true
+    }
+  }, [state])
 
-  const isChatActive = state.stage === 'collecting' || state.stage === 'greeting'
-  const demoMode = isDemoMode()
-  const showDemoBtn = demoMode && state.stage === 'collecting' && Object.keys(state.collectedFields).length === 0
+  // Chat is active for all stages except complete
+  const isChatActive = state.stage !== 'complete'
 
   // ---- Handlers ----
 
@@ -45,122 +45,137 @@ export default function Profile() {
     setBuddyState('thinking')
 
     try {
-      // Build history from current messages
-      const history = state.messages.map((m) => ({ role: m.role, content: m.content }))
+      const history = state.messages.map((m) => ({
+        role: m.role === 'buddy' ? 'assistant' : m.role,
+        content: m.content,
+      }))
+
       const response = await profileChat(
         text,
         history,
-        { ...state.collectedFields },
-        [...state.missingFields],
+        { ...state.profileDraft },
+        state.stage,
       )
 
-      // Strict field validation
-      const msg = typeof response.message === 'string' ? response.message : ''
-      const extracted = typeof response.extracted_fields === 'object' && response.extracted_fields !== null
-        ? response.extracted_fields as Record<string, unknown>
-        : {}
+      // Extract reply from either 'reply' or 'message' field
+      const reply =
+        (typeof response.reply === 'string' && response.reply) ||
+        (typeof response.message === 'string' && response.message) ||
+        ''
+
+      // Extract profile from response
+      const responseProfile =
+        (response.profile && typeof response.profile === 'object' ? response.profile as Record<string, unknown> : null) ||
+        (response.extracted_fields && typeof response.extracted_fields === 'object' ? response.extracted_fields as Record<string, unknown> : null) ||
+        {}
+
+      const responseStage = (typeof response.stage === 'string' ? response.stage : null) as InterviewStage | null
       const missing = Array.isArray(response.missing_fields) ? response.missing_fields : []
 
-      if (!msg) {
-        throw new Error('Empty message in chat response')
+      if (!reply) {
+        throw new Error('Empty reply in chat response')
       }
 
       setState((prev) => {
-        const newMessages = [
-          ...prev.messages,
-          { role: 'user' as const, content: text },
-          { role: 'buddy' as const, content: msg },
-        ]
-
-        // Merge extracted fields
-        const collected: Record<string, string> = { ...prev.collectedFields }
-        for (const [key, value] of Object.entries(extracted)) {
-          if (typeof value === 'string') {
-            collected[key] = value
+        // Merge profile
+        const mergedProfile: Record<string, string> = { ...prev.profileDraft }
+        for (const [key, value] of Object.entries(responseProfile)) {
+          if (typeof value === 'string' && value.trim()) {
+            mergedProfile[key] = value
           }
         }
 
-        const newMissing = missing.length > 0 ? missing : prev.missingFields.filter(
-          (f) => !(f in collected)
-        )
-        const newStage = newMissing.length === 0 ? 'ready_for_diagnosis' : 'collecting'
+        const newMessages = [
+          ...prev.messages,
+          { role: 'user' as const, content: text },
+          { role: 'buddy' as const, content: reply },
+        ]
+
+        const newStage = responseStage || prev.stage
 
         return {
-          ...prev,
           messages: newMessages,
-          collectedFields: collected,
-          missingFields: newMissing,
+          profileDraft: mergedProfile,
+          missingFields: missing.length > 0 ? missing : prev.missingFields,
           stage: newStage,
         }
       })
     } catch {
-      // Fallback to local mock
       console.warn('Backend /api/profile/chat unavailable — using local mock')
-      setTimeout(() => {
-        setState((prev) => processMessage(prev, text))
-      }, 800)
+      // Use local state machine directly
+      setState((prev) => {
+        const newState = processMessage(prev, text)
+        return newState
+      })
     }
 
     setBuddyState('welcome')
-  }, [isChatActive, state.messages])
+  }, [isChatActive, state.messages, state.profileDraft, state.stage])
 
-  const handleDemoFill = useCallback(() => {
-    setBuddyState('thinking')
-    setTimeout(() => {
-      setState((prev) => applyDemoFill(prev))
-      setBuddyState('welcome')
-    }, 500)
-  }, [])
-
-  const handleStartDiagnosis = useCallback(() => {
-    setState((prev) => startDiagnosis(prev))
-  }, [])
-
-  const handleDiagnosisSubmit = useCallback((answers: Record<string, string>) => {
-    setDiagnosisAnswers(answers)
-    setBuddyState('generating')
-    setTimeout(() => {
-      setState((prev) => submitDiagnosis(prev, answers))
-      setBuddyState('welcome')
-    }, 600)
+  const handleReset = useCallback(() => {
+    // Clear localStorage cache and restart
+    try {
+      localStorage.removeItem('codemate_profile_messages')
+      localStorage.removeItem('codemate_profile_draft')
+      localStorage.removeItem('codemate_profile_stage')
+      localStorage.removeItem('codemate_profile_version')
+    } catch { /* ignore */ }
+    setState(createInitialState())
   }, [])
 
   const handleGenerateProfile = useCallback(() => {
     setBuddyState('generating')
     setTimeout(() => {
       setState((prev) => {
-        const newState = generateProfile(prev)
+        const finalProfile = generateFinalProfileMock(prev.profileDraft)
 
-        // Save to backend (non-blocking, fire-and-forget)
-        if (newState.finalProfile) {
-          const payload = mapStudentProfileToBackend(newState.finalProfile)
-          updateUserProfile(CURRENT_USER_ID, payload).catch(() => {
-            console.warn('Failed to save profile to backend')
-          })
+        // Save quick_profile to sessionStorage
+        try {
+          const qp = {
+            programming_language: prev.profileDraft.programming_language || undefined,
+            learning_goal: prev.profileDraft.learning_goal || undefined,
+            foundation_level: prev.profileDraft.foundation_level || undefined,
+            current_difficulties: prev.profileDraft.current_difficulties
+              ? prev.profileDraft.current_difficulties.split('、')
+              : [],
+            expression_preferences: prev.profileDraft.expression_preferences
+              ? prev.profileDraft.expression_preferences.split('、')
+              : [],
+          }
+          sessionStorage.setItem(QUICK_PROFILE_KEY, JSON.stringify(qp))
+        } catch { /* ignore */ }
+
+        return {
+          ...prev,
+          stage: 'complete' as InterviewStage,
+          messages: [
+            ...prev.messages,
+            { role: 'buddy' as const, content: '你的学习画像已经生成好啦！以下是基于我们对话的综合评估。你可以基于此画像生成个性化资源，或者规划专属学习路径。' },
+          ],
         }
-
-        return newState
       })
       setBuddyState('welcome')
-    }, 1500)
+    }, 600)
   }, [])
 
   // ---- Render ----
 
   const buddyStateForAvatar: BuddyState =
-    state.stage === 'generating' ? 'generating' : buddyState
+    state.stage === 'complete' ? 'generating' : buddyState
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-2">
         <UserRound className="w-6 h-6 text-primary-600" />
-        <h1 className="text-2xl font-bold text-gray-900">学习画像</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">数据结构与算法学习画像</h1>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
         {state.stage !== 'complete' ? (
-          /* ===== Chat / Diagnosis Phase ===== */
+          /* ===== Chat Phase ===== */
           <motion.div
             key="build-phase"
             className="grid grid-cols-12 gap-6"
@@ -173,67 +188,138 @@ export default function Profile() {
               {/* CodeBuddy Avatar */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
                 <CodeBuddyAvatar state={buddyStateForAvatar} />
-                {showDemoBtn && (
-                  <motion.button
-                    onClick={handleDemoFill}
-                    className="mt-3 w-full py-2 rounded-xl border border-dashed border-primary-300 text-primary-500 text-xs font-medium hover:bg-primary-50 transition-colors"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    使用示例数据快速填充 →
-                  </motion.button>
-                )}
               </div>
 
-              {/* Chat or Diagnosis */}
+              {/* Chat */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden">
-                {state.stage === 'diagnosis' ? (
-                  <div className="p-4">
-                    <p className="text-sm font-semibold text-gray-800 mb-1">轻量诊断题</p>
-                    <p className="text-xs text-gray-400 mb-4">
-                      回答以下 {state.diagnosisQuestions.length} 道题，帮助 CodeBuddy 更准确地了解你的知识基础
-                    </p>
-                    <DiagnosisQuiz
-                      questions={state.diagnosisQuestions}
-                      onSubmit={handleDiagnosisSubmit}
-                      submitted={state.diagnosisEvaluated}
-                      userAnswers={diagnosisAnswers}
-                    />
-                  </div>
-                ) : (
-                  <ChatPanel
-                    messages={state.messages}
-                    onSend={handleSend}
-                    disabled={!isChatActive}
-                    hint={
-                      state.stage === 'ready_for_diagnosis'
-                        ? '点击右侧「进入诊断题」继续'
-                        : state.stage === 'ready_for_profile'
-                          ? '点击右侧「生成学习画像」查看完整画像'
-                          : undefined
-                    }
-                    currentRound={collectedConvFields.length}
-                    totalRounds={conversationFields.length}
-                  />
-                )}
+                <ChatPanel
+                  messages={state.messages}
+                  onSend={handleSend}
+                  disabled={!isChatActive}
+                  hint={
+                    state.stage === 'summary'
+                      ? '画像基本完成，可以继续补充或查看摘要'
+                      : undefined
+                  }
+                  currentRound={Object.keys(state.profileDraft).filter(k => state.profileDraft[k] && state.profileDraft[k].trim()).length}
+                  totalRounds={7}
+                />
               </div>
             </div>
 
             {/* Right: Profile Draft */}
             <div className="col-span-5 space-y-4">
-              <ProfileDraftPanel
-                collectedFields={Object.keys(state.collectedFields)}
-                missingFields={missingConvFields.concat(
-                  state.diagnosisEvaluated ? [] : ['diagnosis_result']
+              <div className="rounded-2xl bg-white border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">学习画像草稿</h3>
+
+                {Object.keys(state.profileDraft).length === 0 || !Object.values(state.profileDraft).some(v => v && v.trim()) ? (
+                  <p className="text-xs text-gray-400">开始对话后，这里会逐步显示你的学习画像</p>
+                ) : (
+                  <div className="space-y-2">
+                    {state.profileDraft.programming_language && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0">编程语言</span>
+                        <span className="px-1.5 py-0.5 bg-primary-50 text-primary-600 text-[10px] rounded-full">{state.profileDraft.programming_language}</span>
+                      </div>
+                    )}
+                    {state.profileDraft.learning_goal && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0">学习目标</span>
+                        <span className="text-xs text-gray-700">{state.profileDraft.learning_goal}</span>
+                      </div>
+                    )}
+                    {state.profileDraft.foundation_level && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0">基础水平</span>
+                        <span className="text-xs text-gray-700">{state.profileDraft.foundation_level}</span>
+                      </div>
+                    )}
+                    {state.profileDraft.current_difficulties && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">薄弱模块</span>
+                        <div className="flex flex-wrap gap-1">
+                          {state.profileDraft.current_difficulties.split('、').map(t => (
+                            <span key={t} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-[10px] rounded-full">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {state.profileDraft.expression_preferences && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">资源偏好</span>
+                        <div className="flex flex-wrap gap-1">
+                          {state.profileDraft.expression_preferences.split('、').map(t => (
+                            <span key={t} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {state.profileDraft.error_prone_points && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">易错点</span>
+                        <div className="flex flex-wrap gap-1">
+                          {state.profileDraft.error_prone_points.split('、').map(t => (
+                            <span key={t} className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded-full">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {state.profileDraft.learned_courses && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-500 w-20 shrink-0 mt-0.5">先修课程</span>
+                        <div className="flex flex-wrap gap-1">
+                          {state.profileDraft.learned_courses.split('、').map(t => (
+                            <span key={t} className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generate profile button when summary stage */}
+                    {state.stage === 'summary' && (
+                      <button
+                        onClick={handleGenerateProfile}
+                        className="mt-3 w-full py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+                      >
+                        生成完整学习画像
+                      </button>
+                    )}
+                  </div>
                 )}
-                allFields={ALL_FIELDS}
-                canStartDiagnosis={state.stage === 'ready_for_diagnosis'}
-                canGenerateProfile={state.stage === 'ready_for_profile'}
-                diagnosisSubmitted={state.diagnosisEvaluated}
-                onStartDiagnosis={handleStartDiagnosis}
-                onGenerateProfile={handleGenerateProfile}
-              />
+              </div>
+
+              {/* Missing fields hint */}
+              {state.missingFields.length > 0 && (
+                <div className="rounded-2xl bg-white border border-gray-100 p-4">
+                  <h3 className="text-xs font-semibold text-gray-500 mb-2">待收集信息</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {state.missingFields.map(f => {
+                      const labelMap: Record<string, string> = {
+                        programming_language: '编程语言',
+                        learning_goal: '学习目标',
+                        foundation_level: '基础水平',
+                        current_difficulties: '薄弱模块',
+                        expression_preferences: '资源偏好',
+                        learned_courses: '先修课程',
+                        error_prone_points: '易错点',
+                      }
+                      return (
+                        <span key={f} className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded-full">
+                          {labelMap[f] || f}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Reset button */}
+              <button
+                onClick={handleReset}
+                className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                重新开始对话
+              </button>
             </div>
           </motion.div>
         ) : (
@@ -245,25 +331,15 @@ export default function Profile() {
             transition={{ duration: 0.5 }}
             className="space-y-4"
           >
-            {state.finalProfile && <LearningProfileCard profile={state.finalProfile} />}
-            {/* Way back to chat for further updates */}
-            <div className="flex justify-center">
+            <LearningProfileCard
+              profile={generateFinalProfileMock(state.profileDraft)}
+            />
+            <div className="flex justify-center gap-3">
               <button
-                onClick={() => {
-                  // Reset to collecting stage with existing data as starting point
-                  setState((prev) => ({
-                    ...prev,
-                    stage: 'collecting',
-                    messages: [
-                      ...prev.messages,
-                      { role: 'buddy' as const, content: '好的，我们继续聊聊你的学习情况吧～还有什么想补充的吗？' },
-                    ],
-                    nextQuestion: '还有什么想补充的吗？',
-                  }))
-                }}
+                onClick={handleReset}
                 className="px-6 py-2.5 rounded-xl border border-primary-300 text-primary-600 text-sm font-medium hover:bg-primary-50 transition-colors"
               >
-                继续补充信息 / 重新对话
+                重新对话
               </button>
             </div>
           </motion.div>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Star, ArrowRight, FileText, GitBranch } from 'lucide-react'
+import DsAvatar from '../common/DsAvatar'
 import type { StudentProfile, ProfileDimension } from '../../types'
 
 interface LearningProfileCardProps {
@@ -20,12 +21,11 @@ export default function LearningProfileCard({ profile }: LearningProfileCardProp
         transition={{ delay: 0.1 }}
       >
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-            {student.name.charAt(0)}
-          </div>
+          <DsAvatar size="lg" />
           <div>
-            <h3 className="font-semibold text-gray-800">{student.name}</h3>
-            <p className="text-xs text-gray-400">{student.grade} · {student.major}</p>
+            <h3 className="font-semibold text-gray-800">
+              {student.display_name || student.name || '小栈'}
+            </h3>
           </div>
         </div>
         <p className="text-sm text-gray-500 leading-relaxed">{student.background}</p>
@@ -100,10 +100,7 @@ function DimensionCard({ dim, index }: { dim: ProfileDimension; index: number })
             {dim.score}<span className="text-xs text-gray-400 font-normal">/{dim.max_score}</span>
           </span>
         </div>
-      ) : (
-        /* No score available */
-        <p className="text-xs text-gray-400 mb-2">暂未评估</p>
-      )}
+      ) : null}
 
       {/* Progress bar for scored dimensions */}
       {hasScore && dim.max_score !== undefined && (
@@ -139,6 +136,11 @@ function DimensionCard({ dim, index }: { dim: ProfileDimension; index: number })
             </span>
           ))}
         </div>
+      )}
+
+      {/* Empty state hint: only show when no score, no tags, no stars */}
+      {!hasScore && dim.stars === undefined && (!dim.tags || dim.tags.length === 0) && (
+        <p className="text-xs text-gray-400">完成更多对话后将补充此项信息</p>
       )}
     </motion.div>
   )

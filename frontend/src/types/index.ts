@@ -2,6 +2,7 @@
 
 export interface StudentInfo {
   name: string
+  display_name?: string
   grade: string
   major: string
   background: string
@@ -23,8 +24,12 @@ export interface StudentProfile {
 
 export interface ProfileChatResponse {
   message: string
-  extracted_fields: Record<string, unknown>
+  reply?: string
+  extracted_fields?: Record<string, unknown>
+  profile?: Record<string, unknown>
   missing_fields: string[]
+  stage?: string
+  is_complete?: boolean
 }
 
 // ========== Backend Profile (Phase 6A) ==========
@@ -38,11 +43,24 @@ export interface BackendProfile {
   error_patterns: string | null     // JSON-encoded array of tags
   learning_goals: string | null     // JSON-encoded array of tags
   resource_preferences: string | null // JSON-encoded array of tags
-  profile_summary: string | null
+  profile_summary: string | null    // JSON-encoded DSProfileData (Phase D)
   diagnosis_status: string | null
   created_at: string | null
   updated_at: string | null
   source: string
+}
+
+/** Phase D: structured DS-specific profile data stored in profile_summary JSON */
+export interface DSProfileData {
+  current_course?: string
+  learned_courses?: string[]
+  programming_language?: string
+  learning_goal?: string
+  foundation_level?: string
+  current_difficulties?: string[]
+  expression_preferences?: string[]
+  learning_difficulties?: string[]
+  error_prone_points?: string[]
 }
 
 export interface ProfileUpdatePayload {

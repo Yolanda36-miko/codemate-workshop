@@ -252,9 +252,6 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-semibold text-gray-800">
                   当前学习者
-                  <span className="text-xs text-gray-400 font-normal ml-2">
-                    画像待完善
-                  </span>
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   数据结构与算法 · 个性化学习

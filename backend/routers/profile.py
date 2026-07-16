@@ -26,8 +26,10 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] | None = None
+    current_profile: dict | None = None
     extracted_fields: dict | None = None
     missing_fields: list[str] | None = None
+    stage: str | None = None
 
 
 class GenerateProfileRequest(BaseModel):
@@ -36,7 +38,13 @@ class GenerateProfileRequest(BaseModel):
 
 @router.post("/profile/chat")
 def profile_chat(req: ChatRequest):
-    return profile_service.chat(req.message, req.history, req.extracted_fields, req.missing_fields)
+    stage = req.stage or "collect_profile"
+    return profile_service.chat(
+        req.message, req.history,
+        req.current_profile or req.extracted_fields,
+        req.missing_fields,
+        stage,
+    )
 
 
 @router.post("/profile/generate")

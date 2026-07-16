@@ -1,8 +1,8 @@
 {
   "profile_chat": {
-    "message": "你好！我是你的学习伙伴 CodeBuddy。我们先从《数据结构与算法》的学习情况聊起吧——你目前在哪些模块上感到最吃力呢？比如递归调用栈、树遍历、排序算法？",
+    "message": "嗨！我是你的学习伙伴 CodeBuddy。你在学习数据结构与算法时，感觉最吃力的模块是哪一个？递归调用栈、二叉树遍历、图算法（BFS/DFS）、排序算法，还是动态规划？",
     "extracted_fields": {},
-    "missing_fields": ["current_courses", "completed_courses", "learning_difficulty", "programming_languages", "coding_blockers", "cognitive_style", "learning_goals", "resource_preference"]
+    "missing_fields": ["learning_difficulties", "current_difficulties", "programming_language", "learned_courses", "expression_preferences", "learning_goal", "error_prone_points"]
   },
   "resources": {
     "resource_cards": [
