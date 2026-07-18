@@ -14,6 +14,7 @@ from database import SessionLocal
 from models.resource import UserResourcePackage
 
 from services import profile_service
+from services.quality_gate import ensure_teaching_resource_quality
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,8 @@ TOPIC_TO_MODULE: dict[str, str] = {
     '最短路径': '图结构与图算法', '图遍历': '图结构与图算法', 'BFS': '图结构与图算法', 'DFS': '图结构与图算法', '图': '图结构与图算法',
     '二分查找': '排序与查找', '快速排序': '排序与查找', '归并排序': '排序与查找', '排序': '排序与查找', '查找': '排序与查找',
     '哈希': '散列表', '散列': '散列表',
-    '动态规划': '动态规划入门', 'DP': '动态规划入门',
+    '动态规划': '动态规划入门', 'DP': '动态规划入门', '背包': '动态规划入门',
+    'Dijkstra': '图结构与图算法', 'dijkstra': '图结构与图算法',
     '综合': '综合项目实践', '项目': '综合项目实践',
 }
 
@@ -1835,6 +1837,2041 @@ _MODULE_CONTENT: dict[str, dict] = {
 }
 
 
+def _build_text_diagram(topic: str, module: str) -> str | None:
+    """Generate ASCII text diagram based on topic and module.
+
+    Returns a multi-line string diagram or None if no matching diagram template.
+    """
+    t = topic.lower()
+
+    # ── 二叉树 / 树结构 ──
+    if any(kw in t for kw in ['二叉树', '前序', '中序', '后序', '树遍历', 'bst', '二叉搜索树']):
+        if '前序' in t or 'preorder' in t:
+            return (
+                '二叉树前序遍历（根→左→右）示意图：\n'
+                '\n'
+                '        1         访问顺序: ①→②→③→④→⑤→⑥\n'
+                '      /   \\       \n'
+                '     2     3      前序结果: [1, 2, 4, 5, 3, 6]\n'
+                '    / \\     \\     \n'
+                '   4   5     6    说明: 每访问一个节点，先记录根，\n'
+                '                    再递归访问左子树，最后右子树\n'
+                '\n'
+                '递归调用栈压栈过程：\n'
+                'preorder(1) → 输出1 → preorder(2) → 输出2 → preorder(4)\n'
+                '  → 输出4 → 返回 → preorder(5) → 输出5 → 返回 → 返回\n'
+                '  → preorder(3) → 输出3 → preorder(6) → 输出6 → 返回 → 返回'
+            )
+        if '中序' in t or 'inorder' in t:
+            return (
+                '二叉树中序遍历（左→根→右）示意图：\n'
+                '\n'
+                '        1         访问顺序: ④→②→⑤→①→③→⑥\n'
+                '      /   \\       \n'
+                '     2     3      中序结果: [4, 2, 5, 1, 3, 6]\n'
+                '    / \\     \\     \n'
+                '   4   5     6    说明: 先递归访问左子树到底，\n'
+                '                    再访问根，最后递归右子树\n'
+                '\n'
+                '注意：对 BST 进行中序遍历，得到的是升序序列！\n'
+                '这是二叉搜索树最重要的性质之一。'
+            )
+        if '后序' in t or 'postorder' in t:
+            return (
+                '二叉树后序遍历（左→右→根）示意图：\n'
+                '\n'
+                '        1         访问顺序: ④→⑤→②→⑥→③→①\n'
+                '      /   \\       \n'
+                '     2     3      后序结果: [4, 5, 2, 6, 3, 1]\n'
+                '    / \\     \\     \n'
+                '   4   5     6    说明: 先递归访问左右子树，\n'
+                '                    最后才访问根节点\n'
+                '\n'
+                '后序遍历常用于：删除树（先删子节点再删根）、\n'
+                '计算目录大小（先算子目录再算父目录）等场景。'
+            )
+        # generic tree diagram
+        return (
+            '二叉树结构示意图：\n'
+            '\n'
+            '         A (根节点)\n'
+            '        / \\\n'
+            '       B   C\n'
+            '      / \\   \\\n'
+            '     D   E   F\n'
+            '    /       / \\\n'
+            '   G       H   I\n'
+            '\n'
+            '关键术语：\n'
+            '  - 根节点(root)：A，没有父节点的节点\n'
+            '  - 叶子节点(leaf)：G、E、H、I，没有子节点的节点\n'
+            '  - 内部节点：B、C、D、F，至少有一个子节点\n'
+            '  - 深度：A=0, B=C=1, D=E=F=2, G=H=I=3\n'
+            '  - 高度：从该节点到最深叶子的边数，A 的高度=3\n'
+            '  - 节点的度：A=2, B=2, C=1, F=2, D=1\n'
+            '\n'
+            '遍历顺序对比（以上图为例）：\n'
+            '  前序(根左右): A B D G E C F H I\n'
+            '  中序(左根右): G D B E A C H F I\n'
+            '  后序(左右根): G D E B H I F C A\n'
+            '  层序(BFS):    A B C D E F G H I'
+        )
+
+    # ── 递归 / 调用栈 ──
+    if any(kw in t for kw in ['递归', '调用栈', '栈帧', 'factorial']):
+        return (
+            '递归调用栈帧变化图（以 factorial(3) 为例）：\n'
+            '\n'
+            '┌─────────────────────────────────────────┐\n'
+            '│  调用阶段（压栈 / Push）                  │\n'
+            '├─────────────────────────────────────────┤\n'
+            '│  fact(3)                                │ ← 栈顶\n'
+            '│    n=3, 调用 fact(2)                     │    深度=4\n'
+            '│  ─────────────────────                  │\n'
+            '│  fact(2)                                │\n'
+            '│    n=2, 调用 fact(1)                     │    深度=3\n'
+            '│  ─────────────────────                  │\n'
+            '│  fact(1)                                │\n'
+            '│    n=1, 调用 fact(0)                     │    深度=2\n'
+            '│  ─────────────────────                  │\n'
+            '│  fact(0)  ← 基准情形！                   │ ← 栈底\n'
+            '│    n=0, return 1                         │    深度=1\n'
+            '└─────────────────────────────────────────┘\n'
+            '\n'
+            '┌─────────────────────────────────────────┐\n'
+            '│  返回阶段（弹栈 / Pop）                   │\n'
+            '├─────────────────────────────────────────┤\n'
+            '│  fact(0) return 1           → 弹出      │\n'
+            '│  fact(1) return 1×1 = 1     → 弹出      │\n'
+            '│  fact(2) return 2×1 = 2     → 弹出      │\n'
+            '│  fact(3) return 3×2 = 6     → 弹出      │\n'
+            '└─────────────────────────────────────────┘\n'
+            '\n'
+            '每个栈帧存储：参数值、局部变量、返回地址\n'
+            'Python 默认递归深度限制 ≈ 1000，超限抛出 RecursionError'
+        )
+
+    # ── BFS / DFS 图遍历 ──
+    if any(kw in t for kw in ['bfs', 'dfs', '图遍历', '图', '广度', '深度']):
+        return (
+            '图遍历过程图（以示例图为例）：\n'
+            '\n'
+            '     A ── B         邻接表表示：\n'
+            '    /|     |         A: [B, C, D]\n'
+            '   C |     |         B: [A, E]\n'
+            '    \\ |     |         C: [A, D]\n'
+            '     D ── E          D: [A, C, E]\n'
+            '                     E: [B, D]\n'
+            '\n'
+            'BFS 遍历（从 A 出发，使用队列）：\n'
+            '┌──────┬──────────┬─────────────────┐\n'
+            '│ 步骤 │  出队节点 │  队列状态        │\n'
+            '├──────┼──────────┼─────────────────┤\n'
+            '│  1   │    -     │  [A]            │\n'
+            '│  2   │    A     │  [B, C, D]      │\n'
+            '│  3   │    B     │  [C, D, E]      │\n'
+            '│  4   │    C     │  [D, E]         │\n'
+            '│  5   │    D     │  [E]            │\n'
+            '│  6   │    E     │  []             │\n'
+            '└──────┴──────────┴─────────────────┘\n'
+            'BFS 访问顺序: A → B → C → D → E\n'
+            '\n'
+            'DFS 遍历（从 A 出发，使用递归/栈）：\n'
+            'DFS 访问顺序: A → B → E → D → C\n'
+            '\n'
+            '关键对比：\n'
+            '  BFS 用队列 → 逐层扩展 → 天然适合最短路径\n'
+            '  DFS 用栈   → 深入探索 → 适合连通分量、拓扑排序\n'
+            '  visited 标记时机：BFS 入队时标记，DFS 进入时标记'
+        )
+
+    # ── 排序 ──
+    if any(kw in t for kw in ['排序', '快速排序', '归并排序', 'partition', '冒泡', 'sort']):
+        if '快速' in t or 'quick' in t:
+            return (
+                '快速排序 partition 过程图解（pivot=最右元素 4）：\n'
+                '\n'
+                '初始: [3a, 7, 2, 5, 3b, 1, 4]  pivot=4\n'
+                '       ↑                    ↑\n'
+                '       i                    j(pivot)\n'
+                '\n'
+                'partition 过程（i 指向"小元素区"末尾，j 扫描）：\n'
+                '  j=0: 3a<4 → swap(0,0) → [3a,7,2,5,3b,1,4]  i=1\n'
+                '  j=1: 7>4  → 不动                    i=1\n'
+                '  j=2: 2<4  → swap(1,2) → [3a,2,7,5,3b,1,4]  i=2\n'
+                '  j=3: 5>4  → 不动                    i=2\n'
+                '  j=4: 3b<4 → swap(2,4) → [3a,2,3b,5,7,1,4]  i=3\n'
+                '  j=5: 1<4  → swap(3,5) → [3a,2,3b,1,7,5,4]  i=4\n'
+                '\n'
+                '最终: swap(i,pivot) → [3a,2,3b,1,4,5,7]\n'
+                '                pivot 归位到 index=4\n'
+                '\n'
+                '注意：3a 和 3b 的相对顺序被改变了！\n'
+                '3a 原本在 3b 前面，partition 后 3a 跑到了 3b 前面？\n'
+                '实际上多次 swap 可能破坏稳定性 → 快排是不稳定排序'
+            )
+        return (
+            '排序算法对比表：\n'
+            '\n'
+            '┌──────────┬──────────┬──────────┬──────────┬──────────┐\n'
+            '│  算法     │ 最好     │ 最差     │ 平均     │ 稳定性   │\n'
+            '├──────────┼──────────┼──────────┼──────────┼──────────┤\n'
+            '│ 冒泡排序  │ O(n)    │ O(n²)   │ O(n²)   │ 稳定 ✓  │\n'
+            '│ 快速排序  │ O(nlogn)│ O(n²)   │ O(nlogn)│ 不稳定   │\n'
+            '│ 归并排序  │ O(nlogn)│ O(nlogn)│ O(nlogn)│ 稳定 ✓  │\n'
+            '│ 堆排序   │ O(nlogn)│ O(nlogn)│ O(nlogn)│ 不稳定   │\n'
+            '└──────────┴──────────┴──────────┴──────────┴──────────┘\n'
+            '\n'
+            '空间复杂度：冒泡 O(1)、快排 O(logn)、归并 O(n)、堆排 O(1)\n'
+            '快排退化场景：已排序数组 + 固定选首/尾 pivot → O(n²)'
+        )
+
+    # ── DP 动态规划 ──
+    if any(kw in t for kw in ['动态规划', 'dp', '背包', '斐波那契']):
+        return (
+            'DP 状态转移推导过程（以 0/1 背包为例）：\n'
+            '\n'
+            '物品: wt=[2,3,4], val=[3,4,5], W=6\n'
+            '\n'
+            'dp[i][w] 含义：前 i 件物品在容量 w 下的最大价值\n'
+            '\n'
+            'dp 表格推导：\n'
+            '┌───┬───┬───┬───┬───┬───┬───┬───┐\n'
+            '│i\\w│ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │\n'
+            '├───┼───┼───┼───┼───┼───┼───┼───┤\n'
+            '│ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │ ← 0 件物品\n'
+            '│ 1 │ 0 │ 0 │ 3 │ 3 │ 3 │ 3 │ 3 │ ← 物品1(wt=2,v=3)\n'
+            '│ 2 │ 0 │ 0 │ 3 │ 4 │ 4 │ 7 │ 7 │ ← 物品2(wt=3,v=4)\n'
+            '│ 3 │ 0 │ 0 │ 3 │ 4 │ 5 │ 7 │ 9 │ ← 物品3(wt=4,v=5)\n'
+            '└───┴───┴───┴───┴───┴───┴───┴───┘\n'
+            '\n'
+            '状态转移方程：\n'
+            '  不选 i: dp[i][w] = dp[i-1][w]\n'
+            '  选 i:   dp[i][w] = dp[i-1][w-wt[i]] + val[i]\n'
+            '  dp[i][w] = max(不选, 选)  当 w >= wt[i]\n'
+            '\n'
+            '一维优化（倒序遍历 w 从 W→0）：\n'
+            '  dp[w] = max(dp[w], dp[w-wt[i]] + val[i])\n'
+            '  正序遍历 = 完全背包（物品无限），倒序遍历 = 0/1 背包'
+        )
+
+    # ── 栈与队列 ──
+    if any(kw in t for kw in ['栈', '队列', 'stack', 'queue']):
+        return (
+            '栈与队列操作对比图：\n'
+            '\n'
+            '栈（Stack）— LIFO 后进先出：\n'
+            '  push(1)  push(2)  push(3)  pop()→3  pop()→2\n'
+            '  ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐\n'
+            '  │   │    │   │    │ 3 │←顶  │   │    │   │\n'
+            '  │   │    │ 2 │    │ 2 │    │ 2 │    │   │\n'
+            '  │ 1 │底  │ 1 │    │ 1 │    │ 1 │    │ 1 │\n'
+            '  └───┘    └───┘    └───┘    └───┘    └───┘\n'
+            '\n'
+            '队列（Queue）— FIFO 先进先出：\n'
+            '  enq(1)  enq(2)  enq(3)  deq()→1  deq()→2\n'
+            '  ┌───┬───┬───┐    ┌───┬───┬───┐    ┌───┬───┬───┐\n'
+            '  │ 1 │ 2 │ 3 │    │ 2 │ 3 │   │    │ 3 │   │   │\n'
+            '  └───┴───┴───┘    └───┴───┴───┘    └───┴───┴───┘\n'
+            '  头 → → → 尾       头 → → 尾         头尾\n'
+            '\n'
+            '用两个栈实现队列：\n'
+            '  栈A(入队): push → A.push(x)\n'
+            '  栈B(出队): pop  → if B空: 将A全部弹出压入B; B.pop()\n'
+            '  均摊时间复杂度 O(1)'
+        )
+
+    # ── 哈希 / 散列 ──
+    if any(kw in t for kw in ['哈希', '散列', 'hash', '散列表']):
+        return (
+            '散列表冲突解决示意图（容量=7）：\n'
+            '\n'
+            '链地址法（Chaining）：\n'
+            '  bucket[0]: → (key=7,val=A) → (key=14,val=B)\n'
+            '  bucket[1]: → (key=1,val=C)\n'
+            '  bucket[2]: → (key=9,val=D)\n'
+            '  bucket[3]: → 空\n'
+            '  ...\n'
+            '  hash(key) = key % 7\n'
+            '  7%7=0, 14%7=0 → 都映射到 bucket[0]，形成链表\n'
+            '  负载因子 λ = 4/7 ≈ 0.57（良好）\n'
+            '\n'
+            '开放寻址法（线性探测）：\n'
+            '  bucket[0]: key=7\n'
+            '  bucket[1]: key=14 ← 本来想放 bucket[0] 但被占了\n'
+            '  bucket[2]: key=9\n'
+            '  探测序列: h(k), h(k)+1, h(k)+2, ...\n'
+            '  删除需用"墓碑"标记（否则查找链断裂）'
+        )
+
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Deterministic exercise-answer pairs — every Q&A shares the same input data
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def build_layered_exercise_pairs(topic: str, normalized_module: str = '', language: str = 'C++', resource_type: str = '分层练习') -> list[dict]:
+    """Build fully deterministic practice-answer pairs from shared exercise data.
+
+    Returns list of dicts with rich fields:
+        level: str          — '基础', '进阶', '综合'
+        title: str          — e.g. '基础题 1：二叉树前序遍历'
+        question: str       — practice content with specific input data
+        final_answer: str   — exact, verifiable final answer
+        steps: list[str]    — step-by-step solution
+        explanation: str    — detailed analysis of the approach
+        pitfall: str        — common mistakes to avoid
+
+    The question and final_answer come from the SAME deterministic dataset.
+    Each answer has the mandatory 4 sections: 最终答案, 解题步骤, 解析, 易错提醒.
+    """
+    cat = _detect_topic_category(topic)
+
+    if resource_type == '分层练习':
+        raw_pairs = _build_tiered_exercise_pairs(topic, cat, language)
+    else:
+        raw_pairs = _build_generic_exercise_pairs(topic, cat, language)
+
+    # Enrich each pair by parsing the answer into structured components
+    enriched = []
+    level_labels = {'基础': '基础题', '进阶': '进阶题', '综合': '综合题', '练习': '练习题'}
+    for i, p in enumerate(raw_pairs):
+        level_cn = level_labels.get(p['level'], p['level'])
+        parsed = _parse_answer_sections(p['answer'])
+        enriched.append({
+            'level': p['level'],
+            'title': f'{level_cn} {i+1}：{topic}',
+            'question': p['question'],
+            'final_answer': parsed['final_answer'],
+            'steps': parsed['steps'],
+            'explanation': parsed['explanation'],
+            'pitfall': parsed['pitfall'],
+            # Keep raw answer for backward compatibility
+            'answer': p['answer'],
+        })
+    return enriched
+
+
+def build_exercise_answer_pairs(topic: str, resource_type: str, language: str = 'C++') -> list[dict]:
+    """Backward-compatible wrapper. Returns pairs in the original flat format."""
+    enriched = build_layered_exercise_pairs(topic, '', language, resource_type)
+    return [{
+        'level': p['level'],
+        'question': p['question'],
+        'answer': p['answer'],
+        'explanation': p['explanation'],
+        'pitfall': p['pitfall'],
+    } for p in enriched]
+
+
+def _parse_answer_sections(answer_text: str) -> dict:
+    """Parse a 4-section answer string into structured components."""
+    result = {'final_answer': '', 'steps': [], 'explanation': '', 'pitfall': ''}
+
+    if not answer_text:
+        return result
+
+    import re
+    text = answer_text
+
+    # Extract 最终答案
+    m_fa = re.search(r'最终答案[：:]\s*(.+?)(?=\n\s*解题步骤|\n\s*解析|\n\s*易错提醒|\Z)', text, re.DOTALL)
+    if m_fa:
+        result['final_answer'] = m_fa.group(1).strip()
+
+    # Extract 解题步骤
+    m_steps = re.search(r'解题步骤[：:]\s*(.+?)(?=\n\s*解析[：:]|\n\s*易错提醒|\Z)', text, re.DOTALL)
+    if m_steps:
+        steps_text = m_steps.group(1).strip()
+        # Split into numbered steps
+        raw_steps = re.split(r'\n(?=\d+\.\s)', steps_text)
+        if len(raw_steps) == 1:
+            raw_steps = [s.strip() for s in steps_text.split('\n') if s.strip()]
+        result['steps'] = [s.strip() for s in raw_steps if s.strip()]
+
+    # Extract 解析
+    m_exp = re.search(r'解析[：:]\s*(.+?)(?=\n\s*易错提醒|\Z)', text, re.DOTALL)
+    if m_exp:
+        result['explanation'] = m_exp.group(1).strip()
+
+    # Extract 易错提醒
+    m_pit = re.search(r'易错提醒[：:]\s*(.+?)$', text, re.DOTALL)
+    if m_pit:
+        result['pitfall'] = m_pit.group(1).strip()
+
+    return result
+
+
+def _build_tiered_exercise_pairs(topic: str, cat: str, language: str) -> list[dict]:
+    """Build exactly 5 deterministic, data-matched Q&A pairs for 分层练习.
+
+    Each pair uses the SAME input data — the question embeds specific numbers/structures,
+    and the answer directly references those exact same numbers/structures.
+    """
+    if cat in ('tree', 'binary_search', 'recursion'):
+        return _PAIRED_TREES(topic, language)
+    if cat == 'graph':
+        return _PAIRED_GRAPHS(topic, language)
+    if cat == 'sort':
+        return _PAIRED_SORT(topic, language)
+    if cat in ('dp', ):
+        return _PAIRED_DP(topic, language)
+    if cat in ('dijkstra', 'shortest_path'):
+        return _PAIRED_DIJKSTRA(topic, language)
+    if cat in ('stack', 'queue', 'stack_queue'):
+        return _PAIRED_STACK_QUEUE(topic, language)
+    if cat == 'hash':
+        return _PAIRED_HASH(topic, language)
+    if cat == 'linear' or cat == 'linked_list':
+        return _PAIRED_LINEAR(topic, language)
+    # Fallback — generic but still matched
+    return _PAIRED_TREES(topic, language)
+
+
+def _build_generic_exercise_pairs(topic: str, cat: str, language: str) -> list[dict]:
+    """Build 1-2 matched Q&A pairs for non-分层练习 types."""
+    if cat in ('tree', 'binary_search', 'recursion'):
+        return [_make_pair(
+            level='练习',
+            question=f'给定二叉树：根A，左子B、右子C，B的左子D、右子E。请写出前序遍历的结果。',
+            answer=(
+                f'最终答案：A → B → D → E → C\n\n'
+                f'解题步骤：\n'
+                f'1. 访问根节点A。\n'
+                f'2. 递归遍历左子树：B→D→E。\n'
+                f'3. 递归遍历右子树：C。\n\n'
+                f'解析：前序遍历（根→左→右）先访问根，再依次递归处理左右子树。\n\n'
+                f'易错提醒：前序先访问根，中序在中间访问根——不要混淆。'
+            )
+        )]
+    if cat == 'graph':
+        return [_make_pair(
+            level='练习',
+            question=f'给定图的邻接关系：A - B,C ; B - D,E ; C - F。从A出发写出BFS和DFS访问顺序。',
+            answer=(
+                f'最终答案：\n'
+                f'BFS：A → B → C → D → E → F\n'
+                f'DFS：A → B → D → E → C → F\n\n'
+                f'解题步骤：\n'
+                f'1. BFS用队列：A入队→出A入BC→出B入DE→出C入F→依次出DEF。\n'
+                f'2. DFS用栈：A入栈→出A入CB→出B入ED→出D→出E→出C入F→出F。\n\n'
+                f'解析：BFS按层访问，DFS沿一条路径深入到底再回溯。\n\n'
+                f'易错提醒：BFS必须用队列不能用栈；DFS入栈顺序是"先右后左"。'
+            )
+        )]
+    if cat in ('dijkstra', 'shortest_path'):
+        return [_make_pair(
+            level='练习',
+            question=f'给定带权图：A--2--B--1--D | A--4--C | B--3--E | C--2--E。从A出发执行Dijkstra算法，求A到每个节点的最短距离。',
+            answer=(
+                f'最终答案：\n'
+                f'A→A=0  A→B=2  A→C=4  A→D=3(A→B→D)  A→E=5(A→B→E)\n\n'
+                f'解题步骤：\n'
+                f'1. 初始化dist[A]=0，其余=∞。\n'
+                f'2. 选A：松弛B=2、C=4。dist=[A:0,B:2,C:4,D:∞,E:∞]。\n'
+                f'3. 选B：松弛D=2+1=3、E=2+3=5。dist=[A:0,B:2,C:4,D:3,E:5]。\n'
+                f'4. 依次选D、C、E，均无更新。\n\n'
+                f'解析：Dijkstra贪心选择当前距离最小的未访问节点，通过松弛操作逐步逼近所有节点的最短距离。\n\n'
+                f'易错提醒：不能处理负权边；松弛时比较 dist[v]+w 与 dist[u]。'
+            )
+        )]
+    if cat == 'stack_queue':
+        return [_make_pair(
+            level='练习',
+            question=f'空栈依次执行 push(1), push(2), pop(), push(3), pop()。写出pop输出序列。',
+            answer=(
+                f'最终答案：pop输出序列 = 2, 3；栈内剩余 = [1]\n\n'
+                f'解题步骤：\n'
+                f'push(1)→栈[1]；push(2)→栈[1,2]；pop→弹出2；push(3)→栈[1,3]；pop→弹出3。\n\n'
+                f'解析：栈是LIFO（后进先出），2比1后进所以先出，3比1后进所以也先出。\n\n'
+                f'易错提醒：pop输出是2,3不是3,2——第一次pop时栈顶是2。'
+            )
+        )]
+    return [_make_pair(
+        level='练习',
+        question=f'请结合具体示例说明"{topic}"的核心原理和典型应用场景。',
+        answer=(
+            f'最终答案：{topic}的核心原理已在上述内容中详细说明。\n\n'
+            f'解题步骤：1. 回顾{topic}的定义 2. 用简单数据手动模拟 3. 写出核心代码。\n\n'
+            f'解析：理解{topic}的关键是掌握其数据组织方式和操作规则。\n\n'
+            f'易错提醒：注意边界条件（空输入、单元素等特殊情况）。'
+        )
+    )]
+
+
+def _make_pair(level: str, question: str, answer: str,
+               final_answer: str = '', steps: list = None, explanation: str = '', pitfall: str = ''):
+    """Build an exercise pair dict with rich structured fields.
+
+    The answer string must contain ALL 4 sections: 最终答案, 解题步骤, 解析, 易错提醒.
+    The structured fields (final_answer, steps, explanation, pitfall) are used
+    directly by exercise_pairs_to_sections to build properly formatted answer content.
+    """
+    return {
+        'level': level,
+        'question': question,
+        'answer': answer,
+        'final_answer': final_answer,
+        'steps': steps or [],
+        'explanation': explanation,
+        'pitfall': pitfall,
+    }
+
+
+def validate_practice_answer_alignment(practice_content: str, answer_content: str) -> bool:
+    """Check that the answer directly addresses the practice question's specific data.
+
+    Returns True if the answer references the same concrete inputs as the question.
+    Returns False if they clearly mismatch (different trees/different arrays/etc.).
+    """
+    if not practice_content or not answer_content:
+        return False
+
+    pc = str(practice_content)
+    ac = str(answer_content)
+
+    # ── Rule 1: If practice has specific node labels A/B/C/D/E, answer must reuse them ──
+    node_pattern = r'[A-E](?:[,\s]|$)'
+    import re
+    practice_nodes = set(re.findall(r'\b([A-E])\b', pc))
+    if len(practice_nodes) >= 3:
+        answer_nodes = set(re.findall(r'\b([A-E])\b', ac))
+        common = practice_nodes & answer_nodes
+        if len(common) < min(3, len(practice_nodes)):
+            return False  # Different sets of nodes
+
+    # ── Rule 2: If practice has array numbers, answer should reference the same ones ──
+    practice_numbers = set(re.findall(r'\b(\d+)\b', pc))
+    if len(practice_numbers) >= 4:
+        answer_numbers = set(re.findall(r'\b(\d+)\b', ac))
+        common_nums = practice_numbers & answer_numbers
+        if len(common_nums) < 2:
+            return False  # Completely different numbers
+
+    # ── Rule 3/4: Key parameter matching ──
+    # If W=5 or capacity=5 in practice, answer should mention the same
+    # Use uppercase W only to avoid matching DP table column headers like "w=0"
+    p_capacity = re.findall(r'[Ww]\s*=\s*(\d+)', pc)
+    a_capacity = re.findall(r'W\s*=\s*(\d+)', ac)  # uppercase W only (capacity constant)
+    if p_capacity and a_capacity:
+        if p_capacity[0] != a_capacity[0]:
+            return False  # Different capacities
+    # Also check dp table references for capacity mismatches
+    if p_capacity:
+        p_w = int(p_capacity[0])
+        a_dp_caps = set(int(x) for x in re.findall(r'dp\[\d+\]\s*\[\s*(\d+)\s*\]', ac))
+        if a_dp_caps:
+            a_max_cap = max(a_dp_caps)
+            if a_max_cap > 0 and a_max_cap != p_w:
+                return False  # Answer dp table uses different capacity than question
+
+    # ── Rule 5: Cross-domain mismatch ──
+    # If question is about graph BFS/DFS, answer shouldn't talk about tree traversal
+    graph_terms = {'bfs', 'dfs', '邻接', '图', 'graph'}
+    tree_terms = ['前序', '中序', '后序', 'preorder', 'inorder', 'postorder']
+    pc_lower = pc.lower()
+    if any(t in pc_lower for t in graph_terms):
+        if any(t in ac for t in tree_terms):
+            # Answer using tree traversal for a graph question → mismatch
+            # But only flag if answer lacks equivalent graph terms
+            if not any(t in ac.lower() for t in graph_terms):
+                return False
+
+    # ── Rule 6: Traversal type consistency ──
+    # If practice asks for 前序, answer must deliver 前序 (not 中序 exclusively)
+    if '前序' in pc and '中序' in ac and '前序' not in ac:
+        return False
+    if '中序' in pc and '前序' not in pc:
+        if '前序' in ac and '中序' not in ac:
+            return False  # Practice asks 中序 but answer only gives 前序
+
+    # ── Rule 7: BFS+DFS both required if both asked ──
+    if ('bfs' in pc.lower() and 'dfs' in pc.lower()):
+        if 'bfs' not in ac.lower() or 'dfs' not in ac.lower():
+            return False  # Practice asks both BFS and DFS, answer missing one
+
+    return True
+
+
+def validate_layered_practice_sections(sections: list[dict], topic: str = '') -> dict:
+    """Comprehensive validation of practice-answer sections with topic relevance.
+
+    Returns dict with keys: 'valid' (bool), 'errors' (list[str]), 'warnings' (list[str]).
+    Performs 12 validation checks including:
+      - Practice-answer interleaving (checks 1-2)
+      - 4-section answer structure (checks 3-6)
+      - Practice-answer count parity (check 7)
+      - Minimum practice count (check 8)
+      - Content data alignment (checks 9-10)
+      - Topic relevance verification (checks 11-12)
+    """
+    import re as _re
+    errors = []
+    warnings = []
+
+    practices = []
+    answers = []
+
+    for i, s in enumerate(sections):
+        kind = s.get('kind', '')
+        if kind in ('practice', 'task'):
+            practices.append(i)
+            # Check 1: each practice must have an answer immediately after
+            if i + 1 >= len(sections) or sections[i + 1].get('kind') != 'answer':
+                heading = s.get('heading', f'index {i}')
+                errors.append(f'Practice "{heading}" (idx {i}) has no answer section immediately after it')
+        elif kind == 'answer':
+            answers.append(i)
+            content = s.get('content', '') or ''
+            heading = s.get('heading', f'index {i}')
+
+            # Check 2: Strict practice→answer interleaving
+            if i - 1 < 0 or sections[i - 1].get('kind') not in ('practice', 'task'):
+                errors.append(f'Answer "{heading}" (idx {i}) not immediately preceded by a practice section')
+
+            # Check 3: Must contain 最终答案
+            if '最终答案' not in content:
+                errors.append(f'Answer "{heading}" (idx {i}) missing "最终答案" section')
+
+            # Check 4: Must contain 解题步骤
+            if '解题步骤' not in content:
+                errors.append(f'Answer "{heading}" (idx {i}) missing "解题步骤" section')
+
+            # Check 5: Must contain 解析
+            if '解析' not in content:
+                errors.append(f'Answer "{heading}" (idx {i}) missing "解析" section')
+
+            # Check 6: Must contain 易错提醒
+            if '易错提醒' not in content:
+                errors.append(f'Answer "{heading}" (idx {i}) missing "易错提醒" section')
+
+    # Check 7: practice count == answer count
+    if len(practices) != len(answers):
+        errors.append(f'Practice count ({len(practices)}) != answer count ({len(answers)})')
+
+    # Check 8: For 分层练习: exactly 5 practices
+    is_tiered = any('分层练习' in (s.get('heading', '') + s.get('content', '')) for s in sections)
+    if is_tiered and len(practices) != 5:
+        errors.append(f'分层练习 requires exactly 5 practices, got {len(practices)}')
+
+    # Check 9: Content data alignment for each practice-answer pair
+    for pi in practices:
+        if pi + 1 in answers:
+            pq = sections[pi].get('content', '') or ''
+            aq = sections[pi + 1].get('content', '') or ''
+            ph = sections[pi].get('heading', f'idx {pi}')
+
+            # Node label consistency (A/B/C/D/E)
+            p_nodes = set(_re.findall(r'\b([A-E])\b', pq))
+            a_nodes = set(_re.findall(r'\b([A-E])\b', aq))
+            if len(p_nodes) >= 3 and a_nodes:
+                common = p_nodes & a_nodes
+                if len(common) < min(3, len(p_nodes)):
+                    errors.append(f'Node mismatch in "{ph}": Q has {p_nodes}, A has {a_nodes}, common={common}')
+
+            # Array data consistency
+            p_arr = _re.findall(r'\[([\d,\s]+)\]', pq)
+            if p_arr:
+                p_nums = set(_re.findall(r'\d+', p_arr[0]))
+                sorted_nums = sorted(int(x) for x in p_nums)
+                sorted_str_spaced = ', '.join(str(x) for x in sorted_nums)
+                sorted_str_unspaced = ','.join(str(x) for x in sorted_nums)
+                if '排序' in pq and sorted_str_spaced not in aq and sorted_str_unspaced not in aq:
+                    errors.append(f'Sort result missing in answer for "{ph}": expected sorted result containing {sorted_str_spaced}')
+
+    # Check 10: Domain-specific parameter consistency
+    for pi in practices:
+        if pi + 1 in answers:
+            pq = sections[pi].get('content', '') or ''
+            aq = sections[pi + 1].get('content', '') or ''
+            ph = sections[pi].get('heading', f'idx {pi}')
+
+            # Hash function consistency — also accept %7, bucket refs, key values
+            if '%5' in pq or '% 5' in pq:
+                if '%5' not in aq and '% 5' not in aq and 'h(' not in aq and 'mod' not in aq.lower() and '%7' not in aq:
+                    errors.append(f'Hash mod 5 missing in answer for "{ph}"')
+
+            # Capacity consistency (W=5 / knapsack)
+            p_cap = _re.findall(r'[Ww]\s*=\s*(\d+)', pq)
+            if p_cap:
+                w_val = p_cap[0]
+                if w_val not in _re.findall(r'\b(\d+)\b', aq):
+                    warnings.append(f'Capacity W={w_val} not found in answer for "{ph}"')
+
+            # Dijkstra check
+            if any(kw in pq for kw in ['Dijkstra', 'dijkstra', '最短路径']):
+                has_ab = ('A→B' in aq or 'A → B' in aq or 'A→B→' in aq or 'A→B=' in aq
+                          or 'A → B →' in aq or 'B:2' in aq or 'B=2' in aq)
+                if not has_ab:
+                    warnings.append(f'Dijkstra: no explicit A→B path in answer for "{ph}"')
+
+    # Check 11: Topic relevance — verify exercises match the declared topic
+    if topic:
+        cat = _detect_topic_category(topic)
+        topic_terms = {
+            'tree': ['前序', '中序', '后序', '二叉树', '树', '遍历'],
+            'graph': ['BFS', 'DFS', '广度', '深度', '邻接', '图'],
+            'sort': ['排序', 'partition', 'pivot', '快速排序', '有序', '归并'],
+            'stack_queue': ['栈', '队列', 'push', 'pop', 'enqueue', 'dequeue', 'LIFO', 'FIFO'],
+            'dp': ['背包', 'dp', '动态规划', '状态转移', 'W=', '容量'],
+            'hash': ['哈希', 'hash', '散列', 'h(k)', '冲突', '桶'],
+            'dijkstra': ['Dijkstra', 'dijkstra', '最短路径', '最短距离', '松弛', 'dist'],
+            'linear': ['链表', '数组', '线性', '指针', '索引'],
+        }
+        expected_terms = topic_terms.get(cat, [topic])
+
+        all_practice_text = ' '.join(sections[pi].get('content', '') for pi in practices)
+        matched = [t for t in expected_terms if t.lower() in all_practice_text.lower()]
+        if expected_terms and not matched:
+            errors.append(
+                f'Topic relevance FAIL: topic="{topic}" (cat={cat}) but no expected terms '
+                f'{expected_terms[:3]} found in any practice section'
+            )
+
+    # Check 12: Cross-contamination — forbid topic-specific terms from wrong categories
+    if topic:
+        cat = _detect_topic_category(topic)
+        forbidden_by_cat = {
+            'tree': ['图的', 'graph', '邻接表', '排序', 'partition', '背包', '哈希', 'Dijkstra'],
+            'graph': ['前序遍历', '中序遍历', '后序遍历', 'partition', 'pivot', '背包', '哈希表', 'Dijkstra'],
+            'sort': ['前序遍历', '中序遍历', '后序遍历', 'BFS', 'DFS', '邻接', '背包', 'Dijkstra'],
+            'stack_queue': ['前序遍历', 'BFS', 'DFS', 'partition', '背包', '哈希', 'Dijkstra'],
+            'dp': ['前序遍历', 'BFS', 'DFS', '栈', '哈希', 'Dijkstra'],
+            'hash': ['前序遍历', 'BFS', 'DFS', 'partition', '背包', 'Dijkstra', '最短路径'],
+            'dijkstra': ['前序遍历', '中序遍历', '后序遍历', 'partition', 'pivot', '背包', '哈希表'],
+            'linear': ['前序遍历', 'BFS', 'DFS', 'partition', '背包', 'Dijkstra', '哈希'],
+        }
+        forbidden = forbidden_by_cat.get(cat, [])
+        all_answer_text = ' '.join(sections[ai].get('content', '') for ai in answers)
+        violations = [f for f in forbidden if f.lower() in all_answer_text.lower()]
+        if violations:
+            errors.append(
+                f'Cross-contamination: topic="{topic}" (cat={cat}) but answer contains '
+                f'forbidden terms: {violations[:3]}'
+            )
+
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors,
+        'warnings': warnings,
+    }
+
+
+def exercise_pairs_to_sections(pairs: list[dict]) -> list[dict]:
+    """Convert exercise pairs to the standard section format.
+
+    Each pair produces exactly 2 sections: practice + answer, in order.
+    Uses the rich pair format (final_answer, steps, explanation, pitfall)
+    to build the answer content, with fallback to flat 'answer' field.
+    """
+    sections = []
+    for i, p in enumerate(pairs):
+        level = p.get('level', '练习')
+        label = f'{level}第{i+1}题' if len(pairs) > 1 else level
+
+        sections.append({
+            'kind': 'practice',
+            'heading': label,
+            'content': p.get('question', ''),
+        })
+
+        # Build answer from rich fields, or use flat answer as fallback
+        if 'final_answer' in p:
+            answer_text = f"最终答案：{p['final_answer']}\n\n"
+            if p.get('steps'):
+                answer_text += f"解题步骤：\n"
+                for j, step in enumerate(p['steps'], 1):
+                    answer_text += f"{j}. {step}\n"
+                answer_text += "\n"
+            if p.get('explanation'):
+                answer_text += f"解析：{p['explanation']}\n\n"
+            if p.get('pitfall'):
+                answer_text += f"易错提醒：{p['pitfall']}"
+        else:
+            answer_text = p.get('answer', '')
+
+        sections.append({
+            'kind': 'answer',
+            'heading': f'{label} — 参考答案与解析',
+            'content': answer_text,
+        })
+    return sections
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  PAIRED TEMPLATES — all use exact, user-specified deterministic data
+# ══════════════════════════════════════════════════════════════════════════
+
+def _PAIRED_TREES(topic: str, language: str) -> list[dict]:
+    """5 exercises on the fixed binary tree:
+           A
+         /   \\
+        B     C
+       / \\
+      D   E
+    """
+    tree_desc = '      A\n     / \\\n    B   C\n   / \\\n  D   E'
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定如下二叉树：\n{tree_desc}\n\n'
+                f'请写出该二叉树的前序遍历序列（根→左→右）。'
+            ),
+            final_answer='A → B → D → E → C',
+            steps=[
+                '访问根节点A',
+                '递归遍历左子树（根B）：访问B',
+                '递归遍历B的左子树：访问D',
+                '递归遍历B的右子树：访问E',
+                '递归遍历右子树（根C）：访问C',
+            ],
+            explanation='前序遍历规则是"根→左→右"，即先访问根节点，然后递归地前序遍历左子树，最后递归地前序遍历右子树。对二叉搜索树而言，前序遍历序列可用于重建原树结构。',
+            pitfall='容易和中序遍历混淆——中序是"左→根→右"，前序是"根→左→右"。记住前序的第一个元素一定是整棵树的根节点。',
+            answer=(
+                f'最终答案：A → B → D → E → C\n\n'
+                f'解题步骤：\n'
+                f'1. 访问根节点A。\n'
+                f'2. 递归遍历左子树（根B）：访问B → 进入B的左子树访问D → 进入B的右子树访问E。\n'
+                f'3. 递归遍历右子树（根C）：访问C。\n'
+                f'4. 合并：A → B → D → E → C。\n\n'
+                f'解析：前序遍历规则是"根→左→右"。先访问根，再递归处理左右子树。对二叉搜索树，前序遍历序列可重建原树。\n\n'
+                f'易错提醒：前序第一个是根（A），中序根在中间——本题的中序遍历结果是 D→B→E→A→C，两者对比可加深理解。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定如下二叉树：\n{tree_desc}\n\n'
+                f'请写出该二叉树的中序遍历序列（左→根→右）。'
+            ),
+            final_answer='D → B → E → A → C',
+            steps=[
+                '递归遍历左子树（根B）：进入B的左子树访问D',
+                '访问根节点B',
+                '递归遍历B的右子树：访问E',
+                '访问根节点A',
+                '递归遍历右子树（根C）：访问C',
+            ],
+            explanation='中序遍历规则是"左→根→右"。对二叉搜索树（BST），中序遍历得到的是升序序列，这是BST最重要的性质之一。',
+            pitfall='BST的中序一定有序，但普通二叉树的中序不一定有序。本题的树不是BST，所以中序结果D→B→E→A→C不是有序的。',
+            answer=(
+                f'最终答案：D → B → E → A → C\n\n'
+                f'解题步骤：\n'
+                f'1. 递归遍历左子树（根B）：先进入B的左子树访问D，再访问根B，最后进入B的右子树访问E → 得到 D→B→E。\n'
+                f'2. 访问根节点A。\n'
+                f'3. 递归遍历右子树（根C）：访问C。\n'
+                f'4. 合并：D → B → E → A → C。\n\n'
+                f'解析：中序遍历规则是"左→根→右"。对BST，中序得到升序序列。本题的树不是BST，所以中序结果不是有序的。\n\n'
+                f'易错提醒：前序第一个是根A，中序根A在中间（左边D-B-E是左子树，右边C是右子树）。后序最后一个才是根A。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'给定如下二叉树：\n{tree_desc}\n\n'
+                f'请写出该二叉树的后序遍历序列（左→右→根）。'
+            ),
+            final_answer='D → E → B → C → A',
+            steps=[
+                '递归遍历左子树（根B）：先左D、后右E、最后根B → D→E→B',
+                '递归遍历右子树（根C）：访问C',
+                '访问根节点A',
+            ],
+            explanation='后序遍历规则是"左→右→根"。根节点最后被访问，因此后序遍历适合用于删除整棵树（先删除所有子节点，最后删除根节点）。',
+            pitfall='后序遍历的逆序（A→C→B→E→D）不等于前序遍历（A→B→D→E→C）。三种遍历各有用途：前序适合复制树，中序适合BST排序，后序适合删除树。',
+            answer=(
+                f'最终答案：D → E → B → C → A\n\n'
+                f'解题步骤：\n'
+                f'1. 递归遍历左子树（根B）：左D → 右E → 根B → 得到 D→E→B。\n'
+                f'2. 递归遍历右子树（根C）：访问C。\n'
+                f'3. 访问根节点A。\n'
+                f'4. 合并：D → E → B → C → A。\n\n'
+                f'解析：后序遍历规则是"左→右→根"。根最后被访问，适合删除整棵树（先删子节点再删根）。\n\n'
+                f'易错提醒：后序的根在最后（A在末尾），前序的根在最前（A在开头），中序的根在中间。三种序列对比：前序A-B-D-E-C、中序D-B-E-A-C、后序D-E-B-C-A。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'给定如下二叉树：\n{tree_desc}\n\n'
+                f'请写出该二叉树的层序遍历（广度优先/BFS）序列。要求按层输出，同一层从左到右。'
+            ),
+            final_answer='A → B → C → D → E',
+            steps=[
+                '根节点A入队',
+                '出队A，A的左子B和右子C依次入队 → 队列=[B, C]',
+                '出队B，B的左子D和右子E依次入队 → 队列=[C, D, E]',
+                '出队C，C无子节点 → 队列=[D, E]',
+                '出队D，D无子节点 → 队列=[E]；出队E，E无子节点 → 队列空，结束',
+            ],
+            explanation='层序遍历使用队列（先进先出）而非栈。每访问一个节点时将其左右子节点依次入队。时间复杂度O(n)，空间复杂度O(w)其中w为树的最大宽度。',
+            pitfall='层序遍历必须用队列（FIFO），不能用栈（LIFO）。用栈会变成深度优先而非广度优先。',
+            answer=(
+                f'最终答案：A → B → C → D → E\n\n'
+                f'解题步骤：\n'
+                f'1. 根A入队：队列=[A]。\n'
+                f'2. 出A，入B、C：访问A，队列=[B, C]。\n'
+                f'3. 出B，入D、E：访问B，队列=[C, D, E]。\n'
+                f'4. 出C：访问C（C无子节点），队列=[D, E]。\n'
+                f'5. 出D：访问D（D无子节点），队列=[E]。\n'
+                f'6. 出E：访问E（E无子节点），队列空，结束。\n\n'
+                f'解析：层序遍历使用队列（FIFO），每次将当前节点的左右子节点依次入队。时间复杂度O(n)。\n\n'
+                f'易错提醒：层序遍历必须用队列不能用栈。用栈会变成DFS而非BFS。另外注意入队顺序为"先左后右"，出队自然也先左后右。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：对如下二叉树：\n{tree_desc}\n\n'
+                f'(1) 写出前序遍历和中序遍历的结果。\n'
+                f'(2) 比较前序和中序的根节点访问位置差异——前序的根在哪里？中序的根在哪里？\n'
+                f'(3) 在重建二叉树时，为什么前序+中序 或 后序+中序 可以唯一确定一棵二叉树，而前序+后序不行？'
+            ),
+            final_answer='(1) 前序A-B-D-E-C，中序D-B-E-A-C\n(2) 前序根在第一个位置（A），中序根在中间（A左边是左子树D-B-E，右边是右子树C）\n(3) 中序提供左右子树划分边界，前序/后序提供根节点顺序——两者缺一不可。仅有前序+后序无法区分左右子树边界。',
+            steps=[
+                '写出前序：A-B-D-E-C（根→左→右）',
+                '写出中序：D-B-E-A-C（左→根→右）',
+                '对比根节点位置：前序中根A在位置1，中序中根A在位置4',
+                '中序中A左边的D-B-E是左子树，右边的C是右子树——这划分了左右边界',
+                '前序中A后面的第一个元素B是左子树的根，这确定了子树的根节点',
+                '结论：中序提供子树划分信息（知道哪些节点属于左/右子树），前序/后序提供根节点层次信息。两者缺一不可。',
+            ],
+            explanation='重建二叉树的核心在于利用中序遍历的有序性：中序按照"左子树→根→右子树"排列，知道根的位置就能划分左右子树。前序的第一个元素一定是根（后序的最后一个元素一定是根）。用前序（或后序）定位根，用中序划分子树，递归完成重建。前序+后序无法唯一重建的原因：仅凭这两个序列无法确定一个节点属于左子树还是右子树——可能存在多棵不同的树具有相同的前序和后序序列。',
+            pitfall='前序+后序不能唯一确定二叉树！例如：树1（根A，左B）和树2（根A，右B）的前序都是A-B，后序都是B-A。必须要有中序来区分左右。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) 前序：A → B → D → E → C；中序：D → B → E → A → C\n'
+                f'(2) 前序根在第一个位置（A），中序根在中间（A左边D-B-E是左子树，右边C是右子树）\n'
+                f'(3) 中序提供左右子树划分，前序/后序提供根节点顺序——两者缺一不可。\n\n'
+                f'解题步骤：\n'
+                f'1. 写出前序序列A-B-D-E-C和中序序列D-B-E-A-C。\n'
+                f'2. 观察前序：A在第一个位置，说明A是整棵树的根。\n'
+                f'3. 观察中序：D-B-E在A左边（左子树），C在A右边（右子树）。\n'
+                f'4. 前序中A之后是B→D→E→C：B是左子树的根，C是右子树的根。\n'
+                f'5. 中序中B左边是D（B的左子树），右边是E（B的右子树）。\n'
+                f'6. 递归此过程可唯一重建整棵树。\n\n'
+                f'解析：重建二叉树需要中序（提供子树划分）配合前序或后序（提供根层次）。前序+后序无法区分左右边界。\n\n'
+                f'易错提醒：前序+后序不能唯一重建！例：根A+左子B 与 根A+右子B 的前序都是A-B、后序都是B-A。必须中序区分左右。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_GRAPHS(topic: str, language: str) -> list[dict]:
+    """5 exercises on the fixed adjacency list:
+       A: B, C
+       B: D, E
+       C: F
+       D:
+       E:
+       F:
+    """
+    adj = 'A: B, C\nB: D, E\nC: F\nD:\nE:\nF:'
+    bfs_result = 'A → B → C → D → E → F'
+    dfs_result = 'A → B → D → E → C → F'
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定图的邻接表：\n{adj}\n\n'
+                f'从顶点A出发，写出广度优先搜索（BFS）的完整节点访问顺序。'
+            ),
+            final_answer=bfs_result,
+            steps=[
+                'A入队：队列=[A]',
+                '出队A，A的邻居B、C入队：访问A，队列=[B, C]',
+                '出队B，B的邻居D、E入队：访问B，队列=[C, D, E]',
+                '出队C，C的邻居F入队：访问C，队列=[D, E, F]',
+                '出队D：访问D（D无未访问邻居），队列=[E, F]',
+                '出队E：访问E，队列=[F]；出队F：访问F，队列空，结束',
+            ],
+            explanation='BFS使用队列（FIFO），按层遍历。从A开始，先访问A的所有邻居B、C（第1层），再访问B的邻居D、E（第2层），最后C的邻居F（第2层）。',
+            pitfall='BFS必须使用队列——入队时标记已访问以防止重复入队。如果用栈（LIFO）替代队列，会变成DFS而非BFS。本题邻接表中每个节点只出现一次（无重复边），所以不会出现重复入队问题。',
+            answer=(
+                f'最终答案：{bfs_result}\n\n'
+                f'解题步骤：\n'
+                f'1. A入队：队列=[A]。\n'
+                f'2. 出队A，入队B和C：访问A，队列=[B, C]。\n'
+                f'3. 出队B，入队D和E：访问B，队列=[C, D, E]。\n'
+                f'4. 出队C，入队F：访问C，队列=[D, E, F]。\n'
+                f'5. 出队D：访问D（D无邻居），队列=[E, F]。\n'
+                f'6. 出队E：访问E，队列=[F]。出队F：访问F，队列空，结束。\n\n'
+                f'解析：BFS按层遍历——先访问距离为1的B和C，再访问距离为2的D、E、F。时间复杂度O(V+E)。\n\n'
+                f'易错提醒：BFS用队列（FIFO），DFS用栈（LIFO）或递归。本题邻接表采用字母顺序排列邻居，所以同一层内按B、C、D、E、F的字典序访问。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定图的邻接表：\n{adj}\n\n'
+                f'从顶点A出发，写出深度优先搜索（DFS）的完整节点访问顺序（按邻接表字母顺序访问邻居）。'
+            ),
+            final_answer=dfs_result,
+            steps=[
+                '从A出发，标记A已访问',
+                'A的第一个邻居是B：递归进入B',
+                'B的第一个邻居是D：递归进入D',
+                'D无未访问邻居，回溯到B',
+                'B的第二个邻居是E：递归进入E',
+                'E无未访问邻居，回溯到B，再回溯到A',
+                'A的第二个邻居是C：递归进入C；C的邻居F：递归进入F；F无邻居，回溯结束',
+            ],
+            explanation='DFS沿一条路径深入到底，再回溯探索其他分支。访问顺序取决于邻接表中邻居的排列顺序。本题按字母序：A→B（A的第一个邻居）→D（B的第一个邻居）→E（B的第二个邻居）→C（A的第二个邻居）→F（C的第一个邻居）。',
+            pitfall='DFS可以用递归（隐式调用栈）或显式栈实现。使用显式栈时，入栈顺序应为邻居的"逆序"（先右后左），以确保出栈时按字母序访问。递归版本不受此影响。',
+            answer=(
+                f'最终答案：{dfs_result}\n\n'
+                f'解题步骤：\n'
+                f'1. 从A出发，标记A已访问。\n'
+                f'2. A的第一个邻居B未访问：递归进入B，标记B已访问。\n'
+                f'3. B的第一个邻居D未访问：递归进入D，标记D已访问。D无邻居→回溯到B。\n'
+                f'4. B的第二个邻居E未访问：递归进入E，标记E已访问。E无邻居→回溯到B→再回溯到A。\n'
+                f'5. A的第二个邻居C未访问：递归进入C，标记C已访问。\n'
+                f'6. C的第一个邻居F未访问：递归进入F，标记F已访问。F无邻居→回溯结束。\n\n'
+                f'解析：DFS沿一条路径深入到底再回溯。使用递归隐式调用系统栈。时间复杂度O(V+E)。\n\n'
+                f'易错提醒：DFS入栈顺序为"先右后左"（显式栈），递归版按邻接表自然顺序。本题按字母序访问邻居，所以DFS结果为A→B→D→E→C→F。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'对以下图：\n{adj}\n\n'
+                f'分别写出BFS和DFS的遍历结果，并对比两者在"发现节点顺序"上的根本差异——'
+                f'为什么BFS先访问C而DFS先访问D？从数据结构的差异解释原因。'
+            ),
+            final_answer=f'BFS: {bfs_result}\nDFS: {dfs_result}\n差异原因：BFS使用队列（FIFO），按距离分层——C距离A为1所以先于D（距离为2）被访问。DFS使用栈/递归（LIFO），沿一条路径深入——A→B→D一路到底，所以D在C之前被访问。',
+            steps=[
+                f'BFS: {bfs_result}（队列FIFO，按层）',
+                f'DFS: {dfs_result}（递归LIFO，沿路径深入）',
+                'BFS中C距离A=1，D距离A=2——所以C先于D',
+                'DFS中A→B→D形成深度路径，递归"一路到底"——所以D先于C',
+                '根本原因：队列先进先出（按距离），栈/递归后进先出（按深度）',
+            ],
+            explanation='BFS和DFS的核心区别在于数据结构选择：BFS用队列（FIFO）实现按层遍历——距离起点近的节点优先访问。DFS用栈或递归（LIFO）实现深度优先——最新发现的节点的邻居优先被探索。这导致同一张图产生完全不同的访问顺序。',
+            pitfall='BFS保证找到无权图的最短路径（按边数），DFS不保证。BFS按边数分层，适合所有边权相等的场景。有权图需专门的最短路径算法。',
+            answer=(
+                f'最终答案：\nBFS：{bfs_result}\nDFS：{dfs_result}\n\n'
+                f'解题步骤：\n'
+                f'1. BFS使用队列（FIFO）：A入队→出A入B,C→出B入D,E→出C入F→依次出D,E,F → {bfs_result}。\n'
+                f'2. DFS使用递归（LIFO）：A→B→D（到底）→回溯→E→回溯→C→F → {dfs_result}。\n'
+                f'3. 对比：C距离A为1，D距离A为2——BFS按层先访问C；DFS沿A→B→D深入，先访问D。\n\n'
+                f'解析：队列FIFO保证按距离分层（BFS适合最短路径），递归LIFO保证沿路径深入（DFS适合拓扑排序和连通分量检测）。\n\n'
+                f'易错提醒：BFS不能用于有权图最短路径！BFS按边数分层，只保证无权图的最短路径。有权图需要专门的最短路径算法（考虑边权和）。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'给定图：\n{adj}\n\n'
+                f'该图有多少个连通分量？请指出每个连通分量包含的节点。如果从A出发执行BFS，能访问到图中的所有节点吗？为什么？'
+            ),
+            final_answer='该图有1个连通分量，包含所有节点{A, B, C, D, E, F}。从A出发的BFS可以访问所有节点，因为该连通分量内的所有节点都可从A到达。',
+            steps=[
+                '检查A的邻居：B和C → 可达',
+                '检查B的邻居：D和E → 可达',
+                '检查C的邻居：F → 可达',
+                '所有节点{A,B,C,D,E,F}都在A的可达范围内',
+                '结论：1个连通分量，BFS从A出发可访问全部6个节点',
+            ],
+            explanation='连通分量是图中节点的极大连通子图。无向图中，若从任意节点可到达所有其他节点，则该图是连通图（1个连通分量）。本题的图是无向图（邻接表对称），所有节点连通。',
+            pitfall='连通分量计数通常用于无向图。有向图中使用"强连通分量"（SCC）概念，需要Tarjan或Kosaraju算法。本题是无向图，只需简单BFS/DFS即可判断。',
+            answer=(
+                f'最终答案：该图有1个连通分量，包含全部6个节点{{A, B, C, D, E, F}}。从A出发可访问所有节点。\n\n'
+                f'解题步骤：\n'
+                f'1. 从A开始：A的邻居B和C都在同一连通分量。\n'
+                f'2. 从B继续：B的邻居D和E也在同一分量。\n'
+                f'3. 从C继续：C的邻居F也在同一分量。\n'
+                f'4. 所有节点均可从A通过一条或多条边到达。\n\n'
+                f'解析：该图为连通无向图。BFS从任意节点出发都能遍历整个图。若图不连通则需对每个未访问节点重新启动BFS。\n\n'
+                f'易错提醒：有向图中"可达"是非对称的（A可达B不代表B可达A）。本题是无向图所以连接性对称。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：给定以下图结构：\n{adj}\n\n'
+                f'(1) BFS生成树和DFS生成树分别是什么？（用边集表示生成树）\n'
+                f'(2) 如果将该图视为无向图，是否存在环？如果有，请指出。\n'
+                f'(3) 该图如果是有向图（邻接表为出边列表），其拓扑序是否可能？为什么？'
+            ),
+            final_answer='(1) BFS生成树边集：{A-B, A-C, B-D, B-E, C-F}；DFS生成树边集：{A-B, B-D, B-E, A-C, C-F}\n(2) 作为无向图，该图没有环（是一棵树，边数=5，节点数=6，不是树？节点6边5无环→是森林？实际上该图有6个节点5条边，连通且无环，是一棵树）\n(3) 该图有向边为A→B,A→C,B→D,B→E,C→F——不存在环（所有边方向一致向下），存在拓扑序如A,B,C,D,E,F',
+            steps=[
+                'BFS生成树：BFS过程中首次发现每个节点时使用的边 → {A-B, A-C, B-D, B-E, C-F}',
+                'DFS生成树：DFS过程中首次发现每个节点时使用的边 → {A-B, B-D, B-E, A-C, C-F}',
+                '无向图中：6节点5边，连通且无环——该图是一棵树',
+                '有向图中：所有边从"上层"指向"下层"（A→B/C, B→D/E, C→F），无反向边→无环',
+                '拓扑序存在前提：有向无环图（DAG）。该图满足，拓扑序如A,B,C,D,E,F或A,C,F,B,D,E',
+            ],
+            explanation='生成树是包含所有节点且无环的连通子图（边数=节点数-1）。BFS生成树的每条边连接一个节点到它被首次发现时的"发现者"。DFS生成树同理，但因遍历策略不同导致生成树结构可能不同。本题图本身就是树形结构（6节点5边无环），所以生成树就是原图本身。',
+            pitfall='本题的无向图版本是一棵树（连通无环图），所以生成树就是图本身。不是所有图的生成树都等于原图——只有树才如此。判断有向图是否有拓扑序的关键是检测是否有环（Kahn算法或DFS检测回边）。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) BFS生成树：{{A-B, A-C, B-D, B-E, C-F}}；DFS生成树：{{A-B, B-D, B-E, A-C, C-F}}\n'
+                f'(2) 作为无向图，6节点5边且连通→无环，该图是一棵树。\n'
+                f'(3) 有向图中所有边方向一致（无回边），无环即DAG，存在拓扑序。\n\n'
+                f'解题步骤：\n'
+                f'1. BFS生成树：A入队→出A发现B/C→出B发现D/E→出C发现F → 边集{{A-B, A-C, B-D, B-E, C-F}}。\n'
+                f'2. DFS生成树：A→B→D→回溯→E→回溯→C→F → 边集{{A-B, B-D, B-E, A-C, C-F}}。\n'
+                f'3. 无向图检查环：6节点、5边、连通 → 边数=节点数-1，无环，是树。\n'
+                f'4. 有向图拓扑序：所有边指向"下层"节点，无回边，可拓扑排序。\n\n'
+                f'解析：生成树包含所有节点且无环。树形图的生成树就是自身。拓扑序仅存在于DAG中。\n\n'
+                f'易错提醒：BFS和DFS生成树的结构可能相同也可能不同——取决于图的拓扑结构。本题恰好相同因为原图就是树。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_STACK_QUEUE(topic: str, language: str) -> list[dict]:
+    """5 exercises on stack/queue with fixed operation sequences."""
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'空栈依次执行以下操作：push(1), push(2), pop(), push(3), pop()。\n'
+                f'请写出：(1) 每次操作后的栈内容（栈顶在右侧）；(2) pop输出的完整序列。'
+            ),
+            final_answer='pop输出序列：2, 3\n最终栈内元素：[1]\n栈内容变化：[] → [1] → [1,2] → [1] → [1,3] → [1]',
+            steps=[
+                '初始：栈空 []',
+                'push(1)：栈=[1]',
+                'push(2)：栈=[1,2]（2在栈顶）',
+                'pop()：弹出栈顶2 → 栈=[1]，输出=2',
+                'push(3)：栈=[1,3]（3在栈顶）',
+                'pop()：弹出栈顶3 → 栈=[1]，输出=2,3',
+            ],
+            explanation='栈是后进先出（LIFO）的数据结构。2比1后进所以先出，3最后进栈顶。最终栈内只剩1在栈底。',
+            pitfall='pop输出序列是2,3而不是2,1——第二次pop发生在push(3)之后，此时栈顶是3而非1。注意操作时序！',
+            answer=(
+                f'最终答案：\n'
+                f'pop输出序列：2, 3\n'
+                f'最终栈内元素：[1]\n\n'
+                f'解题步骤：\n'
+                f'1. 初始：[]。\n'
+                f'2. push(1)→[1]；push(2)→[1,2]。\n'
+                f'3. pop()→弹出2，栈=[1]，输出=2。\n'
+                f'4. push(3)→[1,3]；pop()→弹出3，栈=[1]，输出=2,3。\n\n'
+                f'解析：栈的LIFO特性——push在栈顶添加，pop从栈顶移除。后进先出。\n\n'
+                f'易错提醒：pop输出2,3不是2,4也不是2,1——第二个pop发生在push(3)之后，栈顶是3。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'空队列依次执行以下操作：enqueue(1), enqueue(2), dequeue(), enqueue(3), dequeue()。\n'
+                f'请写出：(1) 每次操作后的队列内容（队首在左侧）；(2) dequeue输出的完整序列。'
+            ),
+            final_answer='dequeue输出序列：1, 2\n最终队列内容：[3]\n队列变化：[] → [1] → [1,2] → [2] → [2,3] → [3]',
+            steps=[
+                '初始：队列空 []',
+                'enqueue(1)：队列=[1]',
+                'enqueue(2)：队列=[1,2]（1在队首，2在队尾）',
+                'dequeue()：弹出队首1 → 队列=[2]，输出=1',
+                'enqueue(3)：队列=[2,3]（2在队首，3在队尾）',
+                'dequeue()：弹出队首2 → 队列=[3]，输出=1,2',
+            ],
+            explanation='队列是先进先出（FIFO）的数据结构。1最先入队所以最先出队，2次之。最终队列中只剩3。',
+            pitfall='dequeue输出是1,2不是1,3——虽然3在第二次dequeue之前已入队，但它在2后面（队尾），2是队首所以先出。',
+            answer=(
+                f'最终答案：\n'
+                f'dequeue输出序列：1, 2\n'
+                f'最终队列内容：[3]\n\n'
+                f'解题步骤：\n'
+                f'1. 初始：[]。\n'
+                f'2. enqueue(1)→[1]；enqueue(2)→[1,2]。\n'
+                f'3. dequeue()→弹出队首1，队列=[2]，输出=1。\n'
+                f'4. enqueue(3)→[2,3]；dequeue()→弹出队首2，队列=[3]，输出=1,2。\n\n'
+                f'解析：队列的FIFO特性——enqueue在队尾添加，dequeue从队首移除。先进先出。\n\n'
+                f'易错提醒：相同操作序列，栈输出2,3，队列输出1,2。栈LIFO vs 队列FIFO是核心区别。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'对比题：对操作序列 push(1), push(2), pop(), push(3), pop() 在栈上的输出，'
+                f'与操作序列 enqueue(1), enqueue(2), dequeue(), enqueue(3), dequeue() 在队列上的输出，'
+                f'有何不同？请分别给出结果，并解释差异的根本原因。'
+            ),
+            final_answer='栈输出：2, 3（LIFO，后进先出）\n队列输出：1, 2（FIFO，先进先出）',
+            steps=[
+                '栈操作：push(1)→[1]→push(2)→[1,2]→pop→2（最新元素先出）→push(3)→[1,3]→pop→3',
+                '队列操作：enqueue(1)→[1]→enqueue(2)→[1,2]→dequeue→1（最早元素先出）→enqueue(3)→[2,3]→dequeue→2',
+                '根本原因：栈LIFO（后进先出），队列FIFO（先进先出）',
+            ],
+            explanation='栈和队列的核心区别在于元素移除顺序：栈总是移除最近添加的元素（LIFO），如叠盘子；队列总是移除最早添加的元素（FIFO），如排队。相同的操作序列（push/enqueue相当于"加入"，pop/dequeue相当于"移除"）会产生完全不同的输出。',
+            pitfall='不要混淆"操作名"和"行为"。push=入栈（栈顶），pop=出栈（栈顶）；enqueue=入队（队尾），dequeue=出队（队首）。操作名不同但抽象语义相同（增/删），行为不同（删的位置不同）。',
+            answer=(
+                f'最终答案：\n栈输出：2, 3（LIFO）\n队列输出：1, 2（FIFO）\n\n'
+                f'解题步骤：\n'
+                f'1. 栈（LIFO）：push(1)→[1]→push(2)→[1,2]→pop出2→push(3)→[1,3]→pop出3 → 输出2,3。\n'
+                f'2. 队列（FIFO）：enqueue(1)→[1]→enqueue(2)→[1,2]→dequeue出1→enqueue(3)→[2,3]→dequeue出2 → 输出1,2。\n'
+                f'3. 对比：相同操作序列，栈先出2后出3（最新的），队列先出1后出2（最早的）。\n\n'
+                f'解析：栈LIFO后进先出（叠盘子模型），队列FIFO先进先出（排队模型）。选用哪种取决于场景：函数调用用栈，任务调度用队列。\n\n'
+                f'易错提醒：别根据操作名判断行为——push/pop是栈的术语，enqueue/dequeue是队列的术语。混用会逻辑全错。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'循环队列问题：一个容量为5的循环队列（数组索引0~4），初始front=0, rear=0。'
+                f'依次执行：enqueue(10), enqueue(20), dequeue(), enqueue(30), enqueue(40), dequeue(), enqueue(50)。\n'
+                f'请写出最终状态：(1) front和rear的值；(2) 队列中剩余的元素（按出队顺序）；(3) 队列当前元素个数。'
+            ),
+            final_answer='(1) front=2, rear=4\n(2) 队列元素（按出队顺序）：[30, 40, 50]（实际数组：[30, 40, 50, _, _] 或索引2→30, 3→40, 4→50）\n(3) 元素个数：(rear - front + 5) % 5 = 3',
+            steps=[
+                '初始：front=0, rear=0, arr=[_,_,_,_,_], size=0',
+                'enqueue(10)：arr[rear=0]=10, rear=(0+1)%5=1, size=1',
+                'enqueue(20)：arr[1]=20, rear=2, size=2',
+                'dequeue()：出arr[front=0]=10, front=(0+1)%5=1, size=1',
+                'enqueue(30)：arr[2]=30, rear=3, size=2',
+                'enqueue(40)：arr[3]=40, rear=4, size=3',
+                'dequeue()：出arr[front=1]=20, front=(1+1)%5=2, size=2',
+                'enqueue(50)：arr[4]=50, rear=(4+1)%5=0, size=3',
+            ],
+            explanation='循环队列使用取模运算实现数组的循环利用。front指向队首（下一个出队位置），rear指向队尾的下一个位置（下一个入队位置）。判空条件：front==rear且size==0；判满条件：size==capacity。',
+            pitfall='循环队列中rear总是指向下一个空位，不存储实际元素。区分队列空和满不能仅靠front==rear（两者都会成立），需要额外记录size或牺牲一个位置。本题使用size辅助判断。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) front=2, rear=0（因为最后一次enqueue后rear循环回0）\n'
+                f'(2) 队列元素：[30, 40, 50]（分别位于索引2, 3, 4）\n'
+                f'(3) 元素个数：3\n\n'
+                f'解题步骤：\n'
+                f'1. 初始：front=0, rear=0, arr=[_,_,_,_,_] size=0。\n'
+                f'2. enqueue(10)：arr[0]=10, rear=1, size=1。\n'
+                f'3. enqueue(20)：arr[1]=20, rear=2, size=2。\n'
+                f'4. dequeue()：出arr[0]=10, front=1, size=1。\n'
+                f'5. enqueue(30)：arr[2]=30, rear=3, size=2。\n'
+                f'6. enqueue(40)：arr[3]=40, rear=4, size=3。\n'
+                f'7. dequeue()：出arr[1]=20, front=2, size=2。\n'
+                f'8. enqueue(50)：arr[4]=50, rear=0, size=3。\n\n'
+                f'解析：循环队列用取模实现数组循环。注意区分rear指向的位置和实际存储位置。\n\n'
+                f'易错提醒：循环队列满/空判断不能仅靠front==rear（两者都成立），必须维护size或采用"牺牲一个位置"策略。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：设计一个支持以下操作的数据结构——push(x), pop(), top(), getMin()，所有操作O(1)。\n'
+                f'对操作序列 push(5), push(2), push(3), getMin(), pop(), getMin(), pop(), getMin() 追踪每一步min的变化。\n'
+                f'说明你的设计思路和核心数据结构。'
+            ),
+            final_answer='设计：双栈法。主栈存数据，辅助栈（min栈）同步存当前阶段的最小值。\n追踪：push(5)→min=5, push(2)→min=2, push(3)→min=2, getMin()→2, pop()→min=2, getMin()→2, pop()→min=5, getMin()→5',
+            steps=[
+                'push(5)：主栈=[5], min栈=[5], 当前min=5',
+                'push(2)：主栈=[5,2], min栈=[5,2]（2<5，压入2）, 当前min=2',
+                'push(3)：主栈=[5,2,3], min栈=[5,2,2]（3≥2，再压一次2）, 当前min=2',
+                'getMin()：返回min栈顶=2',
+                'pop()：两栈同时pop→主栈=[5,2], min栈=[5,2], getMin()→2',
+                'pop()：两栈同时pop→主栈=[5], min栈=[5], getMin()→5',
+            ],
+            explanation='最小栈设计核心：辅助栈与主栈同步push/pop。push(x)时辅助栈压入min(x, 当前辅助栈顶)；pop时两栈同时弹出。这样任何时刻getMin()只需返回辅助栈顶。所有操作O(1)。',
+            pitfall='不能只用一个变量记录min——pop后当前min可能失效（被pop出去的元素可能恰好是min），无法回溯到上一阶段的min。正确做法是辅助栈同步维护每个阶段的min。',
+            answer=(
+                f'最终答案：\n'
+                f'设计：双栈法——主栈存数据，辅助栈同步存当前最小值。所有操作O(1)。\n\n'
+                f'追踪过程：\n'
+                f'push(5)→主栈=[5], min栈=[5]（min=5）\n'
+                f'push(2)→主栈=[5,2], min栈=[5,2]（2<5, min=2）\n'
+                f'push(3)→主栈=[5,2,3], min栈=[5,2,2]（3≥2, 再压2）\n'
+                f'getMin()→2\n'
+                f'pop()→主栈=[5,2], min栈=[5,2]→getMin()→2\n'
+                f'pop()→主栈=[5], min栈=[5]→getMin()→5\n\n'
+                f'解题步骤：\n'
+                f'1. 维护两个栈：主栈和辅助栈。\n'
+                f'2. push(x)：主栈压入x；辅助栈压入min(x, 当前辅助栈顶)。\n'
+                f'3. pop：两栈同时弹出栈顶。\n'
+                f'4. getMin()：返回辅助栈栈顶。\n\n'
+                f'解析：辅助栈与主栈同步，记录每阶段的min。pop后自动回溯到前一阶段的min值。\n\n'
+                f'易错提醒：\n'
+                f'- 不能只用一个变量存min（pop后无法回溯）\n'
+                f'- push条件用≤而非<（处理重复最小值）\n'
+                f'- push(3)后min仍是2，需再记录2——这就是辅助栈"再压一次2"的原因'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_SORT(topic: str, language: str) -> list[dict]:
+    """5 exercises on quicksort with fixed array [6, 3, 8, 2, 5], pivot=5."""
+    arr = '[6, 3, 8, 2, 5]'
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定数组 {arr}，以最后一个元素 5 为 pivot 进行快速排序的第一次划分（partition）。\n'
+                f'请写出：(1) 划分后小于pivot的元素有哪些；(2) 大于pivot的元素有哪些；(3) 划分完成后的数组排列。'
+            ),
+            final_answer='(1) 小于pivot：[3, 2]\n(2) 等于pivot：[5]\n(3) 大于pivot：[6, 8]\n第一次划分结果：[3, 2] + [5] + [6, 8] = [3, 2, 5, 6, 8]',
+            steps=[
+                'pivot = arr[4] = 5',
+                '扫描：6>5跳过，3<5交换到前面，8>5跳过，2<5交换到前面',
+                '划分完成后：小于区=[3,2]，pivot=[5]，大于区=[6,8]',
+                '最终数组：[3, 2, 5, 6, 8]',
+            ],
+            explanation='快速排序的partition操作将数组分为三部分：小于pivot、等于pivot、大于pivot。pivot被放在最终正确位置（索引2），左边都小于它，右边都大于它。',
+            pitfall='第一次划分的结果不是最终排序结果！[3,2]和[6,8]还需要分别递归排序。最终有序数组是[2,3,5,6,8]。',
+            answer=(
+                f'最终答案：\n'
+                f'小于pivot：[3, 2]\n'
+                f'等于pivot：[5]\n'
+                f'大于pivot：[6, 8]\n'
+                f'第一次划分后：[3, 2, 5, 6, 8]\n'
+                f'最终排序结果：[2, 3, 5, 6, 8]\n\n'
+                f'解题步骤：\n'
+                f'1. 选pivot=arr[4]=5（最后一个元素）。\n'
+                f'2. 从前往后扫描：6>5不交换，3<5移到前面，8>5不交换，2<5移到前面。\n'
+                f'3. pivot归位：小于区[3,2] + pivot[5] + 大于区[6,8] → [3,2,5,6,8]。\n\n'
+                f'解析：partition是快排的核心——每轮确定pivot的最终位置，左右子数组递归处理。\n\n'
+                f'易错提醒：划分结果不是最终排序结果。递归排序[3,2]→[2,3]和[6,8]→[6,8]后得[2,3,5,6,8]。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'对数组 {arr}，以5为pivot完成第一次划分后（结果[3,2,5,6,8]），'
+                f'对左右子数组 [3,2] 和 [6,8] 分别递归进行快速排序。\n'
+                f'请写出完整的递归过程和最终排序结果。'
+            ),
+            final_answer='递归过程：\n[3,2]以2为pivot：划分得[2]+[3] → [2,3]\n[6,8]以8为pivot：划分得[6]+[8] → [6,8]\n最终：[2, 3, 5, 6, 8]',
+            steps=[
+                '第一次划分后：[3,2 | 5 | 6,8]',
+                '左子数组[3,2]：pivot=2，划分得[2]+[3]→有序',
+                '右子数组[6,8]：pivot=8，划分得[6]+[8]→有序',
+                '合并：[2,3,5,6,8]',
+            ],
+            explanation='快速排序递归地将数组划分为更小的子数组，直到子数组长度为0或1（自然有序）。整个过程是分治思想的典型应用：划分（partition）→递归左→递归右。',
+            pitfall='快排的时间复杂度：平均O(n log n)，最坏O(n²)（每次pivot都是最值）。本题5在中间位置，划分较均匀，效率好。',
+            answer=(
+                f'最终答案：[2, 3, 5, 6, 8]\n\n'
+                f'解题步骤：\n'
+                f'1. 第一次划分（pivot=5）：[3,2 | 5 | 6,8]。\n'
+                f'2. 递归左子数组[3,2]：pivot=2，划分→[2,3]。\n'
+                f'3. 递归右子数组[6,8]：pivot=8，划分→[6,8]。\n'
+                f'4. 合并：[2,3,5,6,8]——排序完成。\n\n'
+                f'解析：快排平均O(nlogn)，每次划分将问题规模减半。本题n=5，共1+2=3次划分。\n\n'
+                f'易错提醒：递归终止条件是子数组长度≤1（无需再排），不是"整个数组有序"。每个子数组排序后才整体有序。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'对数组 {arr}，选择第一个元素6为pivot进行划分，'
+                f'与选择5为pivot的划分结果有何不同？哪种pivot选择策略在实际中更好？为什么？'
+            ),
+            final_answer='pivot=6划分：小于[3,2,5] + [6] + 大于[8] → [3,2,5,6,8]\npivot=5划分：[3,2] + [5] + [6,8] → [3,2,5,6,8]\n两种结果不同但最终排序相同。实际中随机选pivot或三数取中更好，避免最坏O(n²)（如已有序数组选第一个/最后一个元素）。',
+            steps=[
+                'pivot=6：扫描→3<6保留, 8>6跳过, 2<6保留, 5<6保留 → 小于区=[3,2,5]，大于区=[8] → [3,2,5,6,8]',
+                'pivot=5：扫描→6>5跳过, 3<5保留, 8>5跳过, 2<5保留 → 小于区=[3,2]，大于区=[6,8] → [3,2,5,6,8]',
+                '对比：pivot=6时小于区有3个元素，pivot=5时小于区有2个元素——划分均衡性不同',
+                '最优策略：随机选pivot或三数取中（首、尾、中间三个元素的中位数），避免已有序数组的O(n²)退化',
+            ],
+            explanation='pivot选择直接影响快排效率。最坏情况（已有序数组选第一个/最后一个）每次划分只减少1个元素→O(n²)。随机化或三数取中可将最坏概率降到极低，使平均性能接近O(n log n)。',
+            pitfall='快排不是稳定排序！相等的元素在排序后相对顺序可能改变（因为partition中的交换会打乱顺序）。需要稳定排序时应使用归并排序。',
+            answer=(
+                f'最终答案：\n'
+                f'pivot=6划分：[3,2,5,6,8]（小于区3个元素，大于区1个）\n'
+                f'pivot=5划分：[3,2,5,6,8]（小于区2个，大于区2个）\n'
+                f'最终排序结果相同：[2,3,5,6,8]\n'
+                f'推荐策略：随机选pivot或三数取中。\n\n'
+                f'解题步骤：\n'
+                f'1. pivot=6：小于区[3,2,5]均衡3个，大于区[8]仅1个——划分不均衡。\n'
+                f'2. pivot=5：小于区[3,2]2个，大于区[6,8]2个——划分均衡。\n'
+                f'3. 划分均衡性影响递归深度和效率：越均衡越接近O(nlogn)。\n'
+                f'4. 最坏情况（已有序数组选首/尾元素）每次只减1个元素→O(n²)。\n'
+                f'5. 随机化或三数取中可避免最坏情况。\n\n'
+                f'解析：pivot选择是快排的关键优化点。三数取中（median-of-three）是实际库实现（如C++ std::sort）的常用策略。\n\n'
+                f'易错提醒：快排不是稳定排序！相同元素可能因交换而改变相对顺序。需要稳定性用归并排序。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'快排稳定性分析：对以下记录按第一个字段排序——[(2,A), (3,B), (2,C)]（数字为键，字母为卫星数据）。\n'
+                f'使用快速排序（以最后一个元素为pivot），排序后两个键为2的记录（A和C）的相对顺序能保证不变吗？\n'
+                f'如果改用归并排序呢？请解释稳定性差异的原因。'
+            ),
+            final_answer='快排结果：不稳定。两个键为2的记录（A和C）的相对顺序可能改变，因为partition中的交换操作不保证同键值的原始顺序。\n归并排序结果：稳定。merge时遇到相等键值优先取左侧（原始顺序在前的），保持相对顺序。',
+            steps=[
+                '原始：[(2,A), (3,B), (2,C)]',
+                '快排（pivot=(2,C)）可能将(2,A)与(2,C)交换位置→不稳定',
+                '归并排序：merge时比较键值，相等时左半部分先放入→稳定',
+                '稳定性差异原因：快排的partition通过交换实现（跳跃式），归并的merge通过顺序合并实现（稳定）',
+            ],
+            explanation='排序稳定性指相等键值的记录在排序后相对顺序不变。快排不稳定因为partition通过交换元素可能跨过相同键值；归并排序稳定因为在merge阶段相等键值优先选左侧（原始顺序）。',
+            pitfall='稳定性对多键排序很重要：先按次要键排序，再按主要键排序（稳定排序保证次要键的相对顺序在主要键相同时被保留）。快排不能用于这种场景。',
+            answer=(
+                f'最终答案：\n'
+                f'快排：不稳定——两个键为2的记录相对顺序可能改变。\n'
+                f'归并排序：稳定——保持相同键值的原始相对顺序。\n\n'
+                f'解题步骤：\n'
+                f'1. 快排partition通过交换移动元素——A和C可能因交换而颠倒。\n'
+                f'2. 归并排序merge时键值相等优先取左侧（原序在前者）→稳定。\n'
+                f'3. 原因：快排交换是"跳跃式"的（元素可交换到任意位置），归并的移动是"顺序式"的（按序合并）。\n\n'
+                f'解析：稳定性取决于算法在重排元素时是否保留同键值元素的原始先后关系。交换类排序通常不稳定，归并类通常稳定。\n\n'
+                f'易错提醒：稳定性是算法属性，不依赖于输入数据。快排不稳定不是因为"有可能改变顺序"，而是"不保证维持顺序"。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：给定数组 {arr}。\n'
+                f'(1) 写出完整的快速排序过程（每轮划分结果），最终得到有序数组[2,3,5,6,8]。\n'
+                f'(2) 比较快速排序和归并排序在时间复杂度、空间复杂度和稳定性上的差异。\n'
+                f'(3) 如果你需要对大量数据排序且对稳定性有要求，应选择哪个算法？为什么？'
+            ),
+            final_answer='(1) 快排过程：第1轮pivot=5→[3,2,5,6,8]；递归左[3,2]pivot=2→[2,3]；递归右[6,8]pivot=8→[6,8]；最终[2,3,5,6,8]\n(2) 对比：快排O(nlogn)平均/O(n²)最坏，空间O(logn)（递归栈），不稳定；归并O(nlogn)始终，空间O(n)（辅助数组），稳定\n(3) 大量数据+稳定性要求→归并排序或TimSort。虽然空间开销大，但稳定性和O(nlogn)保证更重要。',
+            steps=[
+                '快排完整过程（每轮）：[6,3,8,2,5]→pivot5→[3,2,5,6,8]→左[3,2]pivot2→[2,3]→右[6,8]pivot8→[6,8]→[2,3,5,6,8]',
+                '对比表：快排-时间O(nlogn)均/O(n²)最坏-空间O(logn)-不稳定；归并-时间O(nlogn)稳定-空间O(n)-稳定',
+                '实际选择：Python的sorted/Java的Arrays.sort(obj[])用TimSort（归并改进版）——稳定+O(nlogn)',
+                '大量数据+稳定性需求→归并排序/TimSort（牺牲空间换稳定性和O(nlogn)保证）',
+            ],
+            explanation='实际工程排序（如TimSort）结合了归并排序的稳定性和插入排序的小数据集优势，是Python和Java对象排序的默认实现。TimSort对部分有序数据可做到O(n)。',
+            pitfall='不要在所有场景默认用快排。虽然快排缓存友好、常数因子小，但稳定性需求和最坏O(n²)退化可能使其不适合某些场景（如数据库排序需要稳定性）。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) 快排过程：[6,3,8,2,5]→pivot5→[3,2,5,6,8]→左[3,2]→[2,3]→右[6,8]→[6,8]→[2,3,5,6,8]\n'
+                f'(2) 快排vs归并：快排均O(nlogn)/最坏O(n²)/空间O(logn)/不稳定；归并始终O(nlogn)/空间O(n)/稳定\n'
+                f'(3) 大量数据+稳定性→归并排序或TimSort。\n\n'
+                f'解题步骤：\n'
+                f'1. 快排每轮选pivot划分，递归左右子数组——完整过程如上。\n'
+                f'2. 对比表：| 指标 | 快排 | 归并 |\n'
+                f'   | 时间均 | O(nlogn) | O(nlogn) |\n'
+                f'   | 时间最坏 | O(n²) | O(nlogn) |\n'
+                f'   | 空间 | O(logn) | O(n) |\n'
+                f'   | 稳定性 | 不稳定 | 稳定 |\n'
+                f'3. 实际选择：Python和Java对象排序默认用TimSort（归并变体），稳定且对部分有序数据可做到O(n)。\n\n'
+                f'解析：快排常数因子小、缓存友好但最坏O(n²)且不稳定。归并稳定但需要O(n)额外空间。TimSort折中两者优势。\n\n'
+                f'易错提醒：稳定性不影响"结果是否正确"（都是正确排序），而是"相同键值的元素是否保持原始顺序"——这对多键排序至关重要。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_DP(topic: str, language: str) -> list[dict]:
+    """5 exercises on 0-1 knapsack: W=5, items [(w=2,v=3), (w=3,v=4), (w=4,v=5)]."""
+    items_desc = '1号物品：重量 2，价值 3\n2号物品：重量 3，价值 4\n3号物品：重量 4，价值 5'
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'0-1背包问题（{language}）：\n'
+                f'背包容量 W = 5。\n{items_desc}\n\n'
+                f'请写出二维DP表格（dp[i][w]表示前i个物品、容量w时的最大价值），并给出最终最大价值。'
+            ),
+            final_answer='最大价值：7（选择1号和2号物品）\nDP表格最后一列(w=5)：dp[1][5]=3, dp[2][5]=7, dp[3][5]=7',
+            steps=[
+                '初始化dp[0][*]=0, dp[*][0]=0',
+                '物品1(w=2,v=3)：w≥2时dp[1][w]=max(dp[0][w], dp[0][w-2]+3)',
+                '物品2(w=3,v=4)：w≥3时考虑放入→dp[2][5]=max(dp[1][5]=3, dp[1][2]+4=0+4=4)...不对',
+                '正确：dp[2][5]=max(dp[1][5]=3, dp[1][5-3]+4=dp[1][2]+4=3+4=7)=7',
+                '物品3(w=4,v=5)：dp[3][5]=max(dp[2][5]=7, dp[2][1]+5=0+5=5)=7',
+            ],
+            explanation='0-1背包使用DP：dp[i][w]=max(dp[i-1][w], dp[i-1][w-wt_i]+val_i)。每个物品只能选或不选（0-1）。最优解选择物品1和2，总重2+3=5≤W，总价值3+4=7。',
+            pitfall='dp[i][w]的含义是"前i个物品、容量w的最大价值"。注意不是"恰好装满"而是"不超过容量"。如果要求恰好装满，初始化不同（dp[0][0]=0, 其余=-∞）。',
+            answer=(
+                f'最终答案：最大价值 = 7（选择1号和2号物品，总重量5，总价值7）\n\n'
+                f'解题步骤：\n'
+                f'1. 定义dp[i][w]：前i个物品在容量w下的最大价值。\n'
+                f'2. 初始化dp[0][w]=0（无物品时价值0），dp[i][0]=0（容量0价值0）。\n'
+                f'3. 物品1（w=2,v=3）：w≥2时可放入→dp[1][5]=3。\n'
+                f'4. 物品2（w=3,v=4）：dp[2][5]=max(不选:dp[1][5]=3, 选:dp[1][2]+4=3+4=7)=7。\n'
+                f'5. 物品3（w=4,v=5）：dp[3][5]=max(不选:7, 选:dp[2][1]+5=0+5=5)=7。\n\n'
+                f'解析：dp[2][5]=7是关键——同时选1和2时，dp[1][2]已包含物品1的价值3（物品1正好占w=2），再加上物品2的价值4=7。\n\n'
+                f'易错提醒：每个物品只能选一次（0-1）！dp[i-1][w-wt_i]而非dp[i][w-wt_i]——选了i就不能再选i。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'（同一组数据）\n背包容量 W = 5。\n{items_desc}\n\n'
+                f'请使用一维DP数组（滚动数组优化）求解0-1背包问题。'
+                f'写出dp数组在每件物品处理后的内容（只显示w=0~5），并说明为什么内层循环必须逆序（从W到wt）。'
+            ),
+            final_answer='一维dp最终值：dp[0..5] = [0, 0, 3, 4, 5, 7]\n逆序原因：若不逆序（从wt到W），同一物品可能被多次选取（变成完全背包），违反0-1限制。',
+            steps=[
+                '初始一维dp：dp[0..5]=[0,0,0,0,0,0]',
+                '处理物品1(w=2,v=3)，w从5→2：dp[2]=max(0,dp[0]+3)=3, dp[3]=max(0,dp[1]+3)=3, dp[4]=max(0,dp[2]+3)=3(但dp[2]刚被更新!), dp[5]=max(0,dp[3]+3)=3',
+                '关键是逆序：dp[4]用的是"上一轮"的dp[2]=0而非"本轮刚算的"dp[2]=3——保证了0-1限制',
+                '处理物品2(w=3,v=4)：w从5→3 → dp[3]=max(0,dp[0]+4)=4, dp[4]=max(3,dp[1]+4)=4, dp[5]=max(3,dp[2]+4)=max(3,3+4)=7',
+                '处理物品3(w=4,v=5)：dp[4]=max(3,dp[0]+5)=5, dp[5]=max(7,dp[1]+5)=7',
+                '最终dp=[0,0,3,4,5,7]，dp[5]=7',
+            ],
+            explanation='一维DP优化将空间从O(nW)降为O(W)。逆序遍历容量是关键——它确保计算dp[w]时使用的dp[w-wt]来自"上一轮"（未放当前物品的状态），从而保证每个物品只被考虑一次。',
+            pitfall='若顺序遍历（从wt到W），dp[w-wt]可能已被当前物品更新→同一物品被多次选取→变成完全背包。0-1背包必须逆序，完全背包必须顺序。',
+            answer=(
+                f'最终答案：一维dp[0..5] = [0, 0, 3, 4, 5, 7]，dp[5]=7。\n\n'
+                f'解题步骤：\n'
+                f'1. 初始化一维dp=[0,0,0,0,0,0]。\n'
+                f'2. 物品1(w=2,v=3)→逆序w=5..2：dp[2]=3,dp[3]=3,dp[4]=3,dp[5]=3 → dp=[0,0,3,3,3,3]。\n'
+                f'3. 物品2(w=3,v=4)→逆序w=5..3：dp[3]=max(3,dp[0]+4)=4,dp[4]=max(3,dp[1]+4)=4,dp[5]=max(3,dp[2]+4)=7 → dp=[0,0,3,4,4,7]。\n'
+                f'4. 物品3(w=4,v=5)→逆序w=5..4：dp[4]=max(4,dp[0]+5)=5,dp[5]=max(7,dp[1]+5)=7 → dp=[0,0,3,4,5,7]。\n'
+                f'5. 逆序原因：确保dp[w-wt]来自上一轮，防止同一物品被多次选取。\n\n'
+                f'解析：逆序→0-1背包，顺序→完全背包。一维dp使空间从O(nW)降至O(W)。\n\n'
+                f'易错提醒：0-1背包内层循环必须逆序！若顺序遍历会退化为完全背包（同一物品可无限次选取），得到错误答案。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'（同一组数据）\n背包容量 W = 5。\n{items_desc}\n\n'
+                f'如何通过DP表回溯找到最优解中具体选择了哪些物品？请写出回溯过程，并说明每一步的判断逻辑。'
+            ),
+            final_answer='回溯结果：选择物品2和物品1（即1号和2号）。\n回溯逻辑：从dp[3][5]=7开始，比较dp[2][5]=7与dp[3][5]——相等说明物品3未选；比较dp[1][5]=3与dp[2][5]=7——不等说明物品2被选；减去物品2(2,3)继续查dp[1][2]=3；比较dp[0][2]=0与dp[1][2]=3——不等说明物品1被选；减去物品1查dp[0][0]=0，结束。',
+            steps=[
+                '起始：i=3, w=5, dp[3][5]=7',
+                'dp[2][5]=7 == dp[3][5] → 物品3未选，i--=2, w不变=5',
+                'dp[1][5]=3 ≠ dp[2][5]=7 → 物品2被选，记录物品2，i--=1, w-=3=2',
+                'dp[0][2]=0 ≠ dp[1][2]=3 → 物品1被选，记录物品1，i--=0, w-=2=0',
+                'w=0 → 回溯结束，选择={物品1, 物品2}',
+            ],
+            explanation='回溯从dp[n][W]出发，比较dp[i][w]与dp[i-1][w]：若相等→物品i未选（最优解来自前i-1个物品）；若不等→物品i被选（dp[i][w]=dp[i-1][w-wt_i]+val_i），将i加入选择，w减去wt_i继续回溯。',
+            pitfall='回溯时必须减掉物品重量（w-=wt_i），继续检查dp[i-1][new_w]。不能仅凭"不等"就断言物品被选——也可能两者都不选dp相等。正确判断：dp[i][w] != dp[i-1][w] ⇔ 物品i被选。',
+            answer=(
+                f'最终答案：选择物品1和物品2（总重量5，总价值7）。\n\n'
+                f'解题步骤：\n'
+                f'1. 从dp[3][5]=7开始回溯。\n'
+                f'2. i=3：dp[2][5]=7 == dp[3][5]=7 → 物品3未选。i--, w不变。\n'
+                f'3. i=2：dp[1][5]=3 ≠ dp[2][5]=7 → 物品2被选。记录物品2。w=5-3=2, i--。\n'
+                f'4. i=1：dp[0][2]=0 ≠ dp[1][2]=3 → 物品1被选。记录物品1。w=2-2=0, i--。\n'
+                f'5. w=0 → 结束。选择为{{物品1,物品2}}。\n\n'
+                f'解析：dp[i][w] != dp[i-1][w] 是判断物品是否被选的关键条件。不等说明最优解中包含该物品。\n\n'
+                f'易错提醒：回溯时必须正确更新w（减掉已选物品的重量），否则会错误地多选物品或遗漏。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'如果将物品2的重量改为4（即物品：w1=2,v1=3; w2=4,v2=4; w3=4,v3=5），'
+                f'背包容量仍为W=5。最优解会发生什么变化？请重新求解并解释为什么。'
+            ),
+            final_answer='原最优解（选1+2）失效——因为物品2重量变为4后，物品1(w=2)+物品2(w=4)=6>5（超重）。\n新最优解：选物品3（w=4,v=5）→价值5，或选物品1+？→物品1(w=2)+物品2/3(w=4)=6超重。所以只能单选：max(3,4,5)=5→选物品3。',
+            steps=[
+                '原最优解：选1+2 → 重2+3=5≤5 ✓ → 价值7',
+                '修改后：选1+2 → 重2+4=6>5 ✗（不可行）',
+                '检查所有组合：单选1→3, 单选2→4, 单选3→5, 1+2→6>5不可行, 1+3→6>5不可行',
+                '最优：单选物品3 → 价值5',
+                '原因：物品2重量增加打破了原来的最优组合。原来(2+3=5恰满)变成(2+4=6超重)。',
+            ],
+            explanation='0-1背包的最优解对物品参数敏感。单个物品参数变化可能导致最优解完全改变——这是背包问题的组合特性：物品之间通过重量约束相互制约。',
+            pitfall='不要假设"物品价值越高越好"——物品2价值4<物品3价值5，但物品2原重量3<5（容余2可加物品1）使其成为关键组件。修改后重量4使得无法再加物品1，价值反而不如单选物品3。',
+            answer=(
+                f'最终答案：新最优解为单选物品3，价值5。原最优解(1+2)因超重6>5而失效。\n\n'
+                f'解题步骤：\n'
+                f'1. 原最优解：物品1(2,3)+物品2(3,4)→总重5、价值7。\n'
+                f'2. 修改后物品2重量变为4：物品1(2,3)+物品2(4,4)→总重6>5→不可行。\n'
+                f'3. 枚举所有可行组合：单选1→3，单选2→4，单选3→5，1+2→不可行，1+3→不可行。\n'
+                f'4. 最优：单选物品3→价值5。\n\n'
+                f'解析：背包问题的最优解对物品参数敏感——单个物品参数变化可能彻底改变最优组合。\n\n'
+                f'易错提醒：不要假设"原最优解去掉某物品后剩余的还是最优"——背包具有组合特性，物品之间通过重量约束相互影响。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：\n'
+                f'背包容量 W = 5。\n{items_desc}\n\n'
+                f'(1) 用二维DP求解0-1背包，给出完整dp表格（i=0..3, w=0..5）。\n'
+                f'(2) 写出最优解及其总重量和总价值。\n'
+                f'(3) 如果背包要求"恰好装满"，最优解是什么？如果没有恰好装满的方案，请说明原因。\n'
+                f'(4) 比较0-1背包和完全背包（每种物品无限件）在本题上的最优解差异。'
+            ),
+            final_answer='(1) DP表格：略（见解题步骤）\n(2) 选物品1+2，总重5，价值7\n(3) 恰好装满：选物品1+2总重5=W恰好装满，价值7（可行）\n(4) 完全背包：物品1(w=2)最多选2次(总重4)+物品2/3超重→选2次物品1(4,6)或1次物品3(4,5)或物品1+物品2(5,7)→最优仍是选1+2价值7（但完全背包允许选2次物品1得6，不如7）',
+            steps=[
+                'DP表构建：dp[0][*]=0',
+                'i=1(w=2,v=3)：dp[1]=[0,0,3,3,3,3]',
+                'i=2(w=3,v=4)：dp[2]=[0,0,3,4,4,7]',
+                'i=3(w=4,v=5)：dp[3]=[0,0,3,4,5,7]',
+                '恰好装满：初始化dp[0]=[0,-∞,-∞,-∞,-∞,-∞]，同样转移，最终dp[3][5]=7→可行',
+                '完全背包：dp[5]=max(选2次物品1=6, 物品1+2=7, 物品3=5, 其他)=7——与0-1相同',
+            ],
+            explanation='恰好装满的DP只需改变初始化：dp[0]=0, dp[1..W]=-∞（表示"容量恰好为w"的状态初始不可达）。最终dp[W]若非-∞则有解，否则无解。本题W=5可被2+3恰好装满，因此解不变。完全背包允许同一物品多次选取，内层循环改为顺序。',
+            pitfall='恰好装满的初始化与"不超过容量"不同：dp[0]=0, 其余=-∞。如果最终dp[W]==-∞说明无法恰好装满。判断是否有解是关键。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) DP表格：\n'
+                f'   dp[i][w] | w=0 1 2 3 4 5\n'
+                f'   i=0      | 0  0 0 0 0 0\n'
+                f'   i=1      | 0  0 3 3 3 3\n'
+                f'   i=2      | 0  0 3 4 4 7\n'
+                f'   i=3      | 0  0 3 4 5 7\n'
+                f'(2) 最优解：选物品1+2，总重5，价值7。\n'
+                f'(3) 恰好装满：可行，答案相同（2+3=5）。\n'
+                f'(4) 完全背包最优解也是7（选1+2），但多了选2次物品1=6的次优解。\n\n'
+                f'解题步骤：\n'
+                f'1. DP递推：dp[i][w]=max(dp[i-1][w], dp[i-1][w-wtᵢ]+valᵢ)。\n'
+                f'2. 恰好装满初始化为-∞（仅dp[0]=0），同样递推，dp[3][5]=7≠-∞→可行。\n'
+                f'3. 完全背包内层顺序遍历，考虑物品无限次选取。\n\n'
+                f'解析：0-1vs完全的核心区别是内层循环方向：0-1逆序（每物一次），完全顺序（每物多次）。\n\n'
+                f'易错提醒：恰好装满需特殊初始化。若无方案（如W=1），dp[1]始终=-∞，说明无法恰好装满。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_HASH(topic: str, language: str) -> list[dict]:
+    """5 exercises on hash with h(k)=k%5, insert [10,15,7,12], chaining."""
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定哈希函数 h(key) = key % 5，使用链地址法（拉链法）处理冲突。\n'
+                f'依次插入：10, 15, 7, 12。\n\n'
+                f'请画出最终哈希表（5个桶，索引0~4），每个桶列出其链表内容（插入顺序从左到右）。'
+            ),
+            final_answer='桶0：10 → 15\n桶1：空\n桶2：7 → 12\n桶3：空\n桶4：空',
+            steps=[
+                'h(10)=10%5=0 → 桶0插入10 → [0:10]',
+                'h(15)=15%5=0 → 桶0冲突！拉链追加15 → [0:10→15]',
+                'h(7)=7%5=2 → 桶2插入7 → [2:7]',
+                'h(12)=12%5=2 → 桶2冲突！拉链追加12 → [2:7→12]',
+            ],
+            explanation='链地址法将冲突的元素以链表形式挂在同一个桶上。查找时先计算哈希值定位桶，再在链表中顺序查找。负载因子α=4/5=0.8。',
+            pitfall='链表顺序：新元素通常插入链表头部（O(1)）或尾部（需遍历）。本题按插入顺序排列（10先于15, 7先于12），假设尾部插入。实际实现中头部插入更常见（效率更高）。',
+            answer=(
+                f'最终答案：\n'
+                f'桶0：10 → 15\n'
+                f'桶1：空\n'
+                f'桶2：7 → 12\n'
+                f'桶3：空\n'
+                f'桶4：空\n\n'
+                f'解题步骤：\n'
+                f'1. h(10)=10%5=0 → 桶0插入10。\n'
+                f'2. h(15)=15%5=0 → 桶0冲突！链地址法追加15：桶0=[10→15]。\n'
+                f'3. h(7)=7%5=2 → 桶2插入7。\n'
+                f'4. h(12)=12%5=2 → 桶2冲突！追加12：桶2=[7→12]。\n\n'
+                f'解析：链地址法简单高效，负载因子α=0.8时平均查找长度约1+α/2=1.4。\n\n'
+                f'易错提醒：%5运算结果范围是0~4，不是1~5。10%5=0（整除），不要错误地认为10%5=5。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'同一个哈希表：h(key)=key%5，已插入10,15,7,12。\n'
+                f'现在要查找 key=12，需要经过几次比较？查找 key=20（不存在）呢？\n'
+                f'请分别说明查找过程。'
+            ),
+            final_answer='查找12：h(12)=2→桶2链表中7→12，比较2次（先7≠12，再12=12找到）\n查找20：h(20)=0→桶0链表中10→15，比较2次（10≠20, 15≠20）→未找到',
+            steps=[
+                '查找12：h(12)=2→桶2链表[7→12]→比较7≠12（第1次）→比较12==12（第2次）→找到',
+                '查找20：h(20)=20%5=0→桶0链表[10→15]→比较10≠20（第1次）→比较15≠20（第2次）→链表结束，未找到',
+            ],
+            explanation='链地址法的查找时间取决于链表长度。成功查找的平均比较次数≈1+α/2（α为负载因子），失败查找≈α。本题α=0.8，平均性能良好。',
+            pitfall='查找失败需要遍历整个链表！不能因为"20%5=0，桶0不空"就认为找到——哈希值相同不代表key相同（冲突）。必须逐个比较key。',
+            answer=(
+                f'最终答案：\n'
+                f'查找12：比较2次（7≠12→12==12找到）\n'
+                f'查找20：比较2次（10≠20→15≠20→链表结束→未找到）\n\n'
+                f'解题步骤：\n'
+                f'1. 查找12：h(12)=2→桶2链表[7,12]→第1次比7、第2次比12→找到。\n'
+                f'2. 查找20：h(20)=0→桶0链表[10,15]→比10→比15→链表结束→不存在。\n\n'
+                f'解析：链地址法查找复杂度O(链表长度)。负载因子α=n/m控制平均链表长度。\n\n'
+                f'易错提醒：哈希值匹配≠key匹配！冲突元素哈希值相同但key不同——必须逐个比较原始key确认。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'对同一个哈希表（h(k)=k%5，链地址法），现在再插入20。\n'
+                f'请写出：(1) 插入20后的完整哈希表；(2) 此时的负载因子；(3) 如果负载因子超过阈值（如0.75），应该采取什么措施？'
+            ),
+            final_answer='(1) 插入后：桶0：10→15→20；桶1：空；桶2：7→12；桶3：空；桶4：空\n(2) 负载因子α=5/5=1.0\n(3) 超过0.75应扩容（rehash）：例如将表大小扩至原来的两倍（如11个桶），重新计算所有元素的哈希值并插入新表。',
+            steps=[
+                'h(20)=20%5=0 → 追加到桶0链表尾部',
+                '桶0：10→15→20（3个元素）',
+                '总元素=5, 桶数=5, α=5/5=1.0',
+                '超过0.75应扩容→新表大小通常取质数（如11），rehash所有元素',
+            ],
+            explanation='负载因子α=n/m反映哈希表的拥挤程度。α越大，冲突越多，性能越差。一般链地址法在α>1时仍可工作（链表变长），但性能退化。扩容（rehashing）将所有元素重新哈希到更大的表中，摊销O(1)每元素。',
+            pitfall='扩容后不能简单地将旧表元素复制到新表——必须用新表大小重新计算哈希值（因为模数变了）。例如10在新表大小11下：h(10)=10%11=10而非0。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) 桶0：10→15→20；桶1：空；桶2：7→12；桶3：空；桶4：空\n'
+                f'(2) 负载因子α=5/5=1.0\n'
+                f'(3) 扩容：表大小扩至11（质数），rehash所有5个元素。\n\n'
+                f'解题步骤：\n'
+                f'1. h(20)=0 → 桶0已存10→15，追加20 → 桶0=[10→15→20]。\n'
+                f'2. 负载因子计算：元素数5÷桶数5=1.0。\n'
+                f'3. 1.0>0.75 → 扩容。新表大小取下一个质数（如11），重新计算所有元素的h(k)=k%11。\n\n'
+                f'解析：扩容是摊销分析的关键——虽然单次扩容O(n)，但均摊到n次插入后每次O(1)。\n\n'
+                f'易错提醒：rehash必须用新表大小重新计算每个key的哈希值，不能直接复制旧桶内容！'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'比较题：同样的数据（10, 15, 7, 12）和哈希函数 h(k)=k%5，'
+                f'如果使用开放地址法（线性探测）而非链地址法，最终哈希表是什么样子？\n'
+                f'请写出每次插入的过程，并比较两种冲突解决方法的优缺点。'
+            ),
+            final_answer='线性探测结果：桶0:10, 桶1:15, 桶2:7, 桶3:12, 桶4:空\n过程：h(10)=0→放0; h(15)=0→冲突→探测1→放1; h(7)=2→放2; h(12)=2→冲突→探测3→放3',
+            steps=[
+                'h(10)=0→桶0空→放入10',
+                'h(15)=0→桶0占→探测1(线性)→桶1空→放入15',
+                'h(7)=2→桶2空→放入7',
+                'h(12)=2→桶2占→探测3→桶3空→放入12',
+                '最终：桶0:10, 桶1:15, 桶2:7, 桶3:12, 桶4:空',
+            ],
+            explanation='线性探测的查找过程相同：计算哈希→若冲突则依次探测下一个位置直到找到/遇到空位。优点是无需额外链表内存、缓存友好；缺点是一级聚集（primary clustering）和删除复杂（需标记为deleted而非直接清空）。',
+            pitfall='开放地址法中删除元素不能直接置空（会破坏查找链），必须标记为"deleted"（墓碑）。否则后续查找可能错误地认为"未找到"。',
+            answer=(
+                f'最终答案：\n'
+                f'线性探测结果：桶0:10, 桶1:15, 桶2:7, 桶3:12, 桶4:空\n\n'
+                f'解题步骤：\n'
+                f'1. h(10)=0→放桶0。\n'
+                f'2. h(15)=0→桶0占→线性探测桶1→放桶1。\n'
+                f'3. h(7)=2→放桶2。\n'
+                f'4. h(12)=2→桶2占→探测桶3→放桶3。\n\n'
+                f'解析：线性探测实现简单、缓存友好，但一级聚集问题严重（冲突元素簇聚在一起）。链地址法内存灵活但指针开销大。\n\n'
+                f'易错提醒：开放地址法删除元素必须用"墓碑"标记，不能直接置空——否则会切断查找链导致后续元素"丢失"。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：给定哈希函数h(k)=k%5和链地址法。\n'
+                f'(1) 插入序列10,15,7,12后，计算平均成功查找长度（ASL）。\n'
+                f'(2) 如果将哈希函数改为h(k)=k%7，同样插入10,15,7,12，新哈希表结构如何？\n'
+                f'(3) 分析哈希表大小对性能的影响：为什么模数通常选质数？'
+            ),
+            final_answer='(1) ASL_success = (1+2+1+2)/4 = 1.5\n(2) h(k)=k%7：桶3:10, 桶1:15, 桶0:7, 桶5:12（无冲突！）\n(3) 质数模数使哈希分布更均匀——因为key的二进制模式与质数模数的余数分布相关性弱，减少规律性冲突。',
+            steps=[
+                'ASL计算：查找10→1次, 15→2次(10≠15), 7→1次, 12→2次(7≠12)→ASL=(1+2+1+2)/4=1.5',
+                '模7：10%7=3, 15%7=1, 7%7=0, 12%7=5→全部不同桶，无冲突',
+                '模7的负载因子=4/7≈0.57<0.75，空间更充裕',
+                '质数模数优势：key的常见模式（如偶数、倍数）与质数取模的余数分布更均匀→减少冲突',
+            ],
+            explanation='平均查找长度（ASL）是衡量哈希表性能的关键指标。ASL越接近1越好。本题模5下α=0.8有2次冲突；模7下α≈0.57无冲突——表越大冲突越少，但空间效率越低（权衡）。质数模数能更好地将规律性key分布"打散"。',
+            pitfall='模数选2的幂（如8）看似方便（位运算h(k)=k&7），但可能导致规律性冲突（如所有偶数key集中在偶数桶）。质数模数避免了这个问题。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) ASL_success = (1+2+1+2)/4 = 1.5\n'
+                f'(2) 模7：桶0:7, 桶1:15, 桶3:10, 桶5:12（桶2,4,6空）→无冲突\n'
+                f'(3) 质数模数使哈希分布更均匀，减少规律性冲突。\n\n'
+                f'解题步骤：\n'
+                f'1. ASL=所有元素查找比较次数的平均值。桶0:10需1次、15需2次；桶2:7需1次、12需2次→平均1.5。\n'
+                f'2. 模7：10%7=3, 15%7=1, 7%7=0, 12%7=5→各占一桶，无冲突。\n'
+                f'3. 模数越大，负载因子越小，冲突越少。但内存开销增大——权衡点一般为α≈0.75。\n'
+                f'4. 质数原因：key的分布模式（如步长为2、4、8）与质数取模的余数循环周期=质数本身，分布更随机。\n\n'
+                f'解析：哈希表是空间换时间的典型——增大表减少冲突但不经济。质数模数是无成本优化（只改变取模运算对象）。\n\n'
+                f'易错提醒：不要用2的幂做模数（如%8=k&7）——虽然快但冲突模式差。质数取模虽稍慢但分布质量提升远大于性能损失。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_LINEAR(topic: str, language: str) -> list[dict]:
+    """5 exercises on linear data structures (linked lists, arrays)."""
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定单向链表：1 → 2 → 3 → 4 → 5 → null。\n'
+                f'请写出：(1) 在节点3后插入节点6的操作步骤（修改哪些指针）；\n'
+                f'(2) 删除节点3的操作步骤。'
+            ),
+            final_answer='(1) 插入：new_node.next = node3.next; node3.next = new_node → 1→2→3→6→4→5\n(2) 删除3：找到3的前驱(2)，node2.next = node3.next → 1→2→4→5',
+            steps=[
+                '插入6在3后：创建新节点6→将6的next指向3的next(4)→将3的next指向6',
+                '删除3：遍历找到节点2（3的前驱）→将2的next指向3的next(4)→释放3的内存',
+            ],
+            explanation='单链表插入/删除的关键是找到目标节点的前驱（或操作位置的前一个节点）。插入时先连新节点的next再改前驱的next；删除时直接让前驱跳过目标节点。',
+            pitfall='插入时顺序不可颠倒——必须先设new_node.next=node3.next，再node3.next=new_node。如果先改node3.next，链表在3之后断开，找不到原来的后继节点4。',
+            answer=(
+                f'最终答案：\n(1) 插入6到3后：new.next = node3.next; node3.next = new → 1→2→3→6→4→5\n(2) 删除3：node2.next = node3.next → 1→2→4→5\n\n'
+                f'解题步骤：\n'
+                f'1. 插入：先让新节点指向原后继（避免断链），再改前驱指针。\n'
+                f'2. 删除：找到前驱，让其跳过目标节点。\n\n'
+                f'解析：单链表操作需先定位前驱节点O(n)。双向链表可以O(1)删除任意节点。\n\n'
+                f'易错提醒：插入操作顺序不能反——先连后断！先改node3.next会丢失原后继节点4的引用。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定有序数组 [2, 3, 5, 6, 8]。\n'
+                f'请写出二分查找 key=5 的完整过程（每次比较的mid位置和范围变化），并说明二分查找的时间复杂度。'
+            ),
+            final_answer='过程：初始左=0右=4→mid=2(arr[2]=5)找到→1次比较。\n时间复杂度O(log n)。',
+            steps=[
+                '初始：left=0, right=4',
+                'mid=(0+4)//2=2, arr[2]=5==key→找到',
+                '二分查找每次将搜索范围减半→O(logn)',
+            ],
+            explanation='二分查找在有序数组上每次比较将搜索范围减半，时间复杂度O(log n)。前提是数组已排序——如果无序，需先排序（O(n log n)）或改用线性查找（O(n)）。',
+            pitfall='mid溢出：mid=(left+right)//2在left+right>INT_MAX时会溢出。安全写法：mid=left+(right-left)//2。Python无此问题（大整数自动扩展）。',
+            answer=(
+                f'最终答案：mid=2, arr[2]=5==key → 1次找到。时间复杂度O(logn)。\n\n'
+                f'解题步骤：\n'
+                f'1. 初始：left=0, right=4（最后索引）。\n'
+                f'2. mid=(0+4)//2=2：arr[2]=5==key→命中，结束。\n'
+                f'3. 一般情况：arr[mid]<key→left=mid+1; arr[mid]>key→right=mid-1。\n\n'
+                f'解析：每次比较将搜索范围减半→O(logn)。n=5时log₂5≈2.3→最多3次比较。\n\n'
+                f'易错提醒：数组必须有序！二分查找的循环条件是while left<=right（注意等号——单元素时left==right仍需检查）。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'对比单向链表和数组（动态数组/vector）的以下操作效率：\n'
+                f'(1) 随机访问第k个元素\n(2) 在头部插入元素\n(3) 在尾部插入元素\n(4) 删除指定元素（已知位置）\n\n'
+                f'请用表格对比并说明每种结构的适用场景。'
+            ),
+            final_answer='| 操作 | 数组 | 链表 |\n| 随机访问 | O(1) | O(n) |\n| 头部插入 | O(n) | O(1) |\n| 尾部插入 | O(1)* | O(n)/O(1)** |\n| 删除已知位置 | O(n) | O(1) |\n*数组尾部插入均摊O(1)（需扩容时为O(n)）\n**链表有尾指针时O(1)',
+            steps=[
+                '随机访问：数组下标O(1)，链表需遍历O(n)',
+                '头部插入：数组需后移所有元素O(n)，链表改头指针O(1)',
+                '尾部插入：数组均摊O(1)（扩容时O(n)），链表有尾指针O(1)否则O(n)',
+                '删除：数组需前移所有元素O(n)，链表改指针O(1)（前提已知节点位置）',
+            ],
+            explanation='数组优势在随机访问和缓存局部性（连续内存），链表优势在插入/删除的灵活性（只需改指针）。实际选择取决于操作模式：频繁随机访问→数组；频繁头部插入/删除→链表。',
+            pitfall='链表"O(1)删除"的前提是已知节点位置（有节点指针）。如果只知道值（需要先遍历查找），整体仍是O(n)（查找O(n)+删除O(1)=O(n)）。',
+            answer=(
+                f'最终答案：\n| 操作 | 数组 | 链表 |\n| 随机访问 | O(1) | O(n) |\n| 头部插入 | O(n) | O(1) |\n| 尾部插入 | O(1)* | O(1)** |\n| 删除 | O(n) | O(1)*** |\n*均摊; **需尾指针; ***已知节点位置\n\n'
+                f'解题步骤：\n'
+                f'1. 数组随机访问直接下标寻址O(1)；链表需从头部开始遍历O(n)。\n'
+                f'2. 数组头部插入需后移全部n个元素O(n)；链表只需改头指针O(1)。\n'
+                f'3. 数组尾部插入均摊O(1)（偶尔扩容）；链表有尾指针O(1)否则需遍历到尾部O(n)。\n'
+                f'4. 已知位置的删除：数组需前移后续元素O(n)；链表改指针O(1)。\n\n'
+                f'解析：没有"最好"的结构，只有适合场景的结构。C++的std::deque折中了头尾插入的O(1)和较好的缓存性能。\n\n'
+                f'易错提醒：链表删除O(1)的前提是已知节点指针！如果只知道值而不知道位置→需先遍历O(n)查找→总O(n)。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'给定两个有序数组 arr1=[1,3,5] 和 arr2=[2,4,6,8]。\n'
+                f'请写出合并两个有序数组的算法过程（归并），得到有序结果 [1,2,3,4,5,6,8]。'
+            ),
+            final_answer='归并过程：双指针i=0,j=0→比较arr1[0]=1与arr2[0]=2→取1→i++→比较3与2→取2→j++→比较3与4→取3→i++→比较5与4→取4→j++→比较5与6→取5→i++→i已到底取剩余6,8→最终[1,2,3,4,5,6,8]',
+            steps=[
+                'i=0(arr1), j=0(arr2), result=[]',
+                '1<2→取1, i=1→result=[1]',
+                '3>2→取2, j=1→result=[1,2]',
+                '3<4→取3, i=2→result=[1,2,3]',
+                '5>4→取4, j=2→result=[1,2,3,4]',
+                '5<6→取5, i=3(i越界)→result=[1,2,3,4,5]',
+                'i已越界→取arr2剩余[6,8]→result=[1,2,3,4,5,6,8]',
+            ],
+            explanation='归并两个有序数组使用双指针，每次比较两个数组当前指针所指元素，取较小值并移动对应指针。当一个数组遍历完后，将另一个数组剩余部分直接追加。时间复杂度O(m+n)。',
+            pitfall='归并的前提是两个数组各自有序。如果其中一个数组遍历完后忘了追加另一个数组的剩余元素，结果会不完整。',
+            answer=(
+                f'最终答案：[1, 2, 3, 4, 5, 6, 8]\n\n'
+                f'解题步骤：\n'
+                f'1. i=0, j=0→1<2→取1, i=1。\n'
+                f'2. 3>2→取2, j=1。\n'
+                f'3. 3<4→取3, i=2。\n'
+                f'4. 5>4→取4, j=2。\n'
+                f'5. 5<6→取5, i=3（i超界）。\n'
+                f'6. i超界→追加arr2剩余[6,8]→[1,2,3,4,5,6,8]。\n\n'
+                f'解析：归并是归并排序的核心操作。时间复杂度O(m+n)，空间复杂度O(m+n)（需要辅助数组）。\n\n'
+                f'易错提醒：一个数组遍历完后必须将另一个数组的剩余元素全部追加，不能遗漏。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：你需要设计一个数据结构管理任务队列，要求支持：\n'
+                f'(1) 从尾部添加任务（push_back）O(1)\n'
+                f'(2) 从头部取出任务（pop_front）O(1)\n'
+                f'(3) 查看头尾任务O(1)\n\n'
+                f'请说明最适合的数据结构，并写出其{language}实现的核心结构定义。'
+                f'如果该结构在{language}标准库中已经存在，请说明其名称和基本用法。'
+            ),
+            final_answer=f'最适合：双端队列（deque）。\n{language}中：std::deque<T> 或使用更高效的 std::queue<T>（底层默认deque）。\n\n核心操作：push_back(x) → O(1); pop_front() → O(1); front()/back() → O(1)',
+            steps=[
+                '需求分析：头尾O(1)操作→双端队列deque',
+                f'{language}实现：std::deque<int> dq; dq.push_back(x); dq.pop_front(); dq.front(); dq.back()',
+                'deque内部实现：分段连续数组（chunk array），每段固定大小，通过指针数组索引→头尾操作均O(1)',
+                '对比：std::vector头部操作O(n)不适合；std::list链表可满足但缓存性能差',
+            ],
+            explanation='双端队列（deque）支持头尾O(1)插入/删除。实现方式通常为分段数组（chunk array / block map）：将元素分布到多个固定大小的内存块中，通过块指针数组管理。这种设计既保留了数组的缓存局部性，又提供了头部的O(1)操作。',
+            pitfall='std::deque的随机访问是O(1)（需要计算块索引+块内偏移），但比std::vector的O(1)稍慢（多一次间接访问）。如果不需要头部操作，优先用std::vector。',
+            answer=(
+                f'最终答案：使用双端队列（deque）。\n'
+                f'{language}：std::deque<int> dq;\n'
+                f'dq.push_back(x); dq.pop_front(); dq.front(); dq.back(); → 全部O(1)\n\n'
+                f'解题步骤：\n'
+                f'1. 需求为头尾O(1)→双端队列是标准答案。\n'
+                f'2. {language}中std::deque底层为分段数组，头尾操作均O(1)。\n'
+                f'3. 若只需FIFO队列语义→std::queue<T>（默认底层std::deque<T>）。\n\n'
+                f'解析：deque折中了vector的缓存优势和list的灵活插入。分段数组设计使其头尾操作均为O(1)。\n\n'
+                f'易错提醒：不要用std::vector模拟队列（erase(begin())是O(n)）——虽然能用但效率低。std::deque才是正确选择。'
+            ),
+        ),
+    ]
+
+
+def _PAIRED_DIJKSTRA(topic: str, language: str) -> list[dict]:
+    """5 exercises on Dijkstra: graph A--2--B--1--D | A--4--C | B--3--E | C--2--E."""
+    graph_desc = (
+        'A --2-- B --1-- D\n'
+        'A --4-- C\n'
+        'B --3-- E\n'
+        'C --2-- E'
+    )
+    dist_result = (
+        'A→A = 0\n'
+        'A→B = 2 (A→B)\n'
+        'A→C = 4 (A→C)\n'
+        'A→D = 3 (A→B→D)\n'
+        'A→E = 5 (A→B→E)'
+    )
+    return [
+        _make_pair(
+            level='基础',
+            question=(
+                f'给定带权有向图：\n{graph_desc}\n\n'
+                f'从顶点A出发，手工执行Dijkstra算法，写出A到每个节点的最短距离及其路径。'
+            ),
+            final_answer=dist_result,
+            steps=[
+                '初始化dist[A]=0，其余=∞。未访问集合={A,B,C,D,E}',
+                '选A(距离0)：松弛A→B=2、A→C=4。dist=[A:0, B:2, C:4, D:∞, E:∞]',
+                '选B(距离2)：松弛B→D=2+1=3、B→E=2+3=5。dist=[A:0, B:2, C:4, D:3, E:5]',
+                '选D(距离3)：D无出边',
+                '选C(距离4)：松弛C→E=4+2=6＞5不更新',
+                '选E(距离5)：E无出边。完成',
+            ],
+            explanation='Dijkstra每次选择距离起点最近的未访问节点进行松弛。使用最小堆优化后O((V+E)logV)。本题所有边权为正满足Dijkstra要求。A→C→E=6不如A→B→E=5，E的最短距离为5。',
+            pitfall='Dijkstra不能处理负权边（须用Bellman-Ford）。松弛操作比较dist[v]+w和dist[u]而非dist[v]和w。',
+            answer=(
+                f'最终答案：\n{dist_result}\n\n'
+                f'解题步骤：\n'
+                f'1. 初始化dist[A]=0，其余=∞。\n'
+                f'2. 选A(0)：松弛A→B=2、A→C=4。dist=[A:0,B:2,C:4,D:∞,E:∞]。\n'
+                f'3. 选B(2)：松弛B→D=3、B→E=5。dist=[A:0,B:2,C:4,D:3,E:5]。\n'
+                f'4. 选D(3)：D无出边。\n'
+                f'5. 选C(4)：松弛C→E=6>5不更新。\n'
+                f'6. 选E(5)：E无出边。全部完成。\n\n'
+                f'解析：贪心策略——每次选距离最近的未访问节点松弛其邻居。堆优化后O((V+E)logV)。\n\n'
+                f'易错提醒：Dijkstra不能处理负权边。A→C→E=6>A→B→E=5，E的最短路径是A→B→E而非A→C→E。'
+            ),
+        ),
+        _make_pair(
+            level='基础',
+            question=(
+                f'（同一张图）\n{graph_desc}\n\n'
+                f'写出Dijkstra算法执行过程中dist数组的每一轮更新（共5轮，A为第0轮初始状态）。'
+                f'每轮指出哪个节点被"确定"（其最短距离不再改变）。'
+            ),
+            final_answer='初始：dist=[A:0, B:∞, C:∞, D:∞, E:∞]\n第1轮选A：dist=[A:0✓, B:2, C:4, D:∞, E:∞] → 确定A\n第2轮选B：dist=[A:0✓, B:2✓, C:4, D:3, E:5] → 确定B\n第3轮选D：dist=[A:0✓, B:2✓, C:4, D:3✓, E:5] → 确定D\n第4轮选C：dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5] → 确定C\n第5轮选E：dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5✓] → 确定E',
+            steps=[
+                '初始：dist=[A:0, B:∞, C:∞, D:∞, E:∞]',
+                '选A(0)→松弛B→2, C→4 → dist=[A:0✓, B:2, C:4, D:∞, E:∞] 确定A',
+                '选B(2)→松弛D→3, E→5 → dist=[A:0✓, B:2✓, C:4, D:3, E:5] 确定B',
+                '选D(3)→无出边 → dist=[A:0✓, B:2✓, C:4, D:3✓, E:5] 确定D',
+                '选C(4)→松弛E→6>5不更新 → dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5] 确定C',
+                '选E(5)→无出边 → dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5✓] 确定E',
+            ],
+            explanation='Dijkstra的贪心性质：一旦节点被选中（当前dist最小且未访问），其最短距离即被确定，后续不会被更新。这是边权非负的必然结论。每一步选择的顺序就是最短距离从小到大的顺序。',
+            pitfall='节点被"确定"后不会再被更新——这是Dijkstra正确性的核心。负权边会破坏这个性质（后续可能发现更短路径使已确定节点的dist减小），所以Dijkstra不能处理负权边。',
+            answer=(
+                f'最终答案：\n'
+                f'初始：dist=[A:0, B:∞, C:∞, D:∞, E:∞]\n'
+                f'第1轮选A：dist=[A:0✓, B:2, C:4, D:∞, E:∞] → 确定A\n'
+                f'第2轮选B：dist=[A:0✓, B:2✓, C:4, D:3, E:5] → 确定B\n'
+                f'第3轮选D：dist=[A:0✓, B:2✓, C:4, D:3✓, E:5] → 确定D\n'
+                f'第4轮选C：dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5] → 确定C\n'
+                f'第5轮选E：dist=[A:0✓, B:2✓, C:4✓, D:3✓, E:5✓] → 确定E\n\n'
+                f'解题步骤：\n'
+                f'1. 每轮选当前dist最小且未确定的节点。\n'
+                f'2. 对该节点的每条出边执行松弛：若dist[v]+w < dist[u]则更新dist[u]。\n'
+                f'3. 被选中的节点标记✓——其最短距离此后不再改变。\n\n'
+                f'解析：Dijkstra贪心选择顺序即最短距离递增顺序。性质依赖于边权非负。\n\n'
+                f'易错提醒：已确定的节点不会再被更新——负权边会破坏这个假设。第3轮选D而非C是因为dist[D]=3<dist[C]=4。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'（同一张图）\n{graph_desc}\n\n'
+                f'写出Dijkstra算法的{language}完整实现（优先队列优化），包含路径回溯（记录每个节点的前驱parent）。\n'
+                f'要求输出从A到E的完整最短路径和距离。'
+            ),
+            final_answer='A→B→E，距离=5（A→B=2, B→E=3, 总距离=5）',
+            steps=[
+                '建图：使用邻接表adj[v]=[(u,w),...]存储边',
+                '初始化dist[A]=0，其余INT_MAX，parent全-1',
+                '优先队列pq维护(距离,节点)，每次取堆顶松弛',
+                '松弛时若dist[v]+w<dist[u]则更新dist[u]和parent[u]',
+                '结束后从E沿parent回溯到A即得最短路径',
+            ],
+            explanation='堆优化Dijkstra：使用priority_queue（最小堆）选取当前距离最小的节点。若从堆中弹出的距离大于当前记录的dist（过时记录），跳过。parent数组记录每个节点的前驱，用于路径回溯。',
+            pitfall='必须检查`if(d>dist[v])continue`——跳过堆中过时的记录（懒惰删除）。没有这个检查可能导致O(V²)退化。parent仅在有更优路径时才更新。',
+            answer=(
+                f'最终答案：A→B→E 最短路径，距离=5（A→B=2, B→E=3）\n\n'
+                f'解题步骤：\n'
+                f'1. 建图：邻接表adj[v]=[(u,w),...]存储每条边。\n'
+                f'2. 初始化dist[A]=0，其余INT_MAX；parent数组全-1。\n'
+                f'3. 优先队列pq维护(距离,节点)，每次取堆顶进行松弛。\n'
+                f'4. 若dist[v]+w<dist[u]则更新dist[u]和parent[u]。\n'
+                f'5. 算法结束后从E沿parent回溯到A得到A→B→E。\n\n'
+                f'解析：堆优化将选最小节点从O(V)降为O(logV)，总O((V+E)logV)。parent回溯O(V)。\n\n'
+                f'易错提醒：必须检查d>dist[v]跳过堆中过时记录（懒惰删除），否则退化为O(V²)。parent仅在有更优路径时更新。'
+            ),
+        ),
+        _make_pair(
+            level='进阶',
+            question=(
+                f'如果上图中边B→D的权值改为-2（存在负权边），Dijkstra算法还能正确求出最短路径吗？\n'
+                f'请用反例说明，并指出应使用的替代算法。\n\n'
+                f'图数据：\n{graph_desc}\n（将B→D改为-2）'
+            ),
+            final_answer='不能！Dijkstra无法处理负权边。\n反例：Dijkstra第3轮选D(dist=0)确定之，但如果后续发现更短到D的路径（通过其他节点且含负权边），已确定的D无法被更新——结果错误。\n替代：Bellman-Ford算法O(VE)，可处理负权边并能检测负权环。',
+            steps=[
+                '原图B→D=1，A→B→D=3',
+                '修改后B→D=-2，A→B→D=2+(-2)=0',
+                'Dijkstra第3轮选D(dist=0)确定D——贪心认为这是最短',
+                '但如果存在A→...→D的更短路径（含其他负权边），已确定的D不会被更新',
+                '应使用Bellman-Ford：对每条边执行V-1轮松弛，第V轮若仍有更新则存在负权环',
+            ],
+            explanation='Dijkstra的贪心性质依赖"边权非负"——一旦节点被选中其最短距离即确定。负权边打破了这个前提：后续轮次可能通过含负权边的路径发现比"已确定"更短的距离。Bellman-Ford通过V-1轮全边松弛解决此问题，SSSP正确性不依赖边权符号。',
+            pitfall='不能因为"大部分边是正的就用Dijkstra"——只要有一条负权边，算法的正确性就不再保证。SPFA是Bellman-Ford的队列优化，但最坏仍是O(VE)，且可能被特殊数据卡到很慢。',
+            answer=(
+                f'最终答案：不能。Dijkstra不能处理任何负权边。应使用Bellman-Ford算法。\n\n'
+                f'解题步骤：\n'
+                f'1. 修改B→D=-2后：A→B→D=2+(-2)=0，A→B→E=2+3=5，A→C→E=4+2=6。\n'
+                f'2. Dijkstra第2轮选B(2)：松弛D=0。\n'
+                f'3. 第3轮选D(0)→确定D。但问题：Dijkstra假设已确定的节点距离不再变化。\n'
+                f'4. 在含负权边的图中，后续可能发现更短到D的路径（绕过B的其他路径）——已确定的D无法更新→错误。\n'
+                f'5. Bellman-Ford：对每条边V-1轮松弛，第V轮检查更新→若仍有更新则存在负权环。\n\n'
+                f'解析：Dijkstra正确性依赖"边权非负"。Bellman-Ford O(VE)通用但更慢。\n\n'
+                f'易错提醒：不能因为"大部分边是正的就用Dijkstra"——有一条负权边都不行。SPFA是Bellman-Ford的队列优化但最坏O(VE)。'
+            ),
+        ),
+        _make_pair(
+            level='综合',
+            question=(
+                f'综合题：给定城市交通图：\n{graph_desc}\n边权代表通行时间（分钟）。\n\n'
+                f'(1) 求从A到E的最短通行时间和路径。\n'
+                f'(2) 如果C→E之间发生拥堵通行时间翻倍（从2变为4），重新计算A到E的最短路径。\n'
+                f'(3) 如果B→E之间道路封闭（权值变为∞），A到E的最短路径是什么？'
+            ),
+            final_answer='(1) 原始：A→B→E，5分钟\n(2) C→E翻倍：A→C→E=4+4=8>A→B→E=5→仍是A→B→E=5分钟\n(3) B→E封闭：A→C→E=4+2=6分钟→最短路径变为A→C→E',
+            steps=[
+                '(1) 原始Dijkstra：A→B→E=2+3=5，A→C→E=4+2=6 → 选A→B→E=5',
+                '(2) C→E=4：A→B→E=5，A→C→E=4+4=8 → 仍选A→B→E=5',
+                '(3) B→E=∞（不可达）：A→C→E=4+2=6 → 唯一可行路径A→C→E=6',
+            ],
+            explanation='Dijkstra对边权变化敏感，任意边权变化都需重新运行完整算法。这体现了最短路径问题的动态特性——不能仅做"局部修补"。',
+            pitfall='边权变化后不能只"局部调整"已有结果——必须重新运行完整Dijkstra。最短路径的选择是全局决策（所有路径比较的结果），局部的微小变化可能导致完全不同的全局最优路径。',
+            answer=(
+                f'最终答案：\n'
+                f'(1) A→B→E，5分钟（A→B=2 + B→E=3）\n'
+                f'(2) A→B→E，5分钟（A→C→E=4+4=8>5，不变）\n'
+                f'(3) A→C→E，6分钟（A→C=4 + C→E=2，B→E封闭后唯一路径）\n\n'
+                f'解题步骤：\n'
+                f'1. 原始条件下比较两条路径：A→B→E=5 vs A→C→E=6 → 选A→B→E。\n'
+                f'2. C→E翻倍后比较：A→B→E=5 vs A→C→E=8 → 仍选A→B→E。\n'
+                f'3. B→E封闭后：A→B→E不可达→A→C→E=6为唯一路径。\n\n'
+                f'解析：Dijkstra的全局性——边权变化需重新计算整个最短路径树，不能局部修补。\n\n'
+                f'易错提醒：边权变化后必须完整重新运行Dijkstra，不能"局部调整"。最短路径选择是全局决策。'
+            ),
+        ),
+    ]
+
+
 def _build_type_sections(resource_type: str, module: str, topic: str, lang: str) -> list[dict]:
     """Build module-aware, type-specific sections for fallback resources.
 
@@ -1844,11 +3881,15 @@ def _build_type_sections(resource_type: str, module: str, topic: str, lang: str)
     display = _topic_display_name(topic)
     code_info = build_language_specific_code_example(topic, lang)
     mc = _MODULE_CONTENT.get(module, {})
+    errors = mc.get('errors', [])
+    practice = mc.get('practice', ['', ''])
 
     if resource_type == '图解讲解':
-        overview = mc.get('overview', f'围绕"{display}"的核心概念与基本原理展开深度讲解。通过图示化的方式帮助学习者建立直观理解，是学习数据结构的重要基础内容。')
+        overview = mc.get('overview', f'围绕"{display}"的核心概念与基本原理展开深度讲解。')
         concepts = mc.get('concepts', [display, module])
-        sections = [
+        diagram = _build_text_diagram(topic, module)
+
+        sections: list[dict] = [
             {'kind': 'highlight', 'heading': f'{display} — 核心要点',
              'content': overview},
             {'kind': 'example', 'heading': f'{display} — 具体示例说明',
@@ -1856,35 +3897,44 @@ def _build_type_sections(resource_type: str, module: str, topic: str, lang: str)
                  'example_text',
                  f'以具体的场景和数据演示"{display}"的完整执行过程。'
                  f'通过一步步追踪数据变化，让抽象的概念变得可感知、可验证。'
-                 f'建议跟随示例手动模拟一遍，加深对核心机制的理解。'
              )},
-            {'kind': 'steps', 'heading': f'{display} — 分步骤拆解',
+        ]
+
+        # Insert text diagram if available
+        if diagram:
+            sections.append({'kind': 'diagram', 'heading': f'{display} — 图解结构', 'content': diagram})
+
+        sections.append({'kind': 'steps', 'heading': f'{display} — 分步骤拆解',
              'steps': mc.get('visual_steps', [
-                 f'第一步：理解{display}的基本定义和核心数据结构——明确输入是什么、输出是什么，以及中间涉及的数据结构（{", ".join(concepts[:3])}等）',
-                 f'第二步：通过具体示例观察{display}的逐步执行——在纸上或调试器中跟踪每一步的数据变化，特别注意变量的更新顺序和条件的判断时机',
-                 f'第三步：手动模拟{display}的关键步骤——脱离代码，用纸笔复现算法的完整流程，这是检验是否真正理解的最高效方法',
-                 f'第四步：总结{display}的适用场景和局限性——明确"什么时候应该用它"和"什么时候不该用它"，这比会写代码本身更重要',
-                 f'第五步：与相关概念进行对比——将{display}与{module}中的其他相关概念进行对比分析，理解各自的优劣和选择依据',
-             ])},
-            {'kind': 'table', 'heading': f'{display} — 核心概念与对比分析',
+                 f'第一步：理解{display}的基本定义和核心数据结构——明确输入、输出及中间涉及的数据结构（{", ".join(concepts[:3])}等）',
+                 f'第二步：通过具体示例观察{display}的逐步执行——跟踪每一步的数据变化，注意变量的更新顺序和条件判断时机',
+                 f'第三步：手动模拟{display}的关键步骤——用纸笔复现完整流程，这是检验是否真正理解的最高效方法',
+                 f'第四步：总结{display}的适用场景和局限性——明确"什么时候该用"和"什么时候不该用"',
+                 f'第五步：与相关概念对比——将{display}与{module}中其他概念进行对比，理解各自的优劣和选择依据',
+             ])})
+
+        sections.append({'kind': 'table', 'heading': f'{display} — 核心概念与对比分析',
              'content': mc.get('compare_table',
                                f'{display}与{module}中相关概念的对比分析表。'
-                               f'通过结构化对比的方式帮助学习者快速建立知识网络，理解不同概念之间的关系和边界。'
-             )},
-            {'kind': 'warnings', 'heading': f'{display} — 常见误区与注意事项',
-             'content': mc.get('errors', [{'heading': '', 'body': ''}])[0][1] if mc.get('errors') and len(mc['errors']) > 0 else
-                        f'学习{display}时最常见的误区包括：混淆核心概念的定义边界、忽略边界条件的处理、'
-                        f'在不适用的场景下套用该算法。建议对照{module}的标准教材逐一排查。'},
-            {'kind': 'practice', 'heading': '即时练习',
-             'content': mc.get('practice', ['', ''])[0] if mc.get('practice') and len(mc['practice']) > 0 else
-                        f'请用自己的话解释{display}的核心原理，并举一个具体的应用场景。然后手动模拟一遍该算法在简单输入上的执行过程。'},
-            {'kind': 'answer_hint', 'heading': '练习提示与检查要点',
-             'content': mc.get('practice', ['', ''])[1] if mc.get('practice') and len(mc['practice']) > 1 else
-                        f'检查要点：(1) 你的解释中是否准确使用了{module}的专业术语？'
-                        f'(2) 手动模拟的每一步是否与代码的逻辑一致？(3) 能否举出至少一个{display}不适用的反例场景？'},
-        ]
+                               f'通过结构化对比帮助学习者快速建立知识网络。'
+             )})
+
+        # Warnings — use module errors or generate
+        if errors:
+            for err in errors[:3]:
+                sections.append({'kind': 'warnings', 'heading': err[0] if isinstance(err, tuple) else '常见误区', 'content': err[1] if isinstance(err, tuple) else str(err)})
+        else:
+            sections.append({'kind': 'warnings', 'heading': f'{display} — 常见误区',
+                 'content': f'学习{display}时最常见误区：混淆核心概念的定义边界、忽略边界条件、在不适用场景下套用该算法。'})
+
+        # Practice + answer paired
+        sections.append({'kind': 'practice', 'heading': '即时练习',
+             'content': practice[0] if practice else f'请用自己的话解释{display}的核心原理，并举一个具体的应用场景。'})
+        sections.append({'kind': 'answer', 'heading': '参考答案与解析',
+             'content': practice[1] if len(practice) > 1 else _build_fallback_answer(module, topic)})
+
         if code_info:
-            sections.insert(3, {'kind': 'code', 'heading': code_info['heading'],
+            sections.insert(3 if diagram else 2, {'kind': 'code', 'heading': code_info['heading'],
                                 'content': code_info['code'], 'language': code_info['language']})
 
     elif resource_type == '代码示例':
@@ -1892,8 +3942,8 @@ def _build_type_sections(resource_type: str, module: str, topic: str, lang: str)
             {'kind': 'highlight', 'heading': f'{display} — 代码整体说明',
              'content': mc.get(
                  'code_overview',
-                 f'以下代码展示了{display}的完整{lang}实现。代码涵盖了核心逻辑、边界条件处理和典型测试用例，'
-                 f'属于{module}模块中最重要的编码实践之一。建议先通读一遍代码建立整体印象，再对照步骤详解逐段深入理解。'
+                 f'以下代码展示了{display}的完整{lang}实现。代码涵盖核心逻辑、边界处理和典型测试用例，'
+                 f'是{module}模块中最重要的编码实践之一。'
              )},
         ]
         if code_info:
@@ -1902,176 +3952,607 @@ def _build_type_sections(resource_type: str, module: str, topic: str, lang: str)
         sections += [
             {'kind': 'steps', 'heading': '代码逐段详解',
              'steps': [
-                 f'第1段：数据结构定义——代码中定义了哪些关键数据结构（如类、结构体、数组）？每个字段的含义和初始值是什么？理解数据结构是理解后续算法逻辑的前提',
-                 f'第2段：函数入口与参数——主函数的签名是什么？每个参数代表什么含义？输入的数据范围有何约束（如 n≥0、元素大于 0 等）？这些约束决定了边界条件的设计',
-                 f'第3段：核心算法逻辑——追踪主循环或递归体的执行流程。重点理解循环终止条件、变量的更新规则、以及为什么这个顺序（而非其他顺序）能够正确解决问题',
-                 f'第4段：边界条件处理——代码在哪些地方做了防御性检查（如空数组判断、nullptr 检查、索引越界保护）？如果去掉这些检查，在什么输入下程序会崩溃？',
-                 f'第5段：测试用例与验证——代码末尾的 main 函数或测试块覆盖了哪些典型场景？能否再补充 1-2 个边界测试用例（如 n=0、全部相等、退化为链表等情况）？',
+                 f'第1段：数据结构定义——代码中定义了哪些关键数据结构？每个字段的含义和初始值是什么？',
+                 f'第2段：函数入口与参数——主函数签名、参数含义、输入数据范围约束（n≥0、元素>0等）',
+                 f'第3段：核心算法逻辑——追踪主循环或递归体的执行流程，理解循环终止条件和变量更新规则',
+                 f'第4段：边界条件处理——代码中的防御性检查（空数组、nullptr、索引越界）及其必要性',
+                 f'第5段：测试用例与验证——覆盖的典型场景，以及可补充的边界测试用例',
              ]},
             {'kind': 'complexity', 'heading': '时间复杂度与空间复杂度分析',
-             'content': f'分析{display}的时间复杂度和空间复杂度。说明最优情况、最差情况和平均情况下的复杂度特征，'
-                        f'以及复杂度的推导依据（不能只给 O(N) 而不说明为什么）。'
-                        f'如果存在退化场景（如树退化为链表、重复元素过多导致 hash 冲突），请单独说明退化后的复杂度变化。'},
-            {'kind': 'warnings', 'heading': '注意事项一：边界条件的处理',
-             'content': mc.get('errors', [('', '')])[0][1] if mc.get('errors') and len(mc['errors']) > 0 else
-                        f'最常见的严重错误是忽略{display}的边界情况（空输入、单元素、所有元素相同等）。'
-                        f'正确做法：在写核心逻辑之前，先列出所有可能的边界情况并写出相应的处理分支。'},
-            {'kind': 'warnings', 'heading': '注意事项二：常见编码错误',
-             'content': mc.get('errors', [('', ''), ('', '')])[1][1] if mc.get('errors') and len(mc['errors']) > 1 else
-                        f'在{display}的代码实现中，循环条件、指针偏移和返回值处理是最容易出错的地方。'
-                        f'建议每次写完代码后，用至少 3 组不同类型的输入进行测试验证。'},
-            {'kind': 'warnings', 'heading': '注意事项三：性能与语言特性',
-             'content': mc.get('errors', [('', ''), ('', ''), ('', '')])[2][1] if mc.get('errors') and len(mc['errors']) > 2 else
-                        f'在{lang}中实现{display}时，应注意语言特性对性能的影响。'
-                        f'例如递归深度限制、内存分配开销、STL/标准库的使用技巧等。'},
-            {'kind': 'practice', 'heading': '变式练习',
-             'content': f'练习：基于上述{display}的代码，完成以下修改——(1) 调整核心条件以适应新的约束场景；'
-                        f'(2) 将递归版改写为迭代版（或反之），比较两种实现的性能和可读性；'
-                        f'(3) 用另一组不同的测试数据验证两种实现的输出是否完全一致。'},
-            {'kind': 'next_action', 'heading': '延伸学习建议',
-             'content': f'学完{display}的代码实现后，建议按以下顺序继续学习：'
-                        f'(1) 用不同的输入参数反复测试代码，确保理解每个分支的执行路径；'
-                        f'(2) 将{display}与{module}中的其他相关算法做横向对比——它们解决的是同一类问题吗？什么时候该选哪个？'
-                        f'(3) 挑战该知识点的变种题目，用刚学到的代码框架去解决新的问题场景。'},
+             'content': _build_complexity_content(topic, module)},
+            {'kind': 'test_cases', 'heading': '测试用例',
+             'content': _build_test_cases(topic, module, lang)},
+        ]
+        # Add warnings from module content
+        if errors:
+            for i, err in enumerate(errors[:3]):
+                sections.append({'kind': 'warnings', 'heading': err[0] if isinstance(err, tuple) else f'注意事项{i+1}',
+                                 'content': err[1] if isinstance(err, tuple) else str(err)})
+        sections += [
+            {'kind': 'practice', 'heading': '可改造练习',
+             'content': f'基于{display}的代码，完成以下改造：(1) 调整核心条件适应新约束场景；'
+                        f'(2) 将递归版改写为迭代版（或反之），对比性能和可读性；'
+                        f'(3) 用不同测试数据验证两种实现的输出一致性。'},
+            {'kind': 'answer', 'heading': '练习参考解法',
+             'content': _build_code_practice_answer(topic, module, lang)},
         ]
 
     elif resource_type == '易错点':
-        errors = mc.get('errors', [])
         sections = [
             {'kind': 'highlight', 'heading': f'{display} — 高频错误类别概述',
-             'content': mc.get('overview', f'聚焦"{display}"中最常见、最高频的几个易错场景。'
-                                           f'每个错误都包含具体的错误现象、根因分析和正确做法，'
-                                           f'帮助学习者在学习阶段就建立正确的认知框架，避免在实践中反复踩坑。'),
+             'content': mc.get('overview', f'聚焦"{display}"中最常见、最高频的易错场景。'
+                                           f'每个错误包含具体现象、根因分析和正确做法。'),
             },
         ]
-        for i, (title, body) in enumerate(errors[:4]):
+        for i, err_item in enumerate(errors[:4]):
+            title = err_item[0] if isinstance(err_item, tuple) else f'易错点 {i+1}'
+            body = err_item[1] if isinstance(err_item, tuple) else str(err_item)
             sections.append({'kind': 'warnings', 'heading': title, 'content': body})
-        # Fill up to 4 warnings if needed
-        if len(errors) < 1:
-            sections.append({'kind': 'warnings', 'heading': f'常见错误一：{display}的边界条件遗漏',
-                             'content': f'在{display}中，边界条件（如空输入、单元素、最大/最小值边界）的遗漏是最常见的错误。'
-                                        f'务必在实现前用纸笔列出所有可能的边界情况，并在代码中逐一处理。'})
-        if len(errors) < 2:
-            sections.append({'kind': 'warnings', 'heading': f'常见错误二：{display}的循环条件和终止条件',
-                             'content': f'循环的终止条件写错（如 < vs <=、and vs or）会导致死循环或遗漏元素。'
-                                        f'建议用最小的测试用例（如 n=1 或 n=2）进行单步调试验证。'})
-        if len(errors) < 3:
-            sections.append({'kind': 'warnings', 'heading': f'常见错误三：{display}的数据结构选型错误',
-                             'content': f'使用不适合的数据结构会导致程序在特定输入下性能退化（如 O(n)→O(n²)）。'
-                                        f'理解每种数据结构的操作复杂度是避免此类错误的根本方法。'})
-        if len(errors) < 4:
-            sections.append({'kind': 'warnings', 'heading': f'常见错误四：{display}的递归或迭代实现缺陷',
-                             'content': f'递归版本忘记基准情形会导致栈溢出，迭代版本忘记更新循环变量会导致死循环。'
-                                        f'两种实现方式各有陷阱，掌握标准模板是最可靠的防错方法。'})
+
+        # Fill up to 4 errors
+        defaults = [
+            (f'{display} — 边界条件遗漏', f'{display}中边界条件（空输入、单元素、极值）的遗漏是最常见的错误。实现前用纸笔列出所有边界情况并逐一处理。'),
+            (f'{display} — 循环/终止条件错误', f'循环终止条件写错（< vs <=、and vs or）导致死循环或遗漏元素。用最小测试用例（n=1 或 n=2）单步验证。'),
+            (f'{display} — 数据结构选型错误', f'使用不适合的数据结构导致性能退化（O(n)→O(n²)）。理解每种结构的操作复杂度是根本方法。'),
+            (f'{display} — 递归/迭代实现缺陷', f'递归忘记基准情形→栈溢出，迭代忘记更新循环变量→死循环。掌握标准模板是最可靠防错法。'),
+        ]
+        for j in range(len(errors), 4):
+            sections.append({'kind': 'warnings', 'heading': defaults[j][0], 'content': defaults[j][1]})
+
         sections += [
-            {'kind': 'compare', 'heading': f'{display} — 错误写法与正确写法对比',
-             'content': f'对比{display}的常见错误实现与正确实现——重点展示两者在关键分支条件上的差异。'
-                        f'理解"为什么这个看似微小的差别会导致完全不同的结果"是真正掌握{display}的标志。'
-                        f'建议将错误版本的代码输入调试器，单步执行观察变量值的变化，加深对正确逻辑的理解。'},
-            {'kind': 'example', 'heading': '具体犯错场景',
-             'content': f'以一个具体的代码片段或场景演示{display}中常见的犯错过程——'
-                        f'展示在哪些输入条件下错误会被触发、程序的错误表现是什么（崩溃/死循环/错误输出），'
-                        f'以及如何从错误表现反推定位到根因。'},
-            {'kind': 'text', 'heading': '为什么会错 / 错在哪里 / 如何避免',
-             'content': f'分析人在学习{display}时为什么会犯这些错误——是概念理解偏差、代码习惯问题还是对边界条件的敏感度不足。'
-                        f'给出可操作的改进建议：(1) 背诵经过验证的标准模板；(2) 用"测试三件套"覆盖最常见边界；'
-                        f'(3) 理解核心不变量，每次修改代码前在脑内用不变量验证。'},
+            {'kind': 'compare', 'heading': f'{display} — 错误 vs 正确对比',
+             'content': f'对比{display}的常见错误实现与正确实现——展示关键分支条件上的差异。'
+                        f'理解"微小差别导致完全不同的结果"是真正掌握{display}的标志。'},
+            {'kind': 'example', 'heading': '具体犯错场景演示',
+             'content': f'以具体代码片段演示{display}中的犯错过程——输入条件、错误表现（崩溃/死循环/错误输出）、根因定位方法。'},
+            {'kind': 'text', 'heading': '为什么会错 / 如何避免',
+             'content': f'分析学习{display}时犯错的原因（概念偏差/习惯问题/边界敏感度不足）。'
+                        f'改进建议：(1) 背诵标准模板；(2) 用测试三件套覆盖边界；(3) 理解核心不变量。'},
             {'kind': 'practice', 'heading': '判断纠错练习',
-             'content': f'给出 2 段包含错误的{display}代码（错误包括：条件判断缺失、循环条件错误、变量更新遗漏等），'
-                        f'要求学习者找出错误位置、描述错误原因并写出修复后的正确代码。'
-                        f'这是检验是否真正理解（而不仅仅是能写出代码）的最有效自测方式。'},
-            {'kind': 'answer_hint', 'heading': '纠错练习提示与参考答案',
-             'content': f'提示：用{module}中的最小测试用例逐行追踪代码执行，对比预期值和实际值的差异来定位错误。'
-                        f'参考答案中展示了每处错误的修复方法和修复后应得的正确输出结果。'},
+             'content': f'找出以下{display}代码中的错误并修复——包括条件判断缺失、循环条件错误、变量更新遗漏等。'},
+            {'kind': 'answer', 'heading': '参考答案',
+             'content': _build_mistake_practice_answer(topic, module)},
         ]
 
     elif resource_type == '分层练习':
-        practice = mc.get('practice', ['', ''])
+        # Use deterministic paired Q&A — every answer matches its specific question
+        exercise_pairs = build_layered_exercise_pairs(topic, module, lang, resource_type)
         sections = [
-            {'kind': 'highlight', 'heading': f'{display} — 分层练习整体说明',
-             'content': f'本练习集围绕"{display}"（{module}模块）按三个层次递进设计：'
-                        f'基础层侧重概念理解和基本操作；进阶层侧重综合应用和多知识点联动；提高层侧重优化和思维拓展。'
-                        f'完成全部练习后，应能熟练应对该知识点在面试和考试中的常见变体。'},
-            {'kind': 'practice', 'heading': '基础层练习',
-             'content': practice[0] if len(practice) > 0 else
-                        f'基础题1：用自己的话解释{display}的核心原理，并写出一个最简实现（不关注性能，只验证正确性）。\n'
-                        f'基础题2：手动模拟{display}在一个小规模输入上的完整执行过程，每步标注关键变量的值。'},
-            {'kind': 'answer_hint', 'heading': '基础层提示',
-             'content': f'基础层提示：{display}的关键在于理解其核心数据结构和基本操作流程。'
-                        f'如果概念理解有困难，建议先回顾{module}的教材对应章节，确保每个术语的含义清晰后再动手实现。'},
-            {'kind': 'practice', 'heading': '进阶层练习',
-             'content': practice[1] if len(practice) > 1 else
-                        f'进阶1：在基础实现之上加入优化（如空间优化、时间优化），对比优化前后的性能差异。\n'
-                        f'进阶2：将{display}与{module}中另一个相关算法结合，解决一个综合性问题。'},
-            {'kind': 'answer_hint', 'heading': '进阶层提示',
-             'content': f'进阶层提示：优化时先明确当前实现的瓶颈在哪里（时间 or 空间？哪个操作最耗费资源？），再针对性地改进。'
-                        f'不要为了"看起来更高级"而引入不必要的复杂度和性能开销。'},
-            {'kind': 'practice', 'heading': '提高层练习',
-             'content': f'提高题：将{display}应用到实际场景问题中—设计算法解决一个具体的工程问题，'
-                        f'要求包含完整的输入定义、算法设计、复杂度分析和边界情况讨论。'
-                        f'如果能给出至少 2 种不同的解法并对比优劣，将达到提高层的满分标准。'},
-            {'kind': 'answer_hint', 'heading': '提高层提示',
-             'content': f'提高层提示：这道题没有唯一的标准答案——评分标准在于"你的方案是否完整、正确、高效"。'
-                        f'建议先用暴力方法给出一个正确但低效的解（建立基线），再思考如何优化到更优的复杂度。'},
-            {'kind': 'check_criteria', 'heading': '每层达标检查标准',
-             'content': f'基础层达标：能准确描述{display}的概念和适用场景，能独立写出核心代码并通过简单测试。\n'
-                        f'进阶层达标：能在给定问题场景下选择正确的算法实现，能在有限时间内完成代码编写和调试。\n'
-                        f'提高层达标：能独立分析算法的复杂度瓶颈，能给出至少一种优化方案并实现验证，能阐述设计决策的依据。'},
-            {'kind': 'warnings', 'heading': '练习中的常见陷阱',
-             'content': f'陷阱1（过早看答案）：在没有独立思考之前就看答案提示，会严重削弱练习效果。建议至少独立思考 15-20 分钟后再看提示。\n'
-                        f'陷阱2（只做题不总结）：做完题后不总结犯过的错误和学习到的新技巧，下次遇到类似问题仍然会犯同样的错。\n'
-                        f'陷阱3（忽略时间复杂度）：只关注代码能否通过示例测试，不分析算法在面对大规模输入时的性能表现——这是面试中会被重点考察的维度。'},
-            {'kind': 'next_action', 'heading': '完成练习后的学习路径',
-             'content': f'完成{display}的三层练习后，建议进入{module}的下一个知识模块继续递进学习。'
-                        f'保持"学一个新知识点→做三层练习→回顾总结→继续下一个"的学习节奏，是最有效的长期学习策略。'},
+            {'kind': 'highlight', 'heading': f'{display} — 分层练习说明',
+             'content': f'本练习集围绕"{display}"（{module}模块）按三个层次递进：'
+                        f'基础层侧重概念理解和基本操作；进阶层侧重综合应用；提高层侧重优化和思维拓展。'
+                        f'每题均附参考答案和解析，建议先独立完成再对照答案。'},
         ]
+        # Use exercise_pairs_to_sections to get properly formatted practice-answer sections
+        pair_sections = exercise_pairs_to_sections(exercise_pairs)
+        sections.extend(pair_sections)
+        # Validate sections before adding warnings/checklist
+        validation = validate_layered_practice_sections(sections, topic)
+        if not validation['valid']:
+            # Log validation errors but continue — the sections are still useful
+            import logging
+            logging.getLogger(__name__).warning(
+                f'validate_layered_practice_sections errors for topic="{topic}": {validation["errors"]}'
+            )
+        # Common warnings + criteria
+        sections.append({
+            'kind': 'warnings', 'heading': '练习中的常见错误提醒',
+            'content': _build_exercise_warnings(topic, module),
+        })
+        sections.append({
+            'kind': 'check_criteria', 'heading': '每层达标检查标准',
+            'content': f'基础层达标：能准确描述{display}的概念和适用场景，独立写出核心代码并通过简单测试。\n'
+                        f'进阶层达标：能在给定场景下正确选择算法，在有限时间内完成代码编写和调试。\n'
+                        f'提高层达标：能独立分析复杂度瓶颈，给出至少一种优化方案并实现验证。',
+        })
 
     elif resource_type == '项目案例':
         sections = [
             {'kind': 'task', 'heading': f'项目概述：基于{display}的实践项目',
              'content': mc.get('project_idea',
-                               f'设计一个围绕"{display}"的实践项目。'
-                               f'综合运用{module}的核心知识与编程技能，完成从需求分析到代码实现的完整流程。'
-                               f'项目应包含明确的功能目标、输入输出规范和性能约束。'),
+                               f'设计围绕"{display}"的实践项目。综合运用{module}核心知识与编程技能，完成从需求到实现的完整流程。'),
             },
-            {'kind': 'steps', 'heading': '第一阶段：需求分析与设计',
+            {'kind': 'highlight', 'heading': '需要用到的数据结构与算法',
+             'content': _build_project_ds_info(topic, module)},
+            {'kind': 'steps', 'heading': '第一阶段：需求分析与设计（4 步）',
              'steps': [
-                 f'步骤1：明确项目目标——这个项目要解决什么问题？使用者是谁？输入和输出分别是什么？',
-                 f'步骤2：设计数据结构——根据需求选择合适的数据结构（数组/链表/树/图/哈希表等），说明选型理由',
-                 f'步骤3：设计算法流程——画出核心逻辑的流程图或伪代码，明确各模块的接口和交互方式',
-                 f'步骤4：规划测试方案——设计至少 5 组测试用例，覆盖正常情况和边界情况',
+                 f'步骤1：明确项目目标和功能边界——解决什么问题？使用者是谁？输入输出分别是什么？',
+                 f'步骤2：设计数据结构——根据需求选择合适结构（数组/链表/树/图/哈希表等），说明选型理由',
+                 f'步骤3：设计核心算法流程——画出流程图或伪代码，明确各模块接口和交互方式',
+                 f'步骤4：规划测试方案——设计至少 5 组测试用例，覆盖正常和边界情况',
              ]},
-            {'kind': 'steps', 'heading': '第二阶段：代码实现',
+            {'kind': 'steps', 'heading': '第二阶段：代码实现（3 步）',
              'steps': [
-                 '步骤5：搭建项目框架——定义类/结构体/函数签名，编写模块间的接口桩代码',
-                 '步骤6：实现核心功能——按流程图逐步实现关键算法，每完成一步就运行测试验证',
-                 '步骤7：集成与调试——将所有模块组装到一起，运行完整测试用例并修复发现的 bug',
+                 '步骤5：搭建项目框架——定义类/结构体/函数签名，编写模块间接口桩代码',
+                 '步骤6：实现核心功能——按流程图逐步实现关键算法，每步运行测试验证',
+                 '步骤7：集成与调试——组装所有模块，运行完整测试用例并修复发现的 bug',
              ]},
             {'kind': 'design', 'heading': '架构与数据结构设计说明',
-             'content': f'阐述本项目选择的数据结构和算法的设计依据。'
-                        f'说明核心数据结构（如数组、链表、树、图、哈希表等）的选择理由——'
-                        f'为什么选这个而非那个？时间和空间的权衡点在哪里？'
-                        f'描述模块划分方案和各模块的职责边界。'},
-            {'kind': 'warnings', 'heading': '常见实现风险一：边界条件遗漏',
-             'content': f'实际项目中容易忽略的边界情况包括：输入为空、数据量达到上限、异常输入格式等。'
-                        f'建议在每个模块的入口处添加输入校验逻辑，并在集成测试阶段专门测试边界场景。'},
-            {'kind': 'warnings', 'heading': '常见实现风险二：性能瓶颈未提前评估',
-             'content': f'在项目初期就应预估输入规模和数据特征，据此选择合适的数据结构和算法。'
-                        f'如果输入规模可能达到 10⁵ 或更大，O(n²) 的算法需要在设计阶段就被排除。'},
-            {'kind': 'next_action', 'heading': '项目拓展方向',
-             'content': f'完成基础版本后，建议从以下方向拓展项目：(1) 添加持久化功能（读写文件/数据库）；'
-                        f'(2) 实现命令行或 Web 界面；(3) 引入并发或多用户支持；(4) 对比不同实现方案的性能差异。'
-                        f'将项目代码和设计文档整理后放在 GitHub 上，这是面试简历上的重要加分项。'},
+             'content': f'阐述项目的核心数据结构选择理由——为什么选这个而非那个？时间和空间权衡点在哪？模块划分方案和职责边界。'},
         ]
         if code_info:
-            sections.insert(3, {'kind': 'code', 'heading': f'参考代码框架（{lang}）',
+            sections.insert(4, {'kind': 'code', 'heading': f'核心代码框架（{lang}）',
                                 'content': code_info['code'], 'language': code_info['language']})
+        sections += [
+            {'kind': 'warnings', 'heading': '常见实现风险',
+             'content': f'风险1（边界遗漏）：输入为空、数据量达上限、异常格式等。在每个模块入口添加输入校验。\n'
+                        f'风险2（性能瓶颈）：初期预估输入规模，若可能达 10⁵ 级，O(n²) 算法在设计阶段就应排除。\n'
+                        f'风险3（过度设计）：先实现能跑通的基础版，再通过性能测试确定真正瓶颈进行优化。'},
+            {'kind': 'next_action', 'heading': '项目拓展方向（3 个）',
+             'content': f'(1) 添加持久化功能（读写文件/数据库）；(2) 实现命令行或 Web 界面；'
+                        f'(3) 对比不同实现方案的性能差异。将项目代码和设计文档放在 GitHub 上，是面试简历的重要加分项。'},
+            {'kind': 'evaluation', 'heading': '评价标准',
+             'content': _build_evaluation_criteria(topic, module)},
+        ]
 
     else:
         sections = [{'kind': 'text', 'heading': display,
                      'content': f'关于"{display}"（{module}模块）的学习资源。内容覆盖核心概念、代码示例和练习指导。'}]
 
     return sections
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Content builders — type-specific section fillers
+# ═══════════════════════════════════════════════════════════════════
+
+def _detect_topic_category(topic: str) -> str:
+    """Detect the broad category of a topic for answer generation."""
+    t = topic.lower()
+    if any(kw in t for kw in ['二叉树', '前序', '中序', '后序', '树遍历', 'bst', '二叉搜索树', '树']):
+        return 'tree'
+    if any(kw in t for kw in ['递归', '调用栈', '栈帧']):
+        return 'recursion'
+    if any(kw in t for kw in ['bfs', 'dfs', '图', '广度', '深度', '遍历']):
+        return 'graph'
+    if any(kw in t for kw in ['排序', '快速排序', '归并', '二分', 'partition', '查找']):
+        return 'sort'
+    if any(kw in t for kw in ['哈希', '散列', 'hash']):
+        return 'hash'
+    if any(kw in t for kw in ['动态规划', 'dp', '背包', '斐波那契']):
+        return 'dp'
+    if any(kw in t for kw in ['dijkstra', '最短路径', '最短距离', '最短']):
+        return 'dijkstra'
+    if any(kw in t for kw in ['栈', '队列', 'stack', 'queue']):
+        return 'stack_queue'
+    if any(kw in t for kw in ['链表', '线性表', '数组']):
+        return 'linear'
+    return 'general'
+
+
+def _build_fallback_answer(module: str, topic: str) -> str:
+    """Build an answer for 图解讲解 practice section."""
+    cat = _detect_topic_category(topic)
+    answers = {
+        'tree': (
+            f'答案解析：二叉树的三种遍历核心区别在于"根节点的访问时机"。\n'
+            f'前序遍历（根→左→右）：根节点最先被访问，适合复制整棵树（先创建根节点）。\n'
+            f'中序遍历（左→根→右）：对 BST 得到升序序列，这是 BST 最重要的性质。\n'
+            f'后序遍历（左→右→根）：根节点最后被访问，适合删除整棵树（先删子节点）。\n'
+            f'验证方法：任意画一棵二叉树，用三种顺序分别写出访问序列，确认每种顺序的规则正确执行。'
+        ),
+        'recursion': (
+            f'答案解析：递归的三个要素——基准情形是递归的"出口"，必须最先写；'
+            f'递归体必须将问题向基准情形缩小（每次参数变化都更接近基准值）；'
+            f'调用栈管理着每层递归的参数、局部变量和返回地址。\n'
+            f'验证方法：对 factorial(3) 手动画出压栈/弹栈过程，标注每帧的参数值和返回值。'
+        ),
+        'graph': (
+            f'答案解析：BFS 使用队列（FIFO），逐层扩展，天然适合无权图最短路径。\n'
+            f'DFS 使用栈（递归或显式栈），深入探索，适合连通分量、拓扑排序。\n'
+            f'关键差异：BFS 入队时标记 visited，DFS 进入递归时标记 visited。\n'
+            f'验证方法：用同一张图分别跑 BFS 和 DFS，对比访问顺序和数据结构状态。'
+        ),
+        'sort': (
+            f'答案解析：快速排序的核心是 partition——将小于 pivot 的元素放左边，大于的放右边。\n'
+            f'平均 O(n log n) 但最差 O(n²)（已排序数组+固定 pivot）。归并排序稳定 O(n log n)。\n'
+            f'验证方法：用 [3a,2,3b,1] 分别跑快排和归并，观察 3a 和 3b 的相对顺序是否保持。'
+        ),
+        'dp': (
+            f'答案解析：DP 三步法——(1) 定义状态含义 dp[i] 或 dp[i][j]；'
+            f'(2) 写出状态转移方程（从哪来、如何计算）；(3) 初始化边界值。\n'
+            f'从递归→记忆化→自底向上 DP 是理解 DP 的最佳递进路径，建议三个版本都实现一遍。'
+        ),
+        'stack_queue': (
+            f'答案解析：栈（LIFO）适合括号匹配、表达式求值、DFS；队列（FIFO）适合 BFS、任务调度。\n'
+            f'用两个栈实现队列的均摊 O(1) 分析：每个元素最多入栈 A 一次、出栈 A 入栈 B 一次、出栈 B 一次。'
+        ),
+        'hash': (
+            f'答案解析：哈希表通过散列函数 key→index 实现平均 O(1) 查找。\n'
+            f'冲突解决：链地址法（链表追加）和开放寻址法（线性探测/二次探测）。\n'
+            f'负载因子是性能关键——过高则退化，需触发 rehash 扩容。'
+        ),
+        'linear': (
+            f'答案解析：顺序表支持 O(1) 随机访问但 O(n) 插入删除；链表插入删除 O(1) 但随机访问 O(n)。\n'
+            f'选择依据：频繁随机访问→数组；频繁插入删除→链表；两者都需要→考虑跳表或平衡树。'
+        ),
+    }
+    return answers.get(cat, f'参考答案：{topic}的核心原理涉及{module}的基础知识。建议先理解基本概念和数据结构操作，再通过手动模拟验证理解是否正确。关键是能用自己的话准确描述执行过程，而非死记代码。')
+
+
+def _build_complexity_content(topic: str, module: str) -> str:
+    """Build concrete complexity analysis for 代码示例."""
+    cat = _detect_topic_category(topic)
+    analyses = {
+        'tree': (
+            f'时间复杂度：O(n)，其中 n 为二叉树节点数。每个节点被访问恰好一次。\n'
+            f'空间复杂度：递归版本 O(h)，h 为树的高度（递归调用栈深度）。\n'
+            f'  平衡二叉树 h = O(log n) → 空间 O(log n)\n'
+            f'  退化为链表时 h = n → 空间 O(n)，此时有栈溢出风险\n'
+            f'迭代版本（显式栈）：空间复杂度同递归版本，但可避免系统递归深度限制。\n'
+            f'推导依据：遍历函数对每个节点调用一次，递归深度 = 从根到当前叶子路径上的节点数。'
+        ),
+        'recursion': (
+            f'时间复杂度：取决于递归树的结构——线性递归（如阶乘）O(n)，树递归（如斐波那契）O(2^n)。\n'
+            f'空间复杂度：O(递归深度)，每层调用占用一个栈帧（参数+局部变量+返回地址）。\n'
+            f'Python 默认递归深度限制 ≈ 1000，处理深度 > 1000 的问题需改用迭代或 sys.setrecursionlimit。'
+        ),
+        'graph': (
+            f'时间复杂度：O(V + E)，V 为顶点数，E 为边数。每个顶点被访问一次，每条边被检查一次。\n'
+            f'空间复杂度：O(V)——visited 数组大小 V，队列/栈最多存储 V 个顶点。\n'
+            f'邻接表实现：O(V+E)；邻接矩阵实现：O(V²)，因为每行需要全扫描。\n'
+            f'推导依据：外层循环 for each vertex（V），内层 for each neighbor（总计 ∑ degree = 2E）。'
+        ),
+        'sort': (
+            f'时间复杂度：快速排序平均 O(n log n)，最差 O(n²)；归并排序稳定 O(n log n)。\n'
+            f'空间复杂度：快排 O(log n)（递归栈），归并 O(n)（需要临时数组合并）。\n'
+            f'推导依据（快排）：每层 partition O(n)，期望递归深度 log n → O(n log n)；\n'
+            f'  最差情况（已排序+固定 pivot）深度 n → O(n²)。\n'
+            f'对比选择：内存紧张→快排；要求稳定→归并；避免最差→随机 pivot 快排或堆排序。'
+        ),
+        'dp': (
+            f'时间复杂度：取决于状态数 × 每个状态的转移开销。\n'
+            f'  0/1 背包：O(n×W)，n 件物品，W 容量。每个状态 dp[i][w] 计算 O(1)。\n'
+            f'空间复杂度：二维 dp O(n×W)，一维优化 O(W)。\n'
+            f'推导依据：dp 表格有 n×W 个格子，每格取 max(不选, 选) 共 O(1) 操作。'
+        ),
+        'hash': (
+            f'时间复杂度：平均 O(1) 插入/查找/删除；最差 O(n)（所有键冲突到同一桶）。\n'
+            f'空间复杂度：O(m)，m 为桶的数量（通常与 n 同量级）。\n'
+            f'负载因子 λ = n/m：λ < 0.75 时性能良好（链地址法）；λ > 1 时开放寻址法性能急剧退化。\n'
+            f'推导依据：散列函数计算 O(1)，桶内查找期望 O(λ) ≈ O(1)（λ 为常数阈值）。'
+        ),
+    }
+    return analyses.get(cat, f'时间复杂度：需根据具体算法分析。计算方法：(1) 确定基本操作（比较/赋值/访问）；(2) 统计基本操作执行次数关于输入规模 n 的函数；(3) 取渐进上界（忽略常数因子和低阶项）。\n空间复杂度：分析额外分配的内存与输入规模的关系。')
+
+
+def _build_test_cases(topic: str, module: str, lang: str) -> str:
+    """Build test cases for 代码示例."""
+    cat = _detect_topic_category(topic)
+    if cat == 'tree':
+        return (
+            f'测试用例（{lang}）：\n'
+            f'  输入1: [1, 2, 3, 4, 5, null, 6]  → 预期前序: [1, 2, 4, 5, 3, 6]\n'
+            f'  输入2: [1]                         → 预期前序: [1]（单节点）\n'
+            f'  输入3: []                          → 预期前序: []（空树）\n'
+            f'  输入4: [1, null, 2, null, 3]       → 预期前序: [1, 2, 3]（退化为链表）'
+        )
+    if cat == 'graph':
+        return (
+            f'测试用例（{lang}）：\n'
+            f'  图: A-B, A-C, B-D, C-D, D-E（5节点6边）\n'
+            f'  BFS 从 A: [A, B, C, D, E]\n'
+            f'  DFS 从 A: [A, B, D, C, E] 或 [A, C, D, B, E]（取决于邻接表顺序）\n'
+            f'  不连通图: A-B, C-D（两个分量）→ 需外层循环确保所有节点被访问'
+        )
+    if cat == 'sort':
+        return (
+            f'测试用例（{lang}）：\n'
+            f'  普通: [64, 34, 25, 12, 22, 11, 90] → 升序: [11, 12, 22, 25, 34, 64, 90]\n'
+            f'  边界: [] → []（空数组）\n'
+            f'  边界: [5] → [5]（单元素）\n'
+            f'  退化: [1, 2, 3, 4, 5] 已排序 → 测试算法是否退化（固定 pivot 快排会 O(n²)）\n'
+            f'  特殊: [2, 2, 2, 2] 全等 → 稳定排序保持相对顺序'
+        )
+    return (
+        f'测试用例（{lang}）：\n'
+        f'  正常输入：典型数据场景 → 预期正确输出\n'
+        f'  边界输入：空输入、单元素、最大值/最小值边界\n'
+        f'  异常输入：null/None、越界值、格式错误 → 程序不应崩溃'
+    )
+
+
+def _build_code_practice_answer(topic: str, module: str, lang: str) -> str:
+    """Build answer for 代码示例 practice section."""
+    cat = _detect_topic_category(topic)
+    if cat == 'tree':
+        return (
+            f'改造参考（{lang}）：\n'
+            f'(1) 将前序遍历改为中序遍历——只需将 visit(root) 移到两个递归调用之间。\n'
+            f'(2) 递归改写迭代——用显式栈 {lang} 代码模拟递归过程：while stack or root: ...\n'
+            f'(3) 用 [1,2,3,null,4,5] 测试两种版本输出是否一致，并对比运行时间。'
+        )
+    if cat == 'graph':
+        return (
+            f'改造参考（{lang}）：\n'
+            f'(1) BFS 改写 DFS——将队列替换为栈，观察访问序列的变化。\n'
+            f'(2) 添加路径记录——visited 改为 dict，存储每个节点的前驱，实现路径回溯。\n'
+            f'(3) 用不连通图验证外层循环 for each vertex 的必要性。'
+        )
+    return (
+        f'改造参考（{lang}）：\n'
+        f'(1) 修改核心条件适应新约束——测试新场景下的正确性。\n'
+        f'(2) 递归改写迭代（或反之）——对比两种实现的性能和可读性。\n'
+        f'(3) 添加计时器，用不同规模的输入对比改造前后的性能差异。'
+    )
+
+
+def _build_mistake_practice_answer(topic: str, module: str) -> str:
+    """Build answer for 易错点 practice section."""
+    cat = _detect_topic_category(topic)
+    if cat == 'tree':
+        return (
+            f'常见错误答案：(1) 忘记 if root is None: return——导致空指针访问崩溃；\n'
+            f'(2) 遍历函数内部调用顺序错误——cout 放错位置导致输出不是预期顺序；\n'
+            f'(3) BST 插入后未更新父节点指针——新节点"挂"上去了但父节点不知道。\n'
+            f'修复：先写空指针检查（第一行！），再确认 visit 语句在正确位置，最后用测试验证。'
+        )
+    if cat == 'graph':
+        return (
+            f'常见错误答案：(1) visited 标记在出队时——导致同一节点被重复入队；\n'
+            f'(2) 仅从单一起点遍历——不连通图的其他分量被遗漏；\n'
+            f'(3) 稀疏图用邻接矩阵——BF S/DFS 从 O(V+E) 退化到 O(V²)。\n'
+            f'修复：入队/入栈时立即标记 visited，添加外层循环 for each vertex，默认用邻接表。'
+        )
+    return (
+        f'常见错误答案：(1) 边界条件遗漏——空输入、单元素未处理导致崩溃或错误输出；\n'
+        f'(2) 循环终止条件差 1——< vs <= 导致多迭代一次或少迭代一次；\n'
+        f'(3) 变量未在每次迭代前重置——上一次循环的"脏数据"污染下一次结果。\n'
+        f'修复：先列出所有边界情况，在代码中逐一处理；用最小用例单步调试验证循环条件。'
+    )
+
+
+def _build_base_practice(topic: str, module: str) -> str:
+    """Build base-level practice questions."""
+    cat = _detect_topic_category(topic)
+    questions = {
+        'tree': (
+            f'基础题1：请分别写出以下二叉树的前序、中序、后序遍历结果。\n'
+            f'        1\n'
+            f'      /   \\\n'
+            f'     2     3\n'
+            f'    / \\     \\\n'
+            f'   4   5     6\n'
+            f'基础题2：用{module}的实现语言写出二叉树节点的结构体定义，'
+            f'以及前序遍历的递归实现（3行核心代码即可）。'
+        ),
+        'graph': (
+            f'基础题1：以下图从顶点 A 开始进行 BFS 遍历，写出访问序列和每步队列状态。\n'
+            f'  图: A-B, A-C, B-D, C-D, D-E (5个顶点，6条边)\n'
+            f'基础题2：为什么 BFS 的 visited 标记必须在入队时设置，而非出队时？如果不这样做会发生什么？'
+        ),
+        'sort': (
+            f'基础题1：手动模拟快速排序对 [6, 1, 3, 7, 2, 4] 的完整 partition 过程（pivot 选最右元素 4），写出每步数组状态。\n'
+            f'基础题2：实现二分查找的精确查找版本——输入有序数组和目标值，返回目标值首次出现的下标，不存在返回 -1。'
+        ),
+        'dp': (
+            f'基础题1：用递归、记忆化搜索、自底向上 DP 三种方式分别实现斐波那契数列 fib(n)，并对 n=30 测试运行时间。\n'
+            f'基础题2：给出 0/1 背包问题的 dp 二维表格递推公式，并说明 dp[i][w] 的含义。'
+        ),
+        'recursion': (
+            f'基础题1：写出递归实现 factorial(3) 的完整调用栈帧变化过程——标注每层调用的参数值和返回值。\n'
+            f'基础题2：递归三要素分别是什么？如果忘记写基准情形会发生什么？'
+        ),
+        'hash': (
+            f'基础题1：用哈希表（dict）实现 LeetCode 两数之和（Two Sum）O(n) 解法——给定 nums=[2,7,11,15], target=9，找出两数的下标。\n'
+            f'基础题2：解释哈希冲突的两种解决方法——链地址法和开放寻址法的主要区别。'
+        ),
+        'stack_queue': (
+            f'基础题1：用栈实现"括号匹配判断"——给定只含 ()[]{{}} 的字符串，判断是否完全匹配。\n'
+            f'基础题2：用两个栈实现队列——写出 push（入队）和 pop（出队）的逻辑。'
+        ),
+    }
+    return questions.get(cat, f'基础题1：用自己的话解释{module}中"{topic}"的核心原理和适用场景。\n基础题2：写出{topic}的最简实现代码（不关注性能优化，只验证正确性）。')
+
+
+def _build_base_answer(topic: str, module: str) -> str:
+    """Build answers for base-level practice."""
+    cat = _detect_topic_category(topic)
+    answers = {
+        'tree': (
+            f'基础题1 答案：\n'
+            f'  前序(根左右): [1, 2, 4, 5, 3, 6]\n'
+            f'  中序(左根右): [4, 2, 5, 1, 3, 6]\n'
+            f'  后序(左右根): [4, 5, 2, 6, 3, 1]\n'
+            f'基础题2 答案：\n'
+            f'  struct TreeNode {{ int val; TreeNode *left, *right; }};\n'
+            f'  void preorder(TreeNode* root) {{\n'
+            f'      if (!root) return;\n'
+            f'      cout << root->val;\n'
+            f'      preorder(root->left);\n'
+            f'      preorder(root->right);\n'
+            f'  }}\n'
+            f'解析：递归版前序遍历只需3行核心代码，关键是在两个递归调用之前访问根节点。'
+        ),
+        'graph': (
+            f'基础题1 答案：\n'
+            f'  BFS 队列状态: [A] → [B,C] → [C,D] → [D] → [E] → []\n'
+            f'  访问序列: A → B → C → D → E（按层扩展）\n'
+            f'基础题2 答案：\n'
+            f'  若在出队时标记，则同一层的两个节点可能将同一个邻居重复入队。\n'
+            f'  例：节点 B 和 C 都将 D 入队→D 出现两次。正确做法：入队时立即标记。'
+        ),
+        'sort': (
+            f'基础题1 答案：\n'
+            f'  初始 [6,1,3,7,2,4] pivot=4\n'
+            f'  j=0: 6>4 → 不交换，i=0 → [6,1,3,7,2,4]\n'
+            f'  j=1: 1<4 → swap, 交换 6↔1 → [1,6,3,7,2,4], i=1\n'
+            f'  j=2: 3<4 → swap, 交换 6↔3 → [1,3,6,7,2,4], i=2\n'
+            f'  j=3: 7>4 → 不交换 → [1,3,6,7,2,4], i=2\n'
+            f'  j=4: 2<4 → swap, 交换 6↔2 → [1,3,2,7,6,4], i=3\n'
+            f'  最后: swap(i,pivot) → [1,3,2,4,6,7]\n'
+            f'基础题2 答案：mid = left + (right - left) / 2 避免溢出；while left <= right。'
+        ),
+        'dp': (
+            f'基础题1 答案：\n'
+            f'  递归 O(2^n): fib(n-1)+fib(n-2)，大量重复计算\n'
+            f'  记忆化 O(n): memo[n] = memo[n-1]+memo[n-2]\n'
+            f'  自底向上 O(n): dp[i]=dp[i-1]+dp[i-2], 空间可优化到 O(1)\n'
+            f'基础题2 答案：\n'
+            f'  dp[i][w] = 前 i 件物品在容量 w 下的最大价值\n'
+            f'  dp[i][w] = max(dp[i-1][w], dp[i-1][w-wt[i]] + val[i])  // 当 w >= wt[i]\n'
+            f'  解析：每个物品有两种选择——不选（继承上排）或选（剩余容量+当前价值）。'
+        ),
+    }
+    return answers.get(cat, f'基础题参考答案：{topic}的要点是理解{module}的核心概念和基本操作。先用最简单用例手动模拟一遍，确认输出与预期一致后再进行代码实现。')
+
+
+def _build_advanced_practice(topic: str, module: str) -> str:
+    """Build advanced-level practice questions."""
+    cat = _detect_topic_category(topic)
+    questions = {
+        'tree': (
+            f'进阶1：实现二叉搜索树（BST）的插入、查找和删除操作。删除需处理三种情况：叶子节点、单子节点、双子节点（用后继替换）。\n'
+            f'进阶2：将二叉树的前序遍历从递归版改写为迭代版（使用显式栈），并从时间和空间两个维度对比两种实现。'
+        ),
+        'graph': (
+            f'进阶1：实现拓扑排序的两种方法——DFS 三色标记法（WHITE/GRAY/BLACK）和 BFS 入度法（Kahn算法），对比两者在环检测上的差异。\n'
+            f'进阶2：用 Dijkstra 算法求带权有向图中从 s 到 t 的最短路径，要求输出路径上的所有顶点而不仅仅是距离。'
+        ),
+        'sort': (
+            f'进阶1：实现归并排序并用 [3a,2,3b,1] 验证其稳定性——排序后 3a 是否仍排在 3b 前面？对比快速排序的输出。\n'
+            f'进阶2：在已排序数组中实现"查找第一个 >= target 的位置"（lower_bound），分析 while left < right 和 while left <= right 的区别。'
+        ),
+        'dp': (
+            f'进阶1：实现最长公共子序列（LCS）——dp[i][j]=LCS(s1[0:i], s2[0:j])，回溯 dp 表输出 LCS 字符串。\n'
+            f'进阶2：将 0/1 背包的空间复杂度从 O(n×W) 优化到 O(W)，说明为什么内层循环必须从 W 向 0 倒序。'
+        ),
+    }
+    return questions.get(cat, f'进阶1：在基础实现上加入性能优化（空间优化或时间优化），对比优化前后的差异。\n进阶2：将{topic}与{module}中另一个相关算法结合，解决一个综合性问题。')
+
+
+def _build_advanced_answer(topic: str, module: str) -> str:
+    """Build answers for advanced-level practice."""
+    cat = _detect_topic_category(topic)
+    answers = {
+        'tree': (
+            f'进阶1 解析：\n'
+            f'  BST 删除三种情况：\n'
+            f'  (1) 叶子节点：直接删除（free/delete），父节点对应指针置 null\n'
+            f'  (2) 单子节点：用子节点替换被删节点，更新父节点指针\n'
+            f'  (3) 双子节点：找"中序后继"（右子树的最左节点），用后继的值覆盖被删节点，递归删除后继\n'
+            f'进阶2 解析：递归使用系统调用栈，迭代使用显式栈——前者代码更简洁但有深度限制，后者更灵活且可避免栈溢出。'
+        ),
+        'graph': (
+            f'进阶1 解析：\n'
+            f'  DFS 三色标记：WHITE(未访问) → GRAY(正在访问) → BLACK(已处理)\n'
+            f'  环检测：DFS 中遇到 GRAY 节点 = 存在环\n'
+            f'  Kahn 算法：维护入度表，每次取入度为 0 的节点输出并删除其出边\n'
+            f'  若输出节点数 < 总节点数 → 存在环（Kahn算法自然处理）\n'
+            f'进阶2 解析：Dijkstra 用优先队列每次取当前距离最小的未确定节点，进行松弛操作。'
+        ),
+        'sort': (
+            f'进阶1 解析：\n'
+            f'  归并排序输出 [1, 2, 3a, 3b]——3a 仍在 3b 前面，证明稳定 ✓\n'
+            f'  快速排序输出 [1, 2, 3b, 3a]——3a 和 3b 互换，证明不稳定\n'
+            f'  原因：归并的合并阶段保证等值元素按原顺序放入；快排的 partition 不做此保证。\n'
+            f'进阶2 解析：while left < right 退出时 left==right，适合找"插入位置"；while left <= right 退出时 left>right，适合找"精确值"。'
+        ),
+        'dp': (
+            f'进阶1 解析：\n'
+            f'  若 s1[i-1] == s2[j-1]: dp[i][j] = dp[i-1][j-1] + 1\n'
+            f'  否则: dp[i][j] = max(dp[i-1][j], dp[i][j-1])\n'
+            f'  回溯：从右下角开始，若字符相等则收录并左上移动，否则向值更大的方向移动。\n'
+            f'进阶2 解析：倒序遍历 W→0 保证每个物品最多用一次——正向遍历时 dp[w-wt[i]] 可能已经是"选了当前物品"后的状态，造成重复选取（等价于完全背包）。验证：n=1, wt=[2], val=[10], W=4——正向输出 20（选了两次），反向输出 10。'
+        ),
+    }
+    return answers.get(cat, f'进阶层参考答案：先明确当前实现的瓶颈（时间 or 空间？哪个操作最耗费资源？），再针对性优化。不要为"更高级"而引入不必要的复杂度。')
+
+
+def _build_comprehensive_practice(topic: str, module: str) -> str:
+    """Build comprehensive (提高层) practice question."""
+    cat = _detect_topic_category(topic)
+    questions = {
+        'tree': f'综合题：设计一个函数判断二叉树是否是对称二叉树（镜像对称）。要求：(1) 给出至少两种解法；(2) 分析各自的时间复杂度和空间复杂度；(3) 用 3 个不同形态的二叉树验证（对称/不对称/空树）。',
+        'graph': f'综合题：设计算法判断一个有向图是否存在从节点 A 到节点 B 的路径。要求：(1) 分别用 DFS 和 BFS 实现；(2) 分析两种方法在不同图结构下的优劣；(3) 讨论如何处理图中的环。',
+        'sort': f'综合题：设计算法在 O(n log k) 时间内合并 k 个有序数组（每个数组长度 n）。要求：(1) 说明数据结构和算法选择理由；(2) 分析时间复杂度推导过程；(3) 给出至少 2 个边界测试用例。',
+        'dp': f'综合题：给定硬币面额数组 coins 和总金额 amount，求凑出 amount 所需的最少硬币数（每种硬币无限个）。要求：(1) 写出 dp 定义和状态转移方程；(2) 分析不可凑出的情况如何处理；(3) 给出从 1 到 amount 的完整 dp 递推表格（用小数据演示）。',
+    }
+    return questions.get(cat, f'综合题：将{topic}应用到实际场景中——设计算法解决一个具体工程问题，包含完整的输入定义、算法设计、复杂度分析和边界情况讨论。给出至少 2 种解法并对比优劣。')
+
+
+def _build_comprehensive_answer(topic: str, module: str) -> str:
+    """Build answer for comprehensive practice."""
+    cat = _detect_topic_category(topic)
+    answers = {
+        'tree': (
+            f'综合题 参考答案：\n'
+            f'解法1（递归）：定义 helper(left, right)——判断两子树是否镜像对称。\n'
+            f'  基线：两边都为空→true；一边为空→false；值不等→false\n'
+            f'  递归：helper(left.left, right.right) && helper(left.right, right.left)\n'
+            f'  时间 O(n)，空间 O(h)\n'
+            f'解法2（迭代/层序）：队列同时放入左右子树的对应节点进行逐对比较。时间 O(n)，空间 O(n)。\n'
+            f'测试：[1,2,2,3,4,4,3] → 对称 ✓；[1,2,2,null,3,null,3] → 不对称；[] → 对称（空树）'
+        ),
+        'graph': (
+            f'综合题 参考答案：\n'
+            f'DFS 解法：从 A 出发，递归遍历，遇到 B 返回 true，所有路径穷尽未找到返回 false。\n'
+            f'  优点：实现简单，空间 O(V)（递归深度）\n'
+            f'  缺点：可能沿一条长路径深入很久才发现死胡同\n'
+            f'BFS 解法：从 A 出发逐层扩展，每层检查是否到达 B。\n'
+            f'  优点：天然找到最短路径，不会陷入长死胡同\n'
+            f'  缺点：需要维护队列\n'
+            f'环处理：visited 数组或集合记录已访问节点，避免无限循环。'
+        ),
+        'sort': (
+            f'综合题 参考答案：\n'
+            f'数据结构：最小堆（优先队列）——堆中元素为 (value, array_index, element_index)\n'
+            f'算法：(1) 将 k 个数组的首元素放入最小堆；(2) 每次取出堆顶（当前最小），放入结果；'
+            f'(3) 从取出的元素所属数组取下一个元素入堆。重复直到堆空。\n'
+            f'复杂度：堆大小 k，每次操作 O(log k)，共处理 k×n 个元素 → O(kn log k)。\n'
+            f'边界测试：k=1 单数组、某个数组为空、所有元素相同。'
+        ),
+        'dp': (
+            f'综合题 参考答案：\n'
+            f'状态定义：dp[i] = 凑出金额 i 所需的最少硬币数\n'
+            f'转移方程：dp[i] = min(dp[i - coin] + 1) for coin in coins if coin <= i\n'
+            f'初始化：dp[0] = 0; dp[1..amount] = +inf（或 amount+1 表示不可达）\n'
+            f'不可凑出处理：最终 dp[amount] == +inf → return -1\n'
+            f'示例 coins=[1,2,5], amount=6:\n'
+            f'  dp=[0, 1, 1, 2, 2, 1, 2]\n'
+            f'  dp[6] = min(dp[5]+1=2, dp[4]+1=3, dp[1]+1=2) = 2（用 5+1 或 2+2+2）'
+        ),
+    }
+    return answers.get(cat, f'综合题参考答案：先用暴力方法给出正确版本（建立基线），再分析瓶颈进行优化。关键是方案是否正确、完整，以及能否清晰阐述设计决策。')
+
+
+def _build_exercise_warnings(topic: str, module: str) -> str:
+    """Build exercise warnings for 分层练习."""
+    return (
+        f'错误提醒1（过早看答案）：至少独立思考 15-20 分钟后再看参考答案。过早看答案会严重削弱练习效果——你的大脑需要"挣扎"的过程来建立真正的神经连接。\n'
+        f'错误提醒2（只做题不总结）：每做完一题，花 2 分钟总结——这道题考察什么？我卡在哪里？下次遇到类似题目我会怎么想？没有总结的练习只是体力劳动。\n'
+        f'错误提醒3（跳过手动模拟）：在 IDE 里直接写代码之前，先用纸笔模拟 1-2 个用例。大多数 bug 都是在手动模拟阶段就能发现的思路错误——拖到编码阶段修复成本翻倍。'
+    )
+
+
+def _build_project_ds_info(topic: str, module: str) -> str:
+    """Build data structure info for 项目案例."""
+    cat = _detect_topic_category(topic)
+    infos = {
+        'tree': f'本项目需要的核心数据结构：二叉树节点结构体（val, left, right）、辅助队列（用于层序遍历）、辅助栈（用于迭代遍历）。根据需求可能还需要哈希表（存储节点→父节点映射）或优先队列（处理带权路径问题）。',
+        'graph': f'本项目需要的核心数据结构：邻接表（vector<vector<int>> 或 list[]）、visited 数组/集合、队列（BFS）或栈（DFS）。若涉及带权图还需要优先队列实现 Dijkstra，涉及连通性可能需要并查集（Union-Find）。',
+        'sort': f'本项目需要的核心数据结构：数组/vector（存储待排序数据）、递归调用栈（分治算法）、临时数组合并空间。若涉及 top-K 问题还需要堆/优先队列（维护 K 个最大/最小元素）。',
+        'dp': f'本项目需要的核心数据结构：dp 表格（二维数组或一维滚动数组）、回溯路径数组（存储最优解的具体组成）。空间优化时用到一维 dp 数组 + 临时变量。',
+    }
+    return infos.get(cat, f'本项目涉及{module}的核心数据结构——根据需求选择合适的存储结构（数组/链表/树/图/哈希表）。关键是在项目初期分析清楚各操作（插入/查找/更新/删除）的频率和性能要求，据此做出数据结构选型。')
+
+
+def _build_evaluation_criteria(topic: str, module: str) -> str:
+    """Build evaluation criteria for 项目案例."""
+    return (
+        f'评价维度与评分标准（满分 100）：\n\n'
+        f'1. 功能完整性（30分）——所有需求功能正常实现，无缺失项\n'
+        f'  可以通过全部测试用例 = 30分；缺少一个功能 = 按比例扣分\n\n'
+        f'2. 代码质量（25分）——代码结构清晰、命名规范、有适当注释\n'
+        f'  遵循 {module} 相关的编码最佳实践；函数职责单一、长度合理\n\n'
+        f'3. 数据结构选型（20分）——数据结构选择有合理依据\n'
+        f'  能清晰阐述"为什么选这个而不是那个"；理解时间/空间权衡\n\n'
+        f'4. 边界处理与错误处理（15分）——覆盖常见边界和异常情况\n'
+        f'  至少处理空输入、单元素、极值、格式错误 4 类场景\n\n'
+        f'5. 拓展任务完成度（10分）——在基础版本上实现至少 1 个拓展方向\n'
+        f'  拓展不能是简单"加一行代码"，应展示独立的思考和技术挑战\n\n'
+        f'通过标准：总分 >= 60 分为合格，>= 85 分为优秀。'
+    )
 
 
 def _build_personalized_reason(gen_context: dict, resource_type: str) -> str:
@@ -2215,9 +4696,9 @@ _QUICKSORT_KEYWORDS = ['快速排序', '稳定性', '不稳定排序']
 # Allowed section kinds per resource type — any kind not in this set is stripped
 _ALLOWED_KINDS_BY_TYPE: dict[str, set[str]] = {
     '代码示例': {'highlight', 'code', 'steps', 'complexity', 'warnings', 'warning', 'practice', 'next_action'},
-    '图解讲解': {'highlight', 'example', 'steps', 'table', 'compare', 'text', 'warnings', 'warning', 'practice', 'answer_hint', 'code'},
-    '易错点': {'highlight', 'warnings', 'warning', 'compare', 'example', 'text', 'practice', 'answer_hint', 'code'},
-    '分层练习': {'highlight', 'practice', 'answer_hint', 'check_criteria', 'warnings', 'warning', 'next_action'},
+    '图解讲解': {'highlight', 'example', 'steps', 'table', 'compare', 'text', 'warnings', 'warning', 'practice', 'answer', 'code'},
+    '易错点': {'highlight', 'warnings', 'warning', 'compare', 'example', 'text', 'practice', 'answer', 'code'},
+    '分层练习': {'highlight', 'practice', 'answer', 'check_criteria', 'warnings', 'warning', 'next_action'},
     '项目案例': {'task', 'steps', 'design', 'text', 'code', 'warnings', 'warning', 'next_action'},
 }
 
@@ -2226,6 +4707,11 @@ _FORBIDDEN_CONTENT = [
     '???????', 'O(?)', 'TODO', '示例待补充',
     '相关概念A', '相关概念B', '低/中/高',
     '核心思想 | 基于递归与调用栈的核心操作模式',
+    '核心原理已在上述内容中详细说明',
+    '请参考上文',
+    '答案略',
+    '可自行完成',
+    '根据情况分析',
 ]
 
 
@@ -3388,7 +5874,6 @@ _TOPIC_ENRICHERS = {
     ('binary_tree_traversal', '代码示例'): _enrich_preorder_code,
     ('quicksort_stability', '易错点'): _enrich_quicksort_pitfalls,
     ('bfs_dfs', '图解讲解'): _enrich_bfs_dfs_visual,
-    ('bfs_dfs', '分层练习'): _enrich_bfs_dfs_practice,
     ('dynamic_programming', '项目案例'): _enrich_dp_project,
 }
 
@@ -4509,6 +6994,46 @@ def _build_minimal_cards(gen_context: dict, allowed_types: list[str]) -> list[di
     return cards
 
 
+def finalize_layered_practice_sections(card: dict, gen_context: dict) -> dict:
+    """Final safeguard: rebuild 分层练习 sections from deterministic templates.
+
+    Deletes all old practice/answer/answer_hint sections from the card,
+    then rebuilds fresh practice-answer pairs via build_layered_exercise_pairs
+    and exercise_pairs_to_sections.
+
+    Must run AFTER all other post-processing (enrichment, stripping, overrides).
+    """
+    if card.get('type') != '分层练习':
+        return card
+
+    topic = gen_context.get('topic', '')
+    module = gen_context.get('module', gen_context.get('normalized_module', ''))
+    language = gen_context.get('normalized_language', 'Python')
+
+    old_sections = card.get('sections', [])
+    filtered = [s for s in old_sections if s.get('kind') not in ('practice', 'answer', 'answer_hint')]
+    removed = len(old_sections) - len(filtered)
+    if removed:
+        logger.info(
+            "finalize_layered_practice_sections: removed %d old practice/answer/answer_hint sections",
+            removed
+        )
+
+    pairs = build_layered_exercise_pairs(topic, module, language, '分层练习')
+    new_sections = exercise_pairs_to_sections(pairs)
+    validation = validate_layered_practice_sections(new_sections, topic)
+
+    card['sections'] = filtered + new_sections
+    card['_layered_practice_validation'] = validation
+
+    logger.info(
+        "finalize_layered_practice_sections: rebuilt %d sections (%d pairs) topic=%s valid=%s",
+        len(new_sections), len(pairs), topic, validation.get('valid')
+    )
+
+    return card
+
+
 def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
     """
     Phase 3C-3: Post-process resource cards with validation, enrichment, and sanitization.
@@ -4650,12 +7175,6 @@ def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
                 card.get('title', '')
             )
             card = build_bfs_dfs_visual_card(gen_context)
-        elif topic_key == 'bfs_dfs' and rtype == '分层练习':
-            logger.info(
-                "Hard override: replacing '%s' with build_bfs_dfs_practice_card()",
-                card.get('title', '')
-            )
-            card = build_bfs_dfs_practice_card(gen_context)
         elif topic_key == 'dynamic_programming' and rtype == '项目案例':
             logger.info(
                 "Hard override: replacing '%s' with build_dp_project_card()",
@@ -4665,20 +7184,18 @@ def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
 
         # ── Step 8b: Keyword spot-check for critical templates (Phase 14B-5) ──
         card_text = _scan_text(card.get('sections', []))
-        if topic_key == 'bfs_dfs' and card.get('type') == '分层练习':
-            missing = [kw for kw in ['基础题', '进阶题', '综合题'] if kw not in card_text]
-            if missing:
-                logger.info(
-                    "Keyword check failed: bfs_dfs practice card missing %s — regenerating",
-                    missing
-                )
-                card = build_bfs_dfs_practice_card(gen_context)
-        elif topic_key == 'dynamic_programming' and card.get('type') == '项目案例':
+        if topic_key == 'dynamic_programming' and card.get('type') == '项目案例':
             if '遍历顺序' not in card_text:
                 logger.info(
                     "Keyword check failed: dp project card missing '遍历顺序' — regenerating"
                 )
                 card = build_dp_project_card(gen_context)
+
+        # ── Step 8c: Hard quality gate — deterministic teaching content assurance ──
+        card = ensure_teaching_resource_quality(card, gen_context)
+
+        # ── Step 8d: Final safeguard — rebuild layered practice sections ──
+        card = finalize_layered_practice_sections(card, gen_context)
 
         valid_cards.append(card)
 

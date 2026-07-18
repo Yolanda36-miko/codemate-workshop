@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Package, FolderPlus, Clock, Trash2, Edit3, Check, X,
-} from 'lucide-react'
+import { Package, FolderPlus, Clock, Trash2, Edit3, Check, X } from 'lucide-react'
 import type { PathResourceItem } from '../../types'
 import { getTypeTag, parseEstimatedMinutes } from '../../utils/pathResources'
 
@@ -24,8 +22,6 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
   const [editPriority, setEditPriority] = useState('')
 
   const totalMinutes = items.reduce((sum, i) => sum + parseEstimatedMinutes(i.estimatedTime), 0)
-  const typeSet = new Set(items.map((i) => i.type))
-  const typeTags = Array.from(typeSet).map((t) => getTypeTag(t))
 
   const startEdit = (item: PathResourceItem) => {
     setEditingId(item.resourceId)
@@ -51,6 +47,9 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
         <div className="flex items-center gap-2">
           <Package className="w-4 h-4 text-primary-500" />
           <span className="text-sm font-semibold text-gray-800">学习路径资源包</span>
+          {items.length > 0 && (
+            <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full">{items.length}</span>
+          )}
         </div>
         {items.length > 0 && (
           <button
@@ -65,16 +64,14 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
       {/* Content */}
       <div className="p-4">
         {items.length === 0 ? (
-          /* Empty state */
           <div className="text-center py-6">
             <FolderPlus className="w-8 h-8 text-gray-300 mx-auto mb-2" />
             <p className="text-xs font-medium text-gray-500 mb-1">暂无已加入资源</p>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              从左侧资源卡片中点击"加入资源包"，<br />即可构建你的专属资源包。
+              从左侧资源卡片中点击"加入"，即可构建你的专属资源包。
             </p>
           </div>
         ) : (
-          /* Resource list */
           <div className="space-y-1.5">
             <AnimatePresence>
               {items.map((item) => {
@@ -90,11 +87,11 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
                     className="overflow-hidden"
                   >
                     <div className={`rounded-xl border transition-colors ${isEditing ? 'border-primary-200 bg-primary-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
-                      {/* Item row */}
-                      <div className="flex items-start gap-2 px-3 py-2.5">
+                      {/* Compact row */}
+                      <div className="flex items-center gap-2 px-3 py-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-medium text-gray-800 truncate">{item.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1.5 mt-0.5">
                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${tag.color}`}>
                               {tag.label}
                             </span>
@@ -102,18 +99,7 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
                               <Clock className="w-2.5 h-2.5" />
                               {item.estimatedTime}
                             </span>
-                            {item.purpose && (
-                              <span className="text-[9px] text-gray-400">· {item.purpose}</span>
-                            )}
-                            {item.priority && (
-                              <span className={`text-[9px] font-medium ${item.priority === '必学' ? 'text-red-500' : item.priority === '推荐' ? 'text-primary-500' : 'text-gray-400'}`}>
-                                {item.priority}
-                              </span>
-                            )}
                           </div>
-                          {item.note && !isEditing && (
-                            <p className="text-[10px] text-gray-400 mt-1 truncate">备注：{item.note}</p>
-                          )}
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">
                           <button
@@ -142,7 +128,6 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
                             className="overflow-hidden"
                           >
                             <div className="px-3 pb-3 space-y-2 border-t border-primary-100 pt-2">
-                              {/* Note */}
                               <div>
                                 <label className="text-[10px] text-gray-400 block mb-1">学习备注</label>
                                 <input
@@ -153,7 +138,6 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
                                   className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary-200"
                                 />
                               </div>
-                              {/* Purpose + Priority */}
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <label className="text-[10px] text-gray-400 block mb-1">资源用途</label>
@@ -180,7 +164,6 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
                                   </select>
                                 </div>
                               </div>
-                              {/* Action buttons */}
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => saveEdit(item.resourceId)}
@@ -209,29 +192,16 @@ export default function PathResourcePackage({ items, onRemove, onUpdate, onClear
           </div>
         )}
 
-        {/* Stats footer */}
+        {/* Stats footer — simplified */}
         {items.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-3 flex-wrap">
+          <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-3">
             <span className="text-[10px] text-gray-500">
-              已加入 <span className="font-semibold text-primary-600">{items.length}</span> 项
+              共 <span className="font-semibold text-primary-600">{items.length}</span> 项
             </span>
             <span className="text-[10px] text-gray-400">·</span>
             <span className="text-[10px] text-gray-500">
               预计 <span className="font-semibold text-gray-700">{totalMinutes}</span> 分钟
             </span>
-            {typeTags.length > 0 && (
-              <>
-                <span className="text-[10px] text-gray-400">·</span>
-                <span className="text-[10px] text-gray-500">覆盖：</span>
-                <div className="flex items-center gap-1">
-                  {typeTags.map((t, i) => (
-                    <span key={i} className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${t.color}`}>
-                      {t.label}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         )}
       </div>

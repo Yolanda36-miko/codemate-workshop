@@ -1,7 +1,5 @@
 import { motion } from 'framer-motion'
-import {
-  Clock, Eye, Bookmark, XCircle, Lightbulb,
-} from 'lucide-react'
+import { Clock, Eye, Bookmark, XCircle } from 'lucide-react'
 import type { ResourceCard as ResourceCardType } from '../../types'
 
 interface ResourceCardProps {
@@ -30,7 +28,6 @@ export default function ResourceCard({
   showSaveToPackage = false,
 }: ResourceCardProps) {
   const r = resource
-  const highlightSection = r.sections?.find((s) => (s.kind || '').toLowerCase() === 'highlight')
   const knowledgeTags: string[] = r.knowledge_points ?? (r.knowledge_point ? [r.knowledge_point] : [])
 
   return (
@@ -60,44 +57,22 @@ export default function ResourceCard({
             <h3 className="text-sm font-semibold text-gray-800 mb-1.5 leading-snug">{r.title}</h3>
 
             {(r.description || r.summary) && (
-              <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-2">
+              <p className="text-xs text-gray-500 leading-relaxed line-clamp-1 mb-2">
                 {r.description || r.summary}
               </p>
-            )}
-
-            {r.personalized_reason && (
-              <div className="flex items-start gap-1.5 mb-2">
-                <Lightbulb className="w-3 h-3 text-primary-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-primary-600/70 leading-relaxed italic">
-                  {r.personalized_reason}
-                </p>
-              </div>
-            )}
-
-            {/* Highlight section preview */}
-            {highlightSection?.content && (
-              <div className="rounded-lg p-2.5 bg-primary-50/60 border border-primary-200/60 mb-2">
-                <p className="text-[11px] text-primary-800 leading-relaxed line-clamp-3">
-                  {typeof highlightSection.content === 'string'
-                    ? highlightSection.content
-                    : Array.isArray(highlightSection.content)
-                      ? highlightSection.content.join('；')
-                      : String(highlightSection.content ?? '')}
-                </p>
-              </div>
             )}
 
             {/* Knowledge points tags */}
             {knowledgeTags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {knowledgeTags.slice(0, 4).map((kp) => (
+                {knowledgeTags.slice(0, 6).map((kp) => (
                   <span key={kp} className="px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-500">
                     {kp}
                   </span>
                 ))}
-                {knowledgeTags.length > 4 && (
+                {knowledgeTags.length > 6 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-gray-50 text-[10px] text-gray-400">
-                    +{knowledgeTags.length - 4}
+                    +{knowledgeTags.length - 6}
                   </span>
                 )}
               </div>

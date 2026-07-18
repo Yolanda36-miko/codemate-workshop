@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, Maximize2, Minimize2, Clock, Lightbulb, Bookmark, XCircle,
-  Zap, ListOrdered, Code, AlertTriangle, CheckCircle2, GitCompare,
-  HelpCircle, FileText, Minus, Layers,
+  X, Maximize2, Minimize2, Clock, Bookmark, XCircle,
+  ChevronDown, ChevronRight,
 } from 'lucide-react'
 import type { ResourceCard, ResourceSection } from '../../types'
 
@@ -36,45 +35,65 @@ function langLabel(lang?: string): string | null {
   return lang
 }
 
-// ========== Section kind config ==========
+// ========== Collapsible Answer Block ==========
 
-interface KindConfig {
-  icon: React.ComponentType<{ className?: string }>
-  bg: string
-  border: string
-  text: string
-  defaultHeading: string
+function CollapsibleAnswer({ section }: { section: ResourceSection }) {
+  const [open, setOpen] = useState(false)
+  const contentText = safeContent(section.content)
+  const heading = section.heading || section.title || ''
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+      >
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        )}
+        <span className="text-xs font-medium text-gray-600">
+          {heading || '展开参考答案'}
+        </span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+          {contentText && (
+            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
+              {contentText}
+            </p>
+          )}
+          {!contentText && section.items && section.items.length > 0 && (
+            <ul className="space-y-1">
+              {section.items.map((item, i) => (
+                <li key={i} className="text-xs text-gray-600 leading-relaxed flex items-start gap-1.5">
+                  <span className="text-gray-300 mt-0.5">•</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
-const kindConfigMap: Record<string, KindConfig> = {
-  highlight:  { icon: Zap,            bg: 'bg-primary-50/60',  border: 'border-primary-200/60', text: 'text-primary-800',  defaultHeading: '重点' },
-  steps:      { icon: ListOrdered,    bg: 'bg-white',          border: 'border-gray-150',       text: 'text-gray-700',     defaultHeading: '步骤' },
-  code:       { icon: Code,           bg: 'bg-gray-900',       border: 'border-gray-800',       text: 'text-green-300',    defaultHeading: '代码' },
-  warning:    { icon: AlertTriangle,  bg: 'bg-amber-50/70',    border: 'border-amber-200',      text: 'text-amber-800',    defaultHeading: '易错提醒' },
-  practice:   { icon: CheckCircle2,   bg: 'bg-emerald-50/50',  border: 'border-emerald-200',    text: 'text-emerald-800',  defaultHeading: '练习' },
-  compare:    { icon: GitCompare,     bg: 'bg-indigo-50/50',   border: 'border-indigo-200',     text: 'text-indigo-800',   defaultHeading: '对比' },
-  answer_hint:{ icon: HelpCircle,     bg: 'bg-cyan-50/50',     border: 'border-cyan-200',       text: 'text-cyan-800',     defaultHeading: '答案提示' },
-  task:       { icon: FileText,       bg: 'bg-orange-50/50',   border: 'border-orange-200',     text: 'text-orange-800',   defaultHeading: '任务要求' },
-  complexity: { icon: Layers,         bg: 'bg-violet-50/50',   border: 'border-violet-200',     text: 'text-violet-800',   defaultHeading: '复杂度分析' },
-  text:       { icon: FileText,       bg: 'bg-white',          border: 'border-gray-100',       text: 'text-gray-600',     defaultHeading: '' },
-  divider:    { icon: Minus,          bg: 'bg-transparent',    border: 'border-transparent',    text: 'text-gray-300',     defaultHeading: '' },
-}
+// ========== Section Block (unified, clean style) ==========
 
-const fallbackKindConfig: KindConfig = {
-  icon: FileText, bg: 'bg-white', border: 'border-gray-100', text: 'text-gray-600', defaultHeading: '',
-}
-
-// ========== Section Renderer ==========
-
-function SectionBlock({ section }: { section: ResourceSection }) {
+function SectionBlock({ section }: { section: ResourceSection; compact?: boolean }) {
   const kind = (section.kind || 'text').toLowerCase()
-  const config = kindConfigMap[kind] ?? fallbackKindConfig
-  const Icon = config.icon
-  const heading = section.heading || section.title || config.defaultHeading
+  const heading = section.heading || section.title || ''
 
   // ── divider ──
   if (kind === 'divider') {
-    return <hr className="my-3 border-gray-200" />
+    return <hr className="my-3 border-gray-150" />
+  }
+
+  // ── answer: collapsible ──
+  if (kind === 'answer') {
+    return <CollapsibleAnswer section={section} />
   }
 
   // ── code ──
@@ -83,22 +102,34 @@ function SectionBlock({ section }: { section: ResourceSection }) {
     const codeText = safeContent(section.content)
     return (
       <div className="space-y-1.5">
-        <div className="flex items-center gap-2">
-          {heading && (
-            <div className="flex items-center gap-1.5">
-              <Icon className="w-3.5 h-3.5 text-gray-500" />
-              <span className="text-xs font-semibold text-gray-600">{heading}</span>
-            </div>
-          )}
-          {label && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-200 text-gray-500">
-              {label} 示例
-            </span>
-          )}
-        </div>
-        <div className={`rounded-xl p-4 ${config.bg} border ${config.border} overflow-x-auto`}>
-          <pre className={`text-xs leading-relaxed font-mono whitespace-pre ${config.text}`}>
+        {heading && (
+          <h4 className="text-xs font-semibold text-gray-700">{heading}</h4>
+        )}
+        {label && (
+          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-200 text-gray-500 mb-1">
+            {label}
+          </span>
+        )}
+        <div className="rounded-lg p-4 bg-gray-900 overflow-x-auto">
+          <pre className="text-xs leading-relaxed font-mono whitespace-pre text-green-300">
             {codeText}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  // ── diagram ──
+  if (kind === 'diagram') {
+    const diagramText = safeContent(section.content)
+    return (
+      <div className="space-y-1.5">
+        {heading && (
+          <h4 className="text-xs font-semibold text-gray-700">{heading}</h4>
+        )}
+        <div className="rounded-lg p-4 bg-gray-50 border border-gray-200 overflow-x-auto">
+          <pre className="text-xs leading-relaxed font-mono whitespace-pre text-gray-700">
+            {diagramText}
           </pre>
         </div>
       </div>
@@ -116,17 +147,14 @@ function SectionBlock({ section }: { section: ResourceSection }) {
       return []
     })()
     return (
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {heading && (
-          <div className="flex items-center gap-1.5">
-            <Icon className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs font-semibold text-gray-600">{heading}</span>
-          </div>
+          <h4 className="text-xs font-semibold text-gray-700">{heading}</h4>
         )}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {stepItems.map((item, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+              <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                 {i + 1}
               </span>
               <span className="text-xs text-gray-600 leading-relaxed">{item}</span>
@@ -137,55 +165,50 @@ function SectionBlock({ section }: { section: ResourceSection }) {
     )
   }
 
-  // ── practice / compare (with items) ──
-  if ((kind === 'practice' || kind === 'compare') && section.items && section.items.length > 0) {
+  // ── practice / task with items ──
+  if ((kind === 'practice' || kind === 'task' || kind === 'compare') && section.items && section.items.length > 0) {
     return (
-      <div className={`rounded-xl p-4 ${config.bg} border ${config.border} space-y-2`}>
+      <div className="space-y-1.5">
         {heading && (
-          <div className="flex items-center gap-1.5">
-            <Icon className="w-3.5 h-3.5" />
-            <span className={`text-xs font-semibold ${config.text}`}>{heading}</span>
-          </div>
+          <h4 className="text-xs font-semibold text-gray-700">{heading}</h4>
         )}
-        <ul className="space-y-1.5">
+        <ul className="space-y-1">
           {section.items.map((item, i) => (
-            <li key={i} className="flex items-start gap-2">
-              {kind === 'practice' ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-              ) : (
-                <span className="w-1 h-1 rounded-full bg-indigo-400 shrink-0 mt-2" />
-              )}
-              <span className="text-xs text-gray-600 leading-relaxed">{item}</span>
+            <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+              <span className="text-gray-300 mt-0.5 shrink-0">•</span>
+              <span>{item}</span>
             </li>
           ))}
         </ul>
         {section.content != null && (
-          <p className={`text-xs ${config.text} leading-relaxed`}>{safeContent(section.content)}</p>
+          <p className="text-xs text-gray-500 leading-relaxed">{safeContent(section.content)}</p>
         )}
       </div>
     )
   }
 
-  // ── default: highlight / warning / answer_hint / task / complexity / text / unknown ──
+  // ── default: text / highlight / warning / complexity / test_cases / evaluation / design ──
   const contentText = safeContent(section.content)
+
+  // warning gets a subtle left border, everything else is plain
+  const isWarning = kind === 'warning'
+
   return (
-    <div className={`rounded-xl p-4 ${config.bg} border ${config.border} space-y-1.5`}>
+    <div className={`space-y-1 ${isWarning ? 'border-l-2 border-amber-300 pl-3 py-0.5' : ''}`}>
       {heading && (
-        <div className="flex items-center gap-1.5">
-          <Icon className="w-3.5 h-3.5" />
-          <span className={`text-xs font-semibold ${config.text}`}>{heading}</span>
-        </div>
+        <h4 className="text-xs font-semibold text-gray-700">{heading}</h4>
       )}
       {contentText && (
-        <p className={`text-xs ${config.text} opacity-90 leading-relaxed whitespace-pre-line`}>
+        <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
           {contentText}
         </p>
       )}
       {!contentText && section.items && section.items.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {section.items.map((item, i) => (
-            <li key={i} className="text-xs leading-relaxed opacity-90" style={{ color: 'inherit' }}>
-              {item}
+            <li key={i} className="text-xs text-gray-600 leading-relaxed flex items-start gap-1.5">
+              <span className="text-gray-300 mt-0.5 shrink-0">•</span>
+              <span>{item}</span>
             </li>
           ))}
         </ul>
@@ -204,7 +227,6 @@ export default function ResourceDetailModal({
 }: ResourceDetailModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  // ESC key handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -229,7 +251,6 @@ export default function ResourceDetailModal({
     }
   }, [resource, handleKeyDown])
 
-  // Reset fullscreen on close
   useEffect(() => {
     if (!resource) setIsFullscreen(false)
   }, [resource])
@@ -237,7 +258,6 @@ export default function ResourceDetailModal({
   const r = resource
   if (!r) return null
 
-  const highlightSection = r.sections?.find((s) => (s.kind || '').toLowerCase() === 'highlight')
   const knowledgeTags: string[] = r.knowledge_points ?? (r.knowledge_point ? [r.knowledge_point] : [])
   const progLang = r.programming_language_used || r.language || ''
   const typeBadge = (() => {
@@ -253,6 +273,7 @@ export default function ResourceDetailModal({
 
   const hasFullSections = r.sections && r.sections.length > 0
   const hasFallbackContent = r.content || r.description || r.summary
+  const summaryText = r.summary || r.description || ''
 
   return (
     <AnimatePresence>
@@ -285,7 +306,7 @@ export default function ResourceDetailModal({
             exit={isFullscreen ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.97 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* ── Header bar (sticky) ── */}
+            {/* ── Header ── */}
             <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex items-start gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">
@@ -302,7 +323,7 @@ export default function ResourceDetailModal({
                     <span className="text-[10px] text-gray-400">{r.difficulty}</span>
                   )}
                 </div>
-                <h2 className="text-base font-bold text-gray-800 leading-snug mb-1">{r.title}</h2>
+                <h2 className="text-base font-bold text-gray-800 leading-snug mb-0.5">{r.title}</h2>
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-400">
                   {r.related_module && <span>模块：{r.related_module}</span>}
                   {r.course && <span>课程：{r.course}</span>}
@@ -311,18 +332,10 @@ export default function ResourceDetailModal({
                 {knowledgeTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {knowledgeTags.slice(0, 6).map((kp) => (
-                      <span key={kp} className="px-1.5 py-0.5 rounded-full bg-primary-50 text-[10px] text-primary-600 border border-primary-100">
+                      <span key={kp} className="px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-500">
                         {kp}
                       </span>
                     ))}
-                  </div>
-                )}
-                {r.personalized_reason && (
-                  <div className="flex items-start gap-1.5 mt-2">
-                    <Lightbulb className="w-3 h-3 text-primary-400 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-primary-600/70 leading-relaxed italic">
-                      {r.personalized_reason}
-                    </p>
                   </div>
                 )}
               </div>
@@ -350,35 +363,32 @@ export default function ResourceDetailModal({
               </div>
             </div>
 
-            {/* ── Scrollable body ── */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+            {/* ── Body ── */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
               {hasFullSections ? (
-                r.sections!.map((section, i) => <SectionBlock key={i} section={section} />)
+                <div className="space-y-4">
+                  {/* Summary line */}
+                  {summaryText && (
+                    <p className="text-xs text-gray-500 leading-relaxed pb-3 border-b border-gray-100">
+                      {summaryText}
+                    </p>
+                  )}
+
+                  {/* Sections rendered in order — clean, unified style */}
+                  {r.sections!.map((section, si) => (
+                    <SectionBlock key={si} section={section} />
+                  ))}
+                </div>
               ) : hasFallbackContent ? (
                 <div className="space-y-3">
                   {r.content && (
-                    <div className="rounded-xl p-4 bg-white border border-gray-100">
-                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{r.content}</p>
-                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">{r.content}</p>
                   )}
                   {r.description && !r.content && (
-                    <div className="rounded-xl p-4 bg-white border border-gray-100">
-                      <p className="text-sm text-gray-600 leading-relaxed">{r.description}</p>
-                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{r.description}</p>
                   )}
                   {r.summary && !r.content && !r.description && (
-                    <div className="rounded-xl p-4 bg-white border border-gray-100">
-                      <p className="text-sm text-gray-600 leading-relaxed">{r.summary}</p>
-                    </div>
-                  )}
-                  {r.next_action && (
-                    <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-purple-50 border border-purple-100">
-                      <Lightbulb className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-purple-700 mb-0.5">下一步行动</p>
-                        <p className="text-xs text-purple-600">{r.next_action}</p>
-                      </div>
-                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{r.summary}</p>
                   )}
                 </div>
               ) : (
@@ -390,12 +400,7 @@ export default function ResourceDetailModal({
 
             {/* ── Footer ── */}
             <div className="shrink-0 px-6 py-4 border-t border-gray-100 flex items-center gap-3">
-              {r.next_action && hasFullSections && (
-                <p className="flex-1 text-[11px] text-purple-600 truncate">
-                  下一步：{r.next_action}
-                </p>
-              )}
-              {(!r.next_action || !hasFullSections) && <div className="flex-1" />}
+              <div className="flex-1" />
               {onSaveToPackage && (
                 <button
                   onClick={() => onSaveToPackage(r.id)}
