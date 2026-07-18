@@ -10,7 +10,7 @@ interface CourseCardProps {
   onClick: () => void
   onHover: (id: string | null) => void
   index: number
-  isPriority?: boolean
+  isFocus?: boolean
 }
 
 export default function CourseCard({
@@ -21,7 +21,7 @@ export default function CourseCard({
   onClick,
   onHover,
   index,
-  isPriority = false,
+  isFocus = false,
 }: CourseCardProps) {
   const isDimmed = anyHovered && !isHovered
   const keywords = course.knowledge_points.slice(0, 5)
@@ -55,17 +55,17 @@ export default function CourseCard({
           : undefined,
       }}
     >
-      {/* Course name + priority star */}
+      {/* Course name + focus star */}
       <div className="flex items-center gap-1.5 mb-2">
         <h3 className="text-sm font-semibold text-gray-800 truncate">{course.name}</h3>
-        {isPriority && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
+        {isFocus && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
       </div>
 
-      {/* Priority badge — only shown when profile matches */}
-      {isPriority && (
+      {/* Focus badge — yellow, only when profile matches */}
+      {isFocus && (
         <div className="flex items-center gap-1.5 mb-2.5">
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            建议优先学习
+            建议关注
           </span>
         </div>
       )}

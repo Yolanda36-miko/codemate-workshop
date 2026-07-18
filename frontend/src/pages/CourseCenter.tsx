@@ -1,64 +1,183 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { BookOpen } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { getUserProfile } from '../services/api'
-import { hasUsableProfile, buildPersonalizedTransition } from '../services/personalizedPath'
-import type { Course, BackendProfile } from '../types'
 import { dataStructureModules } from '../config/courseFocus'
 import CourseCard from '../components/courses/CourseCard'
 import CourseDetailPanel from '../components/courses/CourseDetailPanel'
 import AnimatedSection from '../components/common/AnimatedSection'
 
-const CURRENT_USER_ID = 1
+// ── Difficulty keyword → module ID mapping ──
+const DIFFICULTY_TO_MODULE: Record<string, string> = {
+  '递归调用栈': 'recursion-callstack', '递归': 'recursion-callstack',
+  '树遍历': 'tree', '二叉树': 'tree', '前序遍历': 'tree', '中序遍历': 'tree', '后序遍历': 'tree',
+  '图遍历': 'graph', 'BFS': 'graph', 'DFS': 'graph', '图': 'graph', 'Dijkstra': 'graph', '最短路径': 'graph',
+  '动态规划': 'dp', 'DP': 'dp', '背包': 'dp',
+  '排序': 'sort-search', '快速排序': 'sort-search', '归并排序': 'sort-search',
+  '哈希': 'hash', '散列': 'hash', '散列表': 'hash',
+  '链表': 'linear-list', '线性表': 'linear-list',
+  '栈': 'stack-queue', '队列': 'stack-queue',
+  '复杂度': 'complexity', '时间复杂度': 'complexity',
+}
 
-function parseTags(raw: string | null): string[] {
-  if (!raw) return []
+/** Topological order of module IDs (by prerequisites). */
+const MODULE_ORDER = [
+  'complexity', 'linear-list', 'stack-queue', 'recursion-callstack',
+  'tree', 'sort-search', 'graph', 'hash', 'dp', 'ds-project',
+]
+
+/** Normalize a profile field value (string | string[] | undefined) to string[]. */
+function toTextArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => toTextArray(item))
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[、,，/|；;\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  if (value == null) return []
+  return [String(value).trim()].filter(Boolean)
+}
+
+interface ProfileDraft {
+  learning_goal?: string
+  foundation_level?: string
+  current_difficulties?: string[]
+  learning_difficulties?: string[]
+  expression_preferences?: string[]
+  programming_language?: string
+}
+
+function loadProfileDraft(): ProfileDraft | null {
   try {
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? arr : []
+    const raw = localStorage.getItem('codemate_profile_draft')
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    if (!obj || typeof obj !== 'object') return null
+    return obj as ProfileDraft
   } catch {
-    return []
+    return null
   }
 }
 
-function computePriorityCourses(profile: BackendProfile | null, courses: Course[]): Set<string> {
-  if (!profile || !hasUsableProfile(profile)) return new Set()
-  const profileTerms = [
-    ...parseTags(profile.error_patterns),
-    ...parseTags(profile.learning_goals),
-  ].map((t) => t.toLowerCase())
-  if (profileTerms.length === 0) return new Set()
-  const priority = new Set<string>()
-  for (const c of courses) {
-    const courseTerms = [
-      ...(c.knowledge_points ?? []),
-      ...(c.typical_difficulties ?? []),
-      c.name,
-    ].map((t) => t.toLowerCase())
-    if (courseTerms.some((ct) => profileTerms.some((pt) => ct.includes(pt) || pt.includes(ct)))) {
-      priority.add(c.id)
+function resolveModuleIds(difficulties: string[]): string[] {
+  const seen = new Set<string>()
+  const ids: string[] = []
+  for (const d of difficulties) {
+    const id = DIFFICULTY_TO_MODULE[d] ?? DIFFICULTY_TO_MODULE[d.trim()]
+    if (id && !seen.has(id)) {
+      seen.add(id)
+      ids.push(id)
     }
   }
-  return priority
+  return ids
+}
+
+function buildFocusTransition(
+  moduleIds: string[],
+  extendedIds: string[],
+): { from: string; to: string } | null {
+  if (moduleIds.length === 0) return null
+  // Order ALL ids (matched + prereqs) by topological order
+  const allOrdered = MODULE_ORDER.filter((id) => extendedIds.includes(id))
+  const matchedOrdered = MODULE_ORDER.filter((id) => moduleIds.includes(id))
+  if (allOrdered.length === 0 || matchedOrdered.length === 0) return null
+
+  const firstMatched = matchedOrdered[0]
+  const firstModule = dataStructureModules.find((m) => m.id === firstMatched)
+  if (!firstModule) return null
+
+  // If the first matched module has exactly one prereq in our module list,
+  // use that prereq as the "from" (e.g. stack-queue → recursion-callstack)
+  const prereqs = firstModule.prerequisites ?? []
+  const prereqsInList = prereqs.filter((p) => dataStructureModules.some((m) => m.id === p))
+  const fromId = prereqsInList.length === 1 ? prereqsInList[0] : firstMatched
+  const toId = prereqsInList.length === 1 ? firstMatched : matchedOrdered[matchedOrdered.length - 1]
+
+  const fromMod = dataStructureModules.find((m) => m.id === fromId)
+  const toMod = dataStructureModules.find((m) => m.id === toId)
+  if (!fromMod || !toMod) return null
+  return { from: fromMod.name, to: toMod.name }
+}
+
+function buildFocusDescription(profile: ProfileDraft): string {
+  const diffs = profile.learning_difficulties ?? profile.current_difficulties ?? []
+  const prefs = profile.expression_preferences ?? []
+  const lang = profile.programming_language ?? ''
+
+  const diffList = toTextArray(diffs)
+  const prefList = toTextArray(prefs)
+
+  const diffStr = diffList.length > 0 ? `「${diffList.slice(0, 3).join('、')}」` : ''
+  const parts: string[] = []
+
+  if (diffStr) {
+    parts.push(`系统识别出你在${diffStr}方面需要进一步加强`)
+  }
+  if (lang || prefList.length > 0) {
+    const tools = [...(lang ? [lang] : []), ...prefList.slice(0, 2)].join(' ')
+    parts.push(`建议结合${tools}，先理解过程推演，再配合基础题训练`)
+  }
+
+  if (parts.length === 0) return '建议完善学习画像以获取个性化模块推荐。'
+  return `根据你的学习画像，${parts.join('。')}。`
 }
 
 export default function CourseCenter() {
   const [selectedId, setSelectedId] = useState<string | null>(dataStructureModules[0]?.id ?? null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [profile, setProfile] = useState<BackendProfile | null>(null)
-  const [profileLoading, setProfileLoading] = useState(true)
 
-  useEffect(() => {
-    getUserProfile(CURRENT_USER_ID)
-      .then((p) => setProfile(p))
-      .catch(() => setProfile(null))
-      .finally(() => setProfileLoading(false))
-  }, [])
+  const profileDraft = useMemo(() => loadProfileDraft(), [])
+  const hasProfile = profileDraft !== null
+
+  const difficulties = useMemo(
+    () => toTextArray(profileDraft?.learning_difficulties ?? profileDraft?.current_difficulties),
+    [profileDraft],
+  )
+  const preferences = useMemo(
+    () => toTextArray(profileDraft?.expression_preferences),
+    [profileDraft],
+  )
+  const language = typeof profileDraft?.programming_language === 'string'
+    ? profileDraft.programming_language.trim()
+    : ''
+  const learningGoal = typeof profileDraft?.learning_goal === 'string'
+    ? profileDraft.learning_goal.trim()
+    : ''
+  const moduleIds = useMemo(() => resolveModuleIds(difficulties), [difficulties])
+
+  // Compute focus modules: difficulty-matched + single prereqs + ds-project
+  const focusModules = useMemo(() => {
+    const set = new Set(moduleIds)
+    // Only include prereqs for modules with exactly ONE prerequisite
+    for (const mid of moduleIds) {
+      const mod = dataStructureModules.find((m) => m.id === mid)
+      const prereqs = (mod?.prerequisites ?? []).filter((p) =>
+        dataStructureModules.some((m) => m.id === p),
+      )
+      if (prereqs.length === 1) {
+        set.add(prereqs[0])
+      }
+    }
+    if (learningGoal === '项目实践' || preferences.includes('项目案例')) {
+      set.add('ds-project')
+    }
+    return set
+  }, [moduleIds, learningGoal, preferences])
+
+  const focusList = useMemo(() => [...focusModules], [focusModules])
+  const transition = useMemo(() => buildFocusTransition(moduleIds, focusList), [moduleIds, focusList])
+
+  // All tags shown in the banner
+  const bannerTags: string[] = []
+  if (difficulties.length > 0) bannerTags.push(...difficulties.slice(0, 3))
+  if (preferences.length > 0) bannerTags.push(...preferences.slice(0, 2))
+  if (language) bannerTags.push(language)
 
   const selected = dataStructureModules.find((c) => c.id === selectedId) ?? null
-  const usable = hasUsableProfile(profile)
-  const transition = profile ? buildPersonalizedTransition(profile, dataStructureModules) : null
-  const priorityCourses = useMemo(() => computePriorityCourses(profile, dataStructureModules), [profile])
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 pb-12">
@@ -70,55 +189,48 @@ export default function CourseCenter() {
         </div>
       </AnimatedSection>
 
-      {/* ===== Personalized Recommendation Banner ===== */}
+      {/* ===== Profile-based Learning Focus Banner ===== */}
       <AnimatedSection delay={0.05}>
-        {profileLoading ? (
-          <div className="bg-gray-50 rounded-2xl border border-gray-100 px-5 py-4 animate-pulse">
-            <div className="h-5 bg-gray-200 rounded w-48 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-96" />
+        <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl border border-primary-100/50 px-5 py-4 flex items-center gap-4">
+          {/* Left: module blocks + arrow */}
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="px-3 py-1.5 rounded-xl bg-white text-sm font-semibold text-gray-800 shadow-sm border border-primary-100">
+              {hasProfile && transition ? transition.from : '完成画像'}
+            </span>
+            <span className="text-primary-500 font-bold text-lg">→</span>
+            <span className={`px-3 py-1.5 rounded-xl bg-white text-sm font-semibold text-gray-800 shadow-sm border ${
+              hasProfile ? 'border-primary-200 ring-1 ring-primary-200' : 'border-primary-100'
+            }`}>
+              {hasProfile && transition ? transition.to : '生成关注点'}
+            </span>
           </div>
-        ) : usable && transition ? (
-          <div className="bg-gradient-to-r from-primary-50 to-purple-50 rounded-2xl border border-primary-100/50 px-5 py-4 flex items-center gap-4">
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="px-3 py-1.5 rounded-xl bg-white text-sm font-semibold text-gray-800 shadow-sm border border-primary-100">
-                {transition.from}
-              </span>
-              <span className="text-primary-500 font-bold text-lg">→</span>
-              <span className="px-3 py-1.5 rounded-xl bg-white text-sm font-semibold text-gray-800 shadow-sm border border-primary-200 ring-1 ring-primary-200">
-                {transition.to}
-              </span>
-            </div>
-            <div className="border-l border-primary-200 pl-4">
-              <p className="text-xs font-semibold text-primary-700 mb-0.5">基于你的学习画像推荐</p>
-              <p className="text-xs text-gray-600 leading-relaxed">{transition.reason}</p>
-              {transition.basedOn.length > 0 && (
-                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                  <span className="text-[10px] text-gray-400">依据：</span>
-                  {transition.basedOn.map((tag) => (
-                    <span key={tag} className="px-1.5 py-0.5 rounded-full bg-white/80 text-primary-600 text-[10px] font-medium border border-primary-100">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+
+          {/* Right: title + description + tags */}
+          <div className="border-l border-primary-200 pl-4 min-w-0">
+            <p className="text-xs font-semibold text-primary-700 mb-0.5">
+              {hasProfile ? '基于画像的学习关注点' : '完成画像后生成学习关注点'}
+            </p>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              {hasProfile
+                ? buildFocusDescription(profileDraft!)
+                : '完成学习画像后，系统会根据你的学习目标、当前困难和资源偏好，推荐需要优先关注的数据结构与算法模块。'
+              }
+            </p>
+            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+              {hasProfile && bannerTags.length > 0 && (
+                <span className="text-[10px] text-gray-400 mr-0.5">依据：</span>
               )}
+              {(hasProfile ? bannerTags : ['学习画像', '模块推荐', '个性化关注']).map((tag) => (
+                <span key={tag} className="px-1.5 py-0.5 rounded-full bg-white/80 text-primary-600 text-[10px] font-medium border border-primary-100">
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
-        ) : (
-          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-100 px-5 py-6 text-center">
-            <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-gray-700 mb-1">完成学习画像后，CodeBuddy 将为你推荐适合的模块学习顺序。</p>
-            <p className="text-xs text-gray-500 mb-4">完善你的学习画像，让智能体了解你的薄弱模块与学习目标，推荐最合适的模块学习路径。</p>
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
-            >
-              去完善学习画像
-            </Link>
-          </div>
-        )}
+        </div>
       </AnimatedSection>
 
-      {/* ===== General Course Catalog ===== */}
+      {/* ===== Section label ===== */}
       <AnimatedSection delay={0.08}>
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">数据结构与算法模块体系</span>
@@ -141,7 +253,7 @@ export default function CourseCenter() {
                   onClick={() => setSelectedId(c.id)}
                   onHover={(id) => setHoveredId(id)}
                   index={i}
-                  isPriority={priorityCourses.has(c.id)}
+                  isFocus={hasProfile && focusModules.has(c.id)}
                 />
               ))}
             </div>
@@ -155,6 +267,7 @@ export default function CourseCenter() {
               course={selected}
               allCourses={dataStructureModules}
               onSelectCourse={setSelectedId}
+              isFocus={hasProfile && selected ? focusModules.has(selected.id) : false}
             />
           </AnimatedSection>
         </div>
