@@ -504,6 +504,124 @@ def test_scenario_7():
 
 
 # ══════════════════════════════════════════════════════════════════════════
+#  SCENARIO 8: DeepSeek integration — fallback & provider checks
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_scenario_8():
+    section("SCENARIO 8: DeepSeek integration (mock fallback & provider checks)")
+
+    # ── 8a: LLM_PROVIDER=mock — existing flow must still work ──
+    print("\n  -- 8a: LLM_PROVIDER=mock (baseline) --")
+    from main import app
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+
+    resp = client.post('/api/resources/generate', json={
+        'course_id': 'data_structures',
+        'knowledge_point': '二叉树前序遍历',
+        'topic': '二叉树前序遍历',
+        'difficulty': '基础',
+        'language': 'C++',
+        'resource_types': ['分层练习'],
+    })
+    check(resp.status_code == 200, f"S8a.1: mock mode returns 200 (got {resp.status_code})")
+    data = resp.json()
+    cards = data.get('resource_cards', [])
+    check(len(cards) >= 1, f"S8a.2: mock mode returns resource_cards (got {len(cards)})")
+
+    practice_cards = [c for c in cards if c.get('type') == '分层练习']
+    if practice_cards:
+        sections = practice_cards[0].get('sections', [])
+        practices = [s for s in sections if s.get('kind') == 'practice']
+        answers = [s for s in sections if s.get('kind') == 'answer']
+        hints = [s for s in sections if s.get('kind') == 'answer_hint']
+        check(len(practices) >= 5, f"S8a.3: mock mode ≥5 practices (got {len(practices)})")
+        check(len(answers) == len(practices), f"S8a.4: mock mode answer==practice (got {len(answers)}=={len(practices)})")
+        check(len(hints) == 0, f"S8a.5: mock mode no answer_hint (got {len(hints)})")
+
+    # ── 8b: /api/health reports llm_provider ──
+    print("\n  -- 8b: /api/health llm_provider field --")
+    resp_health = client.get('/api/health')
+    check(resp_health.status_code == 200, f"S8b.1: health endpoint returns 200 (got {resp_health.status_code})")
+    health_data = resp_health.json()
+    check('llm_provider' in health_data, f"S8b.2: health response has llm_provider field")
+    check(health_data.get('llm_provider') in ('mock', 'openai', 'anthropic', 'deepseek'),
+         f"S8b.3: llm_provider is a recognized value (got {health_data.get('llm_provider')!r})")
+
+    # ── 8c: DeepSeek without API key must fallback to mock ──
+    print("\n  -- 8c: LLM_PROVIDER=deepseek without DEEPSEEK_API_KEY → mock fallback --")
+    import os
+    from services.llm_service import get_llm, MockProvider, _LLM_INSTANCE as _llm_singleton
+
+    # Save original values
+    _orig_provider = os.environ.get('LLM_PROVIDER')
+    _orig_key = os.environ.get('DEEPSEEK_API_KEY')
+
+    try:
+        # Simulate: provider=deepseek but no key
+        os.environ['LLM_PROVIDER'] = 'deepseek'
+        if 'DEEPSEEK_API_KEY' in os.environ:
+            del os.environ['DEEPSEEK_API_KEY']
+
+        # Reset singleton to force re-creation
+        import services.llm_service as lsm
+        lsm._LLM_INSTANCE = None
+
+        llm = get_llm()
+        check(isinstance(llm, MockProvider),
+             f"S8c.1: deepseek+no key → MockProvider (got {type(llm).__name__})")
+
+        # Verify resource generate still works via mock fallback
+        resp2 = client.post('/api/resources/generate', json={
+            'course_id': 'data_structures',
+            'knowledge_point': '图的BFS遍历',
+            'topic': '图的BFS遍历',
+            'difficulty': '基础',
+            'language': 'Python',
+            'resource_types': ['分层练习', '图解讲解'],
+        })
+        check(resp2.status_code == 200,
+             f"S8c.2: deepseek+no key → resource gen still 200 (got {resp2.status_code})")
+
+        data2 = resp2.json()
+        cards2 = data2.get('resource_cards', [])
+        check(len(cards2) >= 1, f"S8c.3: deepseek+no key → resource cards present (got {len(cards2)})")
+
+        # Check layered practice still 5P+5A
+        prac_cards = [c for c in cards2 if c.get('type') == '分层练习']
+        if prac_cards:
+            secs = prac_cards[0].get('sections', [])
+            p_count = len([s for s in secs if s.get('kind') == 'practice'])
+            a_count = len([s for s in secs if s.get('kind') == 'answer'])
+            check(p_count >= 5, f"S8c.4: fallback still ≥5 practices (got {p_count})")
+            check(a_count == p_count, f"S8c.5: fallback answer==practice (got {a_count}=={p_count})")
+
+        # Check diagram still present for 图解讲解
+        diagram_cards = [c for c in cards2 if c.get('type') == '图解讲解']
+        if diagram_cards:
+            d_secs = diagram_cards[0].get('sections', [])
+            d_kinds = [s.get('kind') for s in d_secs]
+            has_diagram = 'diagram' in d_kinds
+            check(has_diagram, f"S8c.6: diagram card has diagram section (kinds={d_kinds[:6]})")
+
+    finally:
+        # Restore original environment
+        if _orig_provider is not None:
+            os.environ['LLM_PROVIDER'] = _orig_provider
+        elif 'LLM_PROVIDER' in os.environ:
+            del os.environ['LLM_PROVIDER']
+        if _orig_key is not None:
+            os.environ['DEEPSEEK_API_KEY'] = _orig_key
+        elif 'DEEPSEEK_API_KEY' in os.environ:
+            del os.environ['DEEPSEEK_API_KEY']
+        # Reset singleton back
+        lsm._LLM_INSTANCE = None
+
+    print("\n  [Note] DeepSeek real API call not tested (no API key configured).")
+
+
+# ══════════════════════════════════════════════════════════════════════════
 #  RUN ALL
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -523,6 +641,7 @@ if __name__ == '__main__':
         test_scenario_5()
         test_scenario_6()
         test_scenario_7()
+        test_scenario_8()
     except Exception as e:
         print(f"\n  EXCEPTION: {e}")
         traceback.print_exc()

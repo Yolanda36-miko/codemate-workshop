@@ -1,10 +1,11 @@
 """
 Unified LLM Provider Base Layer (Phase 5A)
 
-Supports three providers:
+Supports four providers:
 - mock:     Returns preset data from mock_responses.json (default)
 - openai:   OpenAI-compatible API (lazy imports)
 - anthropic: Anthropic Messages API (lazy imports)
+- deepseek: DeepSeek Chat Completions API (OpenAI-compatible, lazy imports)
 
 Usage:
     from services.llm_service import get_llm
@@ -306,6 +307,66 @@ class AnthropicProvider(LLMProvider):
 
 
 # ---------------------------------------------------------------------------
+# DeepSeek Provider (OpenAI-compatible, lazy import)
+# ---------------------------------------------------------------------------
+
+class DeepSeekProvider(LLMProvider):
+    """DeepSeek Chat Completions API provider. Reuses the openai SDK with DeepSeek's base URL.
+
+    DeepSeek's API is OpenAI-compatible, so we use the same ``openai.OpenAI`` client
+    pointed at ``DEEPSEEK_BASE_URL`` with ``DEEPSEEK_API_KEY``.
+    """
+
+    def __init__(self) -> None:
+        self._client: Optional[object] = None
+        self._model: str = settings.DEEPSEEK_MODEL
+        self._max_retries: int = settings.LLM_MAX_RETRIES
+        self._timeout: int = settings.LLM_REQUEST_TIMEOUT
+        self._base_url: str = settings.DEEPSEEK_BASE_URL
+
+    @property
+    def client(self):
+        if self._client is None:
+            try:
+                from openai import OpenAI  # type: ignore
+            except ImportError:
+                raise ImportError(
+                    "openai package is not installed. Run: pip install openai"
+                )
+            self._client = OpenAI(
+                api_key=settings.DEEPSEEK_API_KEY,
+                base_url=self._base_url,
+                timeout=self._timeout,
+            )
+        return self._client
+
+    def chat(self, messages: list[dict], task: str = "general", **kwargs) -> ChatResponse:
+        for attempt in range(self._max_retries + 1):
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    **kwargs,
+                )
+                choice = resp.choices[0]
+                return ChatResponse(
+                    content=choice.message.content or "",
+                    model=resp.model,
+                    usage=resp.usage.model_dump() if resp.usage else None,
+                    finish_reason=choice.finish_reason,
+                )
+            except Exception as e:
+                logger.warning(
+                    "DeepSeek chat attempt %d/%d failed: %s",
+                    attempt + 1, self._max_retries + 1, e,
+                )
+                if attempt >= self._max_retries:
+                    raise
+
+        raise RuntimeError("DeepSeek chat: all retries exhausted")
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -320,6 +381,7 @@ def get_llm() -> LLMProvider:
       - LLM_PROVIDER=mock        → MockProvider (default)
       - LLM_PROVIDER=openai      → OpenAIProvider (falls back to mock if no API key)
       - LLM_PROVIDER=anthropic   → AnthropicProvider (falls back to mock if no API key)
+      - LLM_PROVIDER=deepseek    → DeepSeekProvider (falls back to mock if no API key)
 
     In mock mode, no external SDK imports are triggered.
     Real providers are lazy: SDK is imported on first chat() call.
@@ -356,6 +418,24 @@ def get_llm() -> LLMProvider:
                 _LLM_INSTANCE = AnthropicProvider()
             except Exception as e:
                 logger.warning("Failed to init AnthropicProvider: %s — falling back to MockProvider", e)
+                _LLM_INSTANCE = MockProvider()
+
+    elif provider_name == "deepseek":
+        if not settings.DEEPSEEK_API_KEY:
+            logger.warning(
+                "LLM_PROVIDER=%s but DEEPSEEK_API_KEY is empty — falling back to MockProvider",
+                settings.LLM_PROVIDER,
+            )
+            _LLM_INSTANCE = MockProvider()
+        else:
+            try:
+                _LLM_INSTANCE = DeepSeekProvider()
+                logger.info(
+                    "DeepSeekProvider initialized (model=%s base_url=%s)",
+                    settings.DEEPSEEK_MODEL, settings.DEEPSEEK_BASE_URL,
+                )
+            except Exception as e:
+                logger.warning("Failed to init DeepSeekProvider: %s — falling back to MockProvider", e)
                 _LLM_INSTANCE = MockProvider()
 
     else:
