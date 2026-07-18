@@ -47,6 +47,12 @@ TOPIC_TO_MODULE: dict[str, str] = {
     '哈希': '散列表', '散列': '散列表',
     '动态规划': '动态规划入门', 'DP': '动态规划入门', '背包': '动态规划入门',
     'Dijkstra': '图结构与图算法', 'dijkstra': '图结构与图算法',
+    # Union-Find / Disjoint Set Union — all map to 图结构与图算法
+    '并查集': '图结构与图算法',
+    'Union-Find': '图结构与图算法', 'Union Find': '图结构与图算法',
+    'Disjoint Set Union': '图结构与图算法', 'Disjoint Set': '图结构与图算法',
+    'DSU': '图结构与图算法',
+    '路径压缩': '图结构与图算法', '按秩合并': '图结构与图算法', '按大小合并': '图结构与图算法',
     '综合': '综合项目实践', '项目': '综合项目实践',
 }
 
@@ -4117,6 +4123,10 @@ def _detect_topic_category(topic: str) -> str:
         return 'stack_queue'
     if any(kw in t for kw in ['链表', '线性表', '数组']):
         return 'linear'
+    # Union-Find / Disjoint Set Union → graph category
+    if any(kw in t for kw in ['并查集', 'union-find', 'union find', 'disjoint set', 'dsu',
+                               '路径压缩', '按秩合并', '按大小合并']):
+        return 'graph'
     return 'general'
 
 
@@ -4708,10 +4718,11 @@ _FORBIDDEN_CONTENT = [
     '相关概念A', '相关概念B', '低/中/高',
     '核心思想 | 基于递归与调用栈的核心操作模式',
     '核心原理已在上述内容中详细说明',
-    '请参考上文',
-    '答案略',
+    '请参考上文', '请见上文', '详见上文',
+    '答案略', '解析略', '此处省略',
     '可自行完成',
-    '根据情况分析',
+    '根据情况分析', '根据前文',
+    '如上所述',
 ]
 
 
@@ -7138,14 +7149,21 @@ def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
                 )
             card['sections'] = kept
 
-        # ── Step 6: Final forbidden scan on enriched content ──
+        # ── Step 6: Final forbidden scan on enriched content — fix if still present ──
         final_text = _scan_text(card.get('sections', []))
+        final_forbidden_found = False
         for pat in _FORBIDDEN_CONTENT:
             if pat in final_text:
                 logger.warning(
-                    "CRITICAL: Forbidden pattern '%s' survived enrichment in '%s' (%s)",
+                    "CRITICAL: Forbidden pattern '%s' survived enrichment in '%s' (%s) — forcing replacement",
                     pat, title, rtype
                 )
+                final_forbidden_found = True
+                break
+        if final_forbidden_found:
+            # Strip the forbidden card and let the quality gate rebuild it
+            card['sections'] = []  # force quality gate to replace
+            card['_forbidden_triggered'] = True
 
         # ── Step 7: Clean empty/null sections ──
         sections = card.get('sections', [])

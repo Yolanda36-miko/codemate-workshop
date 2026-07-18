@@ -553,16 +553,18 @@ def test_scenario_8():
     print("\n  -- 8c: LLM_PROVIDER=deepseek without DEEPSEEK_API_KEY → mock fallback --")
     import os
     from services.llm_service import get_llm, MockProvider, _LLM_INSTANCE as _llm_singleton
+    import config
 
     # Save original values
     _orig_provider = os.environ.get('LLM_PROVIDER')
     _orig_key = os.environ.get('DEEPSEEK_API_KEY')
+    _orig_setting_key = config.settings.DEEPSEEK_API_KEY
 
     try:
-        # Simulate: provider=deepseek but no key
+        # Simulate: provider=deepseek but no key in both os.environ AND settings
         os.environ['LLM_PROVIDER'] = 'deepseek'
-        if 'DEEPSEEK_API_KEY' in os.environ:
-            del os.environ['DEEPSEEK_API_KEY']
+        os.environ['DEEPSEEK_API_KEY'] = ''
+        config.settings.DEEPSEEK_API_KEY = ''
 
         # Reset singleton to force re-creation
         import services.llm_service as lsm
@@ -609,16 +611,213 @@ def test_scenario_8():
         # Restore original environment
         if _orig_provider is not None:
             os.environ['LLM_PROVIDER'] = _orig_provider
-        elif 'LLM_PROVIDER' in os.environ:
-            del os.environ['LLM_PROVIDER']
+        elif 'LLM_PROVIDER' in os.environ and _orig_provider is None:
+            pass  # keep it as-is if we can't restore
         if _orig_key is not None:
             os.environ['DEEPSEEK_API_KEY'] = _orig_key
-        elif 'DEEPSEEK_API_KEY' in os.environ:
-            del os.environ['DEEPSEEK_API_KEY']
+        config.settings.DEEPSEEK_API_KEY = _orig_setting_key
         # Reset singleton back
         lsm._LLM_INSTANCE = None
 
     print("\n  [Note] DeepSeek real API call not tested (no API key configured).")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  SCENARIO 9: Tags, forbidden text, and union-find topic recognition
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_scenario_9():
+    section("SCENARIO 9: Tags quality, forbidden text, union-find topic mapping")
+
+    from main import app
+    from fastapi.testclient import TestClient
+    from services.resource_service import resolve_module_name
+
+    client = TestClient(app)
+
+    # ── 9a: Tags assertions on all resource cards ──
+    print("\n  -- 9a: Tags quality checks --")
+
+    resp = client.post('/api/resources/generate', json={
+        'course_id': 'data_structures',
+        'knowledge_point': '二叉树前序遍历',
+        'topic': '二叉树前序遍历',
+        'difficulty': '基础',
+        'language': 'C++',
+        'resource_types': ['图解讲解', '代码示例', '分层练习', '易错点'],
+    })
+    check(resp.status_code == 200, f"S9a.1: Multi-type request returns 200 (got {resp.status_code})")
+    data = resp.json()
+    cards = data.get('resource_cards', [])
+    check(len(cards) >= 3, f"S9a.2: At least 3 cards returned (got {len(cards)})")
+
+    for i, card in enumerate(cards):
+        tags = card.get('knowledge_points', card.get('tags', []))
+        rtype = card.get('type', 'unknown')
+
+        # tags must be a list
+        check(isinstance(tags, list), f"S9a.3.{i}: tags is a list for {rtype}")
+
+        if isinstance(tags, list):
+            # At least 4 tags
+            check(len(tags) >= 4,
+                 f"S9a.4.{i}: {rtype} card has >=4 tags (got {len(tags)}: {tags})")
+
+            # No empty strings
+            empty_tags = [t for t in tags if not (t or '').strip()]
+            check(len(empty_tags) == 0,
+                 f"S9a.5.{i}: {rtype} card has no empty tags (empty: {empty_tags})")
+
+            # All tags deduped
+            check(len(tags) == len(set(tags)),
+                 f"S9a.6.{i}: {rtype} card tags are deduped")
+
+            # No forbidden placeholder tags
+            forbidden_tags = {'标签1', '标签2', '标签3', '标签4', '知识点', '学习资源', '学习资料', '编程练习'}
+            bad_tags = [t for t in tags if t in forbidden_tags]
+            check(len(bad_tags) == 0,
+                 f"S9a.7.{i}: {rtype} card has no forbidden placeholder tags (found: {bad_tags})")
+
+    # ── 9b: Forbidden text scan ──
+    print("\n  -- 9b: Forbidden text scan --")
+    forbidden_patterns = [
+        '答案略', '解析略', '请参考上文', '请见上文', '详见上文',
+        '核心原理已在上述内容中详细说明', '此处省略',
+        '根据前文', '如上所述',
+    ]
+
+    for i, card in enumerate(cards):
+        rtype = card.get('type', 'unknown')
+        title = card.get('title', '') or ''
+        summary = card.get('summary', '') or ''
+        tags = card.get('knowledge_points', card.get('tags', []))
+        tags_text = ' '.join(str(t) for t in tags) if isinstance(tags, list) else ''
+
+        sections = card.get('sections', []) or []
+        section_text = ' '.join(
+            (s.get('content', '') or '') + ' ' + (s.get('heading', '') or '')
+            for s in sections if isinstance(s, dict)
+        )
+        all_visible = title + ' ' + summary + ' ' + tags_text + ' ' + section_text
+
+        for pat in forbidden_patterns:
+            check(pat not in all_visible,
+                 f"S9b.{i}: '{pat}' NOT in {rtype} card visible text")
+
+    # ── 9c: Union-Find topic mapping ──
+    print("\n  -- 9c: Union-Find topic recognition --")
+
+    # Test 1: 并查集中文 → 图结构与图算法
+    module1 = resolve_module_name("并查集的路径压缩与按秩合并")
+    check(module1 == '图结构与图算法',
+         f"S9c.1: 并查集 maps to 图结构与图算法 (got '{module1}')")
+
+    # Test 2: Union-Find English → 图结构与图算法
+    module2 = resolve_module_name("Union-Find with path compression")
+    check(module2 == '图结构与图算法',
+         f"S9c.2: Union-Find maps to 图结构与图算法 (got '{module2}')")
+
+    # Test 3: DSU → 图结构与图算法
+    module3 = resolve_module_name("DSU解决连通分量问题")
+    check(module3 == '图结构与图算法',
+         f"S9c.3: DSU maps to 图结构与图算法 (got '{module3}')")
+
+    # Test 4: 二分查找中的find → NOT 图结构与图算法
+    module4 = resolve_module_name("二分查找中的 find 函数")
+    check(module4 != '图结构与图算法',
+         f"S9c.4: 二分查找+find NOT mapped to 图结构与图算法 (got '{module4}')")
+    check(module4 == '排序与查找',
+         f"S9c.5: 二分查找 maps to 排序与查找 (got '{module4}')")
+
+    # Test 5: Disjoint Set Union → 图结构与图算法
+    module5 = resolve_module_name("Disjoint Set Union implementation")
+    check(module5 == '图结构与图算法',
+         f"S9c.6: Disjoint Set Union maps to 图结构与图算法 (got '{module5}')")
+
+    # Test 6: 路径压缩 → 图结构与图算法
+    module6 = resolve_module_name("路径压缩优化")
+    check(module6 == '图结构与图算法',
+         f"S9c.7: 路径压缩 maps to 图结构与图算法 (got '{module6}')")
+
+    # Test 7: 按秩合并 → 图结构与图算法
+    module7 = resolve_module_name("按秩合并与路径压缩")
+    check(module7 == '图结构与图算法',
+         f"S9c.8: 按秩合并 maps to 图结构与图算法 (got '{module7}')")
+
+    # ── 9d: Union-Find via API — generates correctly ──
+    print("\n  -- 9d: Union-Find API resource generation --")
+    resp_uf = client.post('/api/resources/generate', json={
+        'course_id': 'data_structures',
+        'knowledge_point': '并查集的路径压缩与按秩合并',
+        'topic': '并查集的路径压缩与按秩合并',
+        'difficulty': '进阶',
+        'language': 'C++',
+        'resource_types': ['分层练习'],
+    })
+    check(resp_uf.status_code == 200, f"S9d.1: Union-Find API returns 200 (got {resp_uf.status_code})")
+    data_uf = resp_uf.json()
+
+    # normalized_module must be 图结构与图算法
+    uf_module = data_uf.get('normalized_module', '')
+    check(uf_module == '图结构与图算法',
+         f"S9d.2: Union-Find normalized_module is 图结构与图算法 (got '{uf_module}')")
+
+    uf_cards = data_uf.get('resource_cards', [])
+    check(len(uf_cards) >= 1, f"S9d.3: Union-Find returns cards (got {len(uf_cards)})")
+
+    # Find 分层练习 card and verify structure
+    practice_cards = [c for c in uf_cards if c.get('type') == '分层练习']
+    if practice_cards:
+        pc = practice_cards[0]
+        sections = pc.get('sections', [])
+
+        # 5P+5A
+        p_count = len([s for s in sections if s.get('kind') == 'practice'])
+        a_count = len([s for s in sections if s.get('kind') == 'answer'])
+        check(p_count >= 5, f"S9d.4: Union-Find >=5 practices (got {p_count})")
+        check(a_count == p_count, f"S9d.5: Union-Find answer==practice ({a_count}=={p_count})")
+
+        # No answer_hint
+        hint_count = len([s for s in sections if s.get('kind') == 'answer_hint'])
+        check(hint_count == 0, f"S9d.6: Union-Find no answer_hint (got {hint_count})")
+
+        # Strict interleaving: each practice immediately followed by its answer
+        section_kinds = [s.get('kind') for s in sections]
+        p_idx = [i for i, k in enumerate(section_kinds) if k == 'practice']
+        a_idx = [i for i, k in enumerate(section_kinds) if k == 'answer']
+        for j in range(min(5, len(p_idx), len(a_idx))):
+            interleaved = p_idx[j] + 1 == a_idx[j]
+            check(interleaved,
+                 f"S9d.7.{j}: practice[{j}] at {p_idx[j]} immediately followed by answer[{j}] at {a_idx[j]}")
+
+        # Tags >= 4 on practice card
+        uf_tags = pc.get('knowledge_points', pc.get('tags', []))
+        if isinstance(uf_tags, list):
+            check(len(uf_tags) >= 4,
+                 f"S9d.8: Union-Find card tags >=4 (got {len(uf_tags)}: {uf_tags})")
+            # Tags should include union-find related terms
+            uf_tag_text = ' '.join(uf_tags)
+            has_uf_term = any(kw in uf_tag_text for kw in ['并查集', '路径压缩', '按秩合并', 'Union', 'DSU', '图'])
+            check(has_uf_term,
+                 f"S9d.9: Union-Find tags contain relevant terms (tags: {uf_tags})")
+
+    # ── 9e: graph category detection for union-find ──
+    print("\n  -- 9e: _detect_topic_category union-find dispatch --")
+    from services.quality_gate import _detect_topic_category
+    cat1 = _detect_topic_category("并查集的路径压缩与按秩合并")
+    check(cat1 == 'graph',
+         f"S9e.1: _detect_topic_category(并查集) = 'graph' (got '{cat1}')")
+    cat2 = _detect_topic_category("Union-Find with path compression")
+    check(cat2 == 'graph',
+         f"S9e.2: _detect_topic_category(Union-Find) = 'graph' (got '{cat2}')")
+    cat3 = _detect_topic_category("DSU解决连通分量")
+    check(cat3 == 'graph',
+         f"S9e.3: _detect_topic_category(DSU) = 'graph' (got '{cat3}')")
+    cat4 = _detect_topic_category("二分查找中的 find 函数")
+    check(cat4 != 'graph',
+         f"S9e.4: _detect_topic_category(二分查找+find) != 'graph' (got '{cat4}')")
+    check(cat4 == 'binary_search',
+         f"S9e.5: _detect_topic_category(二分查找+find) = 'binary_search' (got '{cat4}')")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -642,6 +841,7 @@ if __name__ == '__main__':
         test_scenario_6()
         test_scenario_7()
         test_scenario_8()
+        test_scenario_9()
     except Exception as e:
         print(f"\n  EXCEPTION: {e}")
         traceback.print_exc()

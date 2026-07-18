@@ -96,6 +96,12 @@ def _detect_topic_category(topic):
         return 'binary_search'
     if '线性' in t or '数组' in t:
         return 'linear'
+    # Union-Find / Disjoint Set Union (maps to graph category, 图结构与图算法)
+    # Match compound/Chinese keywords only — bare "find"/"union" alone is NOT enough
+    _union_find_kw = ['并查集', 'union-find', 'union find', 'disjoint set', 'dsu',
+                      '路径压缩', '按秩合并', '按大小合并']
+    if any(kw in t for kw in _union_find_kw):
+        return 'graph'
     return 'generic'
 
 
@@ -103,14 +109,52 @@ def _detect_topic_category(topic):
 # Knowledge Tags Builder
 # ═══════════════════════════════════════════════════════════════════
 
+# Generic/meaningless placeholder tags that must never appear in final output
+_FORBIDDEN_TAGS = {
+    '标签1', '标签2', '标签3', '标签4', '标签', '知识点', '学习资源',
+    '学习资料', '编程练习', 'test', 'tag', '示例', '占位',
+}
+
+
+def _extract_topic_keywords(topic: str) -> list[str]:
+    """Extract meaningful keyword chunks from a topic string.
+
+    Splits on whitespace / punctuation, filters short/generic fragments,
+    and returns the longest surviving tokens first.
+    """
+    if not topic:
+        return []
+    import re as _re
+    # Split on whitespace, Chinese/English punctuation, common separators
+    chunks = _re.split(r'[\s，,、/|；;：:·　]+', topic)
+    keywords = []
+    for c in chunks:
+        c = c.strip()
+        # Require at least 2 chars for CJK, 3 for ASCII to filter short fragments
+        if not c:
+            continue
+        has_cjk = any('一' <= ch <= '鿿' for ch in c)
+        if has_cjk and len(c) >= 2:
+            keywords.append(c)
+        elif not has_cjk and len(c) >= 3:
+            keywords.append(c)
+    return keywords
+
+
 def _build_knowledge_tags(cat, topic, rtype, lang):
-    """Build 4-6 specific knowledge tags based on topic category, type, and language."""
+    """Build 4-8 specific knowledge tags based on topic category, type, language, and topic string."""
     tags = []
 
-    # 1. Topic keywords (1-2 tags)
+    # 1. Extract keywords directly from topic string (highest priority source)
+    topic_kws = _extract_topic_keywords(topic)
+    for kw in topic_kws:
+        if kw not in _FORBIDDEN_TAGS and len(tags) < 4:
+            tags.append(kw)
+
+    # 2. Category-specific tags (only if topic extraction didn't yield enough)
     topic_tags = {
         'tree': ['二叉树', '树遍历'],
-        'graph': ['图遍历', 'BFS', 'DFS'],
+        'graph': ['图算法', '图结构', '连通性'],
         'dp': ['动态规划', '状态转移'],
         'sort': ['排序算法', '快速排序'],
         'stack_queue': ['栈', '队列'],
@@ -122,9 +166,11 @@ def _build_knowledge_tags(cat, topic, rtype, lang):
         'binary_search': ['二分查找', '有序数组'],
         'linear': ['线性表', '数组'],
     }
-    tags.extend(topic_tags.get(cat, [topic])[:2])
+    for t in topic_tags.get(cat, []):
+        if t not in tags and len(tags) < 5:
+            tags.append(t)
 
-    # 2. Type-specific action/purpose tags (1-2 tags)
+    # 3. Type-specific tags
     type_tags = {
         '图解讲解': ['图解', '分步过程'],
         '代码示例': ['完整代码', '测试用例', '复杂度分析'],
@@ -132,19 +178,28 @@ def _build_knowledge_tags(cat, topic, rtype, lang):
         '易错点': ['易错分析', '正确做法'],
         '项目案例': ['项目实战', '实现步骤'],
     }
-    tags.extend(type_tags.get(rtype, [rtype])[:2])
+    for t in type_tags.get(rtype, [rtype]):
+        if t not in tags and len(tags) < 6:
+            tags.append(t)
 
-    # 3. Language tag (if specific)
-    if lang and lang not in ('未指定', '任意'):
-        tags.append(lang)
+    # 4. Language tag (if specific and not already implied)
+    if lang and lang not in ('未指定', '任意', ''):
+        if lang not in tags:
+            tags.append(lang)
 
-    # 4. Deduplicate while preserving order, limit to 6
+    # 5. Filter forbidden tags, deduplicate while preserving order, trim, skip empty
     seen = set()
     deduped = []
     for t in tags:
-        if t not in seen and len(deduped) < 6:
+        t = (t or '').strip()
+        if not t or len(t) < 2:
+            continue
+        if t in _FORBIDDEN_TAGS:
+            continue
+        if t not in seen:
             seen.add(t)
             deduped.append(t)
+
     return deduped
 
 
@@ -3585,39 +3640,136 @@ def _fill_missing_practices(sections, topic, cat, lang, existing_practices):
 # ═══════════════════════════════════════════════════════════════════
 
 def _ensure_tags_filled(card, gen_context):
-    """Ensure every card has at least 4 knowledge tags. Fill from context if empty."""
+    """Ensure every card has at least 4 unique, non-empty, topic-relevant knowledge tags.
+
+    Sources (in priority order):
+      1. Topic keywords (extracted from topic string)
+      2. Normalized module name
+      3. Resource type
+      4. Language
+      5. Frequent CJK terms from section content
+    """
     tags = card.get('knowledge_points', card.get('tags', []))
     if not isinstance(tags, list):
         tags = []
-
-    if len(tags) >= 4:
-        return card
+    # Normalize existing: strip whitespace, filter empty/generic/forbidden
+    existing = []
+    seen = set()
+    for t in tags:
+        t = (t or '').strip()
+        if not t or len(t) < 2 or t in _FORBIDDEN_TAGS:
+            continue
+        if t not in seen:
+            seen.add(t)
+            existing.append(t)
 
     rtype = card.get('type', '')
     topic = gen_context.get('topic', card.get('knowledge_point', ''))
+    module = gen_context.get('module', card.get('module', ''))
     lang = gen_context.get('normalized_language', card.get('language', ''))
-    cat = _detect_topic_category(topic)
 
-    # Build fresh tags
-    new_tags = _build_knowledge_tags(cat, topic, rtype, lang)
+    # Build candidate tags from all sources
+    candidates = list(existing)  # keep existing valid tags first
 
-    # Merge existing tags (keep unique ones) + new tags, up to 6
-    seen = set(tags)
-    for t in new_tags:
-        if t not in seen and len(tags) < 6:
-            tags.append(t)
-            seen.add(t)
+    # Source 1: Topic keywords
+    for kw in _extract_topic_keywords(topic):
+        if kw not in seen:
+            seen.add(kw)
+            candidates.append(kw)
 
-    # If still too few, add generic DS tags
-    fallback_tags = ['数据结构', '算法', '编程练习', '学习资料']
-    for t in fallback_tags:
-        if t not in seen and len(tags) < 6:
-            tags.append(t)
-            seen.add(t)
+    # Source 2: Normalized module
+    if module and module not in seen and module not in _FORBIDDEN_TAGS:
+        module_short = module.replace('入门', '').strip()
+        if module_short and module_short not in seen:
+            seen.add(module_short)
+            candidates.append(module_short)
 
-    card['knowledge_points'] = tags
-    logger.info("Tags enforcer: filled tags for %r — %s", card.get('title', '')[:40], tags)
+    # Source 3: Resource type (as a tag, not just metadata)
+    if rtype and rtype not in seen:
+        seen.add(rtype)
+        candidates.append(rtype)
+
+    # Source 4: Language
+    if lang and lang not in ('未指定', '任意', '') and lang not in seen:
+        seen.add(lang)
+        candidates.append(lang)
+
+    # Source 5: Frequent CJK bigrams from section content
+    sections = card.get('sections', []) or []
+    section_text = ' '.join(
+        (s.get('content', '') or '') + ' ' + (s.get('heading', '') or '')
+        for s in sections if isinstance(s, dict)
+    )
+    cjk_bigrams = _extract_cjk_bigrams(section_text, topic)
+    for bigram in cjk_bigrams:
+        if bigram not in seen and len(candidates) < 8:
+            seen.add(bigram)
+            candidates.append(bigram)
+
+    # Filter: remove anything in forbidden set, empty, or too short
+    final_tags = []
+    final_seen = set()
+    for t in candidates:
+        t = (t or '').strip()
+        if not t or len(t) < 2 or t in _FORBIDDEN_TAGS:
+            continue
+        if t not in final_seen:
+            final_seen.add(t)
+            final_tags.append(t)
+
+    # If still under 4, use _build_knowledge_tags as fallback
+    if len(final_tags) < 4:
+        cat = _detect_topic_category(topic)
+        fallback = _build_knowledge_tags(cat, topic, rtype, lang)
+        for t in fallback:
+            t = (t or '').strip()
+            if not t or len(t) < 2 or t in _FORBIDDEN_TAGS:
+                continue
+            if t not in final_seen:
+                final_seen.add(t)
+                final_tags.append(t)
+
+    # Absolute last resort: use topic itself as a tag
+    if len(final_tags) < 4 and topic:
+        if topic not in final_seen:
+            final_tags.append(topic)
+
+    card['knowledge_points'] = final_tags
+    logger.info("Tags enforcer: %d tags for %r — %s", len(final_tags), card.get('title', '')[:40], final_tags)
     return card
+
+
+def _extract_cjk_bigrams(text, topic):
+    """Extract frequent CJK bigrams from text that appear in the topic context.
+
+    Returns up to 3 distinct bigrams that are at least 2 chars long,
+    appear >= 2 times, and are NOT stopwords.
+    """
+    if not text:
+        return []
+    # Collect all CJK characters
+    cjk_chars = [ch for ch in text if '一' <= ch <= '鿿']
+    if len(cjk_chars) < 4:
+        return []
+
+    # Build bigram frequency map
+    bigram_freq = {}
+    for i in range(len(cjk_chars) - 1):
+        bg = cjk_chars[i] + cjk_chars[i + 1]
+        # Skip stopword-like bigrams
+        if bg in ('这个', '一个', '可以', '进行', '通过', '使用', '其中', '所有',
+                  '因此', '所以', '以及', '并且', '或者', '不是', '我们', '他们',
+                  '重要', '需要', '不同', '相同', '问题', '方法', '情况', '结构',
+                  '定义', '表示', '实现', '例如', '这样', '如下', '以上', '上述'):
+            continue
+        bigram_freq[bg] = bigram_freq.get(bg, 0) + 1
+
+    # Keep bigrams that appear at least 2 times, take up to 3
+    frequent = sorted(
+        [(bg, f) for bg, f in bigram_freq.items() if f >= 2],
+        key=lambda x: -x[1]
+    )
+    return [bg for bg, _ in frequent[:3]]
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -3628,7 +3780,9 @@ def ensure_teaching_resource_quality(card, gen_context):
     """
     Hard quality gate with section-kind-level validation.
 
-    Two-phase approach:
+    Three-phase approach:
+    Phase 0 — Forbidden text scan: if card contains banned placeholder text,
+             flag for replacement.
     Phase 1 — Binary check: if card fails minimum thresholds, replace with
              deterministic template.
     Phase 2 — Section enforcement (ALWAYS runs): ensures required section
@@ -3647,6 +3801,48 @@ def ensure_teaching_resource_quality(card, gen_context):
         "Quality gate: type=%r title=%r chars=%d sections=%d kinds=%s",
         rtype, card.get('title', ''), char_count, len(sections), kinds
     )
+
+    # ═══ Phase 0: Forbidden text scan — replace card if banned phrases found ═══
+    _FORBIDDEN = [
+        '???????', 'O(?)', 'TODO', '示例待补充',
+        '相关概念A', '相关概念B', '低/中/高',
+        '核心原理已在上述内容中详细说明',
+        '请参考上文', '请见上文', '详见上文',
+        '答案略', '解析略', '此处省略',
+        '可自行完成',
+        '根据情况分析', '根据前文',
+        '如上所述',
+    ]
+    # Scan all visible text: sections, title, summary, tags
+    scan_text = all_text + ' ' + (card.get('title', '') or '') + ' ' + (card.get('summary', '') or '')
+    tags = card.get('knowledge_points', card.get('tags', []))
+    if isinstance(tags, list):
+        scan_text += ' ' + ' '.join(str(t) for t in tags)
+    forbidden_hit = None
+    for pat in _FORBIDDEN:
+        if pat in scan_text:
+            forbidden_hit = pat
+            break
+    if forbidden_hit or card.get('_forbidden_triggered'):
+        logger.warning(
+            "Quality gate: forbidden text '%s' in %s card — REPLACING with template",
+            forbidden_hit or '_forbidden_triggered', rtype
+        )
+        if rtype == '图解讲解':
+            card = _build_visual_diagram_card(gen_context)
+        elif rtype == '代码示例':
+            card = _build_code_example_card(gen_context)
+        elif rtype == '分层练习':
+            card = _build_practice_card(gen_context)
+        elif rtype == '易错点':
+            card = _build_mistake_card(gen_context)
+        elif rtype == '项目案例':
+            card = _build_project_card(gen_context)
+        # Update sections/text after replacement
+        sections = card.get('sections', []) or []
+        all_text = _extract_text(sections)
+        char_count = _cn_len(all_text)
+        kinds = _get_section_kinds(sections)
 
     # ═══ Phase 1: Binary gate — replace if critically deficient ═══
 
