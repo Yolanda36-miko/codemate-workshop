@@ -36,6 +36,8 @@ from services.resource_service import (
     finalize_layered_practice_sections,
     _parse_answer_sections,
     _detect_topic_category,
+    _extract_core_topic_terms,
+    validate_final_resource_card,
 )
 
 
@@ -821,6 +823,343 @@ def test_scenario_9():
 
 
 # ══════════════════════════════════════════════════════════════════════════
+#  SCENARIO 10: Topic relevance validation — validate_final_resource_card
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_scenario_10():
+    section("SCENARIO 10: Topic relevance validation & warning card generation")
+
+    # ── 10a: _extract_core_topic_terms ──
+    print("\n  -- 10a: Core term extraction --")
+
+    terms_km = _extract_core_topic_terms("KMP算法的next数组")
+    check('KMP' in terms_km, "S10a.1: KMP acronym extracted")
+    check('next数组' in terms_km or any('next' in t for t in terms_km),
+         f"S10a.2: next数组 compound extracted (terms={terms_km[:5]})")
+    check(len([t for t in terms_km if '字符串匹配' in t or '前缀' in t or '后缀' in t or '失配' in t]) >= 3,
+         f"S10a.3: domain synonyms expanded (terms={terms_km[:8]})")
+
+    terms_bfs = _extract_core_topic_terms("图的BFS遍历")
+    check('BFS' in terms_bfs, "S10a.4: BFS acronym extracted")
+    check(len([t for t in terms_bfs if '广度优先' in t or '队列' in t or '图遍历' in t]) >= 2,
+         f"S10a.5: BFS domain synonyms expanded (terms={terms_bfs[:6]})")
+
+    terms_empty = _extract_core_topic_terms("")
+    check(terms_empty == [], "S10a.6: Empty topic returns empty list")
+
+    # ── 10b: validate_final_resource_card — pass case ──
+    print("\n  -- 10b: Validation — pass (correct topic) --")
+
+    good_card = {
+        'id': 'good-1',
+        'type': '分层练习',
+        'title': 'KMP算法与next数组 — 分层练习',
+        'summary': '深入学习KMP字符串匹配算法中next数组的构建与失配处理',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': '已知模式串"ABABAC"，求next数组的值'},
+            {'kind': 'answer', 'content': '最终答案：next=[0,0,1,2,3,0]\n解题步骤：计算每个位置的最长公共前后缀\n解析：next[i]表示模式串前i个字符的最长公共前后缀长度\n易错提醒：next[0]恒为0'},
+            {'kind': 'practice', 'content': '在KMP匹配中，当text[i]≠pattern[j]时，j应回退到next[j]'},
+            {'kind': 'answer', 'content': '最终答案：j=next[j]\n解题步骤：利用next数组跳过已匹配前缀\n解析：失配时无需回溯text指针\n易错提醒：注意next数组下标从0还是1开始'},
+            {'kind': 'practice', 'content': '求模式串"AAAAB"的next数组'},
+            {'kind': 'answer', 'content': '最终答案：next=[0,1,2,3,0]\n解题步骤：逐个位置计算前缀后缀匹配\n解析：重复字符的模式串next值递增\n易错提醒：最后一个字符B导致next值回0'},
+            {'kind': 'practice', 'content': 'KMP算法中next数组的含义：前缀函数π[i]表示什么？'},
+            {'kind': 'answer', 'content': '最终答案：子串s[0..i]的最长真前缀且是真后缀的长度\n解题步骤：理解真前缀与真后缀的概念\n解析：π函数用于失配时快速跳转\n易错提醒：真前缀不能等于原串本身'},
+            {'kind': 'practice', 'content': '将next数组优化为nextval数组'},
+            {'kind': 'answer', 'content': '最终答案：nextval避免连续相同字符的冗余回退\n解题步骤：若pattern[j]==pattern[next[j]]则nextval[j]=nextval[next[j]]\n解析：优化后减少不必要的比较\n易错提醒：nextval适用于模式串有重复字符的场景'},
+        ],
+    }
+    result_pass = validate_final_resource_card(good_card, 'KMP算法的next数组', '分层练习')
+    check(result_pass.get('_topic_mismatch_warning') is not True,
+         "S10b.1: Correct topic card passes validation")
+    check(result_pass.get('id') == 'good-1',
+         "S10b.2: Original card returned unchanged on pass")
+
+    # ── 10c: validate_final_resource_card — fail (wrong topic) ──
+    print("\n  -- 10c: Validation — fail (wrong topic) --")
+
+    bad_card = {
+        'id': 'bad-1',
+        'type': '分层练习',
+        'title': '二叉树遍历练习',
+        'summary': '练习二叉树的前序、中序、后序遍历',
+        'language': 'Python',
+        'sections': [
+            {'kind': 'practice', 'content': '写出二叉树的前序遍历结果'},
+            {'kind': 'answer', 'content': '最终答案：ABDEC\n解题步骤：根左右\n解析：先访问根节点\n易错提醒：注意遍历顺序'},
+            {'kind': 'practice', 'content': '写出中序遍历结果'},
+            {'kind': 'answer', 'content': '最终答案：DBEAC\n解题步骤：左根右\n解析：中序反映排序关系\n易错提醒：BST中序为升序'},
+            {'kind': 'practice', 'content': '写出后序遍历结果'},
+            {'kind': 'answer', 'content': '最终答案：DEBCA\n解题步骤：左右根\n解析：后序用于删树\n易错提醒：根在最后'},
+            {'kind': 'practice', 'content': '求二叉树深度'},
+            {'kind': 'answer', 'content': '最终答案：3\n解题步骤：递归求左右子树深度\n解析：max(left,right)+1\n易错提醒：空树深度为0'},
+            {'kind': 'practice', 'content': '判断是否为完全二叉树'},
+            {'kind': 'answer', 'content': '最终答案：是\n解题步骤：层序遍历检查\n解析：完全二叉树除最后一层外全满\n易错提醒：注意与满二叉树区别'},
+        ],
+    }
+    result_fail = validate_final_resource_card(bad_card, 'KMP算法的next数组', '分层练习')
+    check(result_fail.get('_topic_mismatch_warning') is True,
+         "S10c.1: Wrong-topic card triggers warning")
+    check('KMP' in result_fail.get('title', ''),
+         "S10c.2: Warning card title mentions requested topic KMP")
+    issues = result_fail.get('_validation_issues', '')
+    check('无关' in issues,
+         f"S10c.3: Validation issues mention '无关' (got: {issues[:60]})")
+    check(len(result_fail.get('sections', [])) >= 2,
+         "S10c.4: Warning card has explanation sections")
+
+    # ── 10d: Layered-practice-specific checks ──
+    print("\n  -- 10d: Layered-practice specific checks --")
+
+    too_few_card = {
+        'id': 'few-1',
+        'type': '分层练习',
+        'title': 'KMP算法练习 — 分层练习',
+        'summary': 'KMP字符串匹配练习',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': 'KMP算法中next数组的计算'},
+            {'kind': 'answer', 'content': '最终答案：next计算\n解题步骤：逐步计算\n解析：前缀后缀匹配\n易错提醒：下标从0开始'},
+            {'kind': 'practice', 'content': 'KMP匹配过程中的失配处理'},
+            {'kind': 'answer', 'content': '最终答案：回退到next[j]\n解题步骤：查表跳转\n解析：避免重复比较\n易错提醒：跳转后继续匹配'},
+            {'kind': 'practice', 'content': 'KMP时间复杂度分析'},
+            {'kind': 'answer', 'content': '最终答案：O(n+m)\n解题步骤：摊还分析\n解析：每个字符最多比较两次\n易错提醒：预处理O(m)'},
+        ],
+    }
+    result_few = validate_final_resource_card(too_few_card, 'KMP算法的next数组', '分层练习')
+    check(result_few.get('_topic_mismatch_warning') is True,
+         "S10d.1: Too few practices (3) triggers warning")
+    issues_few = result_few.get('_validation_issues', '')
+    check('练习题数量' in issues_few,
+         f"S10d.2: Validation mentions practice count (got: {issues_few[:60]})")
+
+    hint_card = {
+        'id': 'hint-1',
+        'type': '分层练习',
+        'title': 'KMP算法与next数组 — 分层练习',
+        'summary': 'KMP匹配算法练习',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': 'KMP算法中求next数组'},
+            {'kind': 'answer', 'content': '最终答案：next计算\n解题步骤：分步计算\n解析：前后缀匹配\n易错提醒：注意边界'},
+            {'kind': 'practice', 'content': 'KMP失配回退策略'},
+            {'kind': 'answer', 'content': '最终答案：j=next[j]\n解题步骤：查表\n解析：跳转\n易错提醒：循环条件'},
+            {'kind': 'practice', 'content': 'KMP与暴力匹配对比'},
+            {'kind': 'answer', 'content': '最终答案：KMP O(n+m)\n解题步骤：对比分析\n解析：避免回溯\n易错提醒：预处理开销'},
+            {'kind': 'answer_hint', 'heading': '提示', 'content': '这是不应该出现的提示'},
+            {'kind': 'practice', 'content': 'next数组优化策略'},
+            {'kind': 'answer', 'content': '最终答案：nextval优化\n解题步骤：消除冗余\n解析：连续相同字符\n易错提醒：nextval定义'},
+            {'kind': 'practice', 'content': 'KMP在生物信息学中的应用'},
+            {'kind': 'answer', 'content': '最终答案：序列比对\n解题步骤：模式匹配\n解析：基因序列搜索\n易错提醒：大数据优化'},
+        ],
+    }
+    result_hint = validate_final_resource_card(hint_card, 'KMP算法的next数组', '分层练习')
+    check(result_hint.get('_topic_mismatch_warning') is True,
+         "S10d.3: answer_hint presence triggers warning")
+    issues_hint = result_hint.get('_validation_issues', '')
+    check('answer_hint' in issues_hint,
+         f"S10d.4: Validation mentions answer_hint (got: {issues_hint[:60]})")
+
+    # ── 10e: Non-layered-practice card validation ──
+    print("\n  -- 10e: Non-layered-practice card validation --")
+
+    code_card = {
+        'id': 'code-1',
+        'type': '代码示例',
+        'title': 'KMP算法C++实现 — 代码示例',
+        'summary': 'KMP字符串匹配算法的完整C++代码实现，包含next数组构建',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'code', 'language': 'C++', 'content': 'void buildNext(string p, int next[]) { ... }'},
+            {'kind': 'text', 'content': 'KMP核心思想：利用部分匹配信息避免回溯'},
+        ],
+    }
+    result_code = validate_final_resource_card(code_card, 'KMP算法的next数组', '代码示例')
+    check(result_code.get('_topic_mismatch_warning') is not True,
+         "S10e.1: Correct-topic code card passes validation")
+
+    bad_code_card = {
+        'id': 'code-bad',
+        'type': '代码示例',
+        'title': '二叉树遍历代码示例',
+        'summary': '二叉树前序、中序、后序遍历的递归实现',
+        'language': 'Python',
+        'sections': [
+            {'kind': 'code', 'language': 'Python', 'content': 'def preorder(root): ...'},
+            {'kind': 'text', 'content': '二叉树的三种深度优先遍历方式'},
+        ],
+    }
+    result_code_bad = validate_final_resource_card(bad_code_card, 'KMP算法的next数组', '代码示例')
+    check(result_code_bad.get('_topic_mismatch_warning') is True,
+         "S10e.2: Wrong-topic code card triggers warning")
+
+    # ── 10f: API integration — unseen topic gets warning, known topic passes ──
+    print("\n  -- 10f: API integration — topic relevance via API --")
+
+    from main import app
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+
+    resp_km = client.post('/api/resources/generate', json={
+        'course_id': 'data_structures',
+        'knowledge_point': 'KMP算法的next数组',
+        'topic': 'KMP算法的next数组',
+        'difficulty': '进阶',
+        'language': 'C++',
+        'resource_types': ['分层练习'],
+    })
+    check(resp_km.status_code == 200, f"S10f.1: KMP API returns 200 (got {resp_km.status_code})")
+    cards_km = resp_km.json().get('resource_cards', [])
+    check(len(cards_km) >= 1, f"S10f.2: KMP cards returned (got {len(cards_km)})")
+    km_warnings = [c for c in cards_km if c.get('_topic_mismatch_warning')]
+    check(len(km_warnings) >= 1,
+         f"S10f.3: Unseen KMP topic triggers warning card (got {len(km_warnings)} warnings)")
+
+    resp_tree = client.post('/api/resources/generate', json={
+        'course_id': 'data_structures',
+        'knowledge_point': '二叉树前序遍历',
+        'topic': '二叉树前序遍历',
+        'difficulty': '基础',
+        'language': 'C++',
+        'resource_types': ['分层练习'],
+    })
+    check(resp_tree.status_code == 200, f"S10f.4: Tree API returns 200 (got {resp_tree.status_code})")
+    cards_tree = resp_tree.json().get('resource_cards', [])
+    check(len(cards_tree) >= 1, f"S10f.5: Tree cards returned (got {len(cards_tree)})")
+    tree_warnings = [c for c in cards_tree if c.get('_topic_mismatch_warning')]
+    check(len(tree_warnings) == 0,
+         f"S10f.6: Known tree topic passes validation (got {len(tree_warnings)} warnings)")
+
+    if km_warnings:
+        warn = km_warnings[0]
+        check(warn.get('type') == '分层练习',
+             f"S10f.7: Warning keeps original type (got '{warn.get('type')}')")
+        check('KMP' in warn.get('title', ''),
+             "S10f.8: Warning title mentions KMP")
+        sections = warn.get('sections', [])
+        kinds = [s.get('kind') for s in sections]
+        check('highlight' in kinds,
+             f"S10f.9: Warning has highlight section (kinds={kinds})")
+        check('next_action' in kinds,
+             f"S10f.10: Warning has next_action section (kinds={kinds})")
+
+    # ── 10g: 二叉树遍历 term extraction coverage ──
+    print("\n  -- 10g: 二叉树遍历 term extraction --")
+
+    terms_bt = _extract_core_topic_terms("二叉树遍历")
+    required_bt_terms = ['二叉树', '遍历', '前序', '中序', '后序', '层序', '节点', '递归', '栈']
+    for req in required_bt_terms:
+        check(req in terms_bt,
+             f"S10g.{required_bt_terms.index(req)+1}: '{req}' in terms for 二叉树遍历 (terms={len(terms_bt)} total)")
+    check(len(terms_bt) >= 12,
+         f"S10g.10: At least 12 terms extracted (got {len(terms_bt)})")
+
+    # ── 10h: 二叉树遍历 card — must PASS (fix false positive) ──
+    print("\n  -- 10h: 二叉树遍历 false positive fix --")
+
+    bt_card = {
+        'id': 'bt-1',
+        'type': '分层练习',
+        'title': '二叉树遍历 — 分层练习',
+        'summary': '系统练习二叉树的前序、中序、后序、层序遍历',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': '给定二叉树A(B,C)，写出前序遍历序列'},
+            {'kind': 'answer', 'content': '最终答案：ABC\n解题步骤：根→左→右\n解析：前序遍历先访问根节点\n易错提醒：注意区分前序与中序'},
+            {'kind': 'practice', 'content': '对同一棵二叉树，写出中序遍历序列'},
+            {'kind': 'answer', 'content': '最终答案：BAC\n解题步骤：左→根→右\n解析：中序遍历左子树先于根\n易错提醒：非BST中序不一定有序'},
+            {'kind': 'practice', 'content': '写出后序遍历序列，并说明递归与非递归实现'},
+            {'kind': 'answer', 'content': '最终答案：BCA\n解题步骤：左→右→根\n解析：后序常用于删除树节点\n易错提醒：非递归需要栈辅助'},
+            {'kind': 'practice', 'content': '用队列实现二叉树的层序遍历'},
+            {'kind': 'answer', 'content': '最终答案：ABC\n解题步骤：根入队→出队访问→左右子节点入队\n解析：层序即BFS\n易错提醒：空树特判'},
+            {'kind': 'practice', 'content': '综合题：对比前序、中序、后序的访问顺序差异'},
+            {'kind': 'answer', 'content': '最终答案：前序根左右、中序左根右、后序左右根\n解题步骤：记住根节点的位置\n解析：三种遍历的递归框架统一\n易错提醒：非递归时栈的压入顺序不同'},
+        ],
+    }
+    result_bt = validate_final_resource_card(bt_card, '二叉树遍历', '分层练习')
+    check(result_bt.get('_topic_mismatch_warning') is not True,
+         "S10h.1: 二叉树遍历 card PASSES validation (false positive fixed)")
+    check(result_bt.get('id') == 'bt-1',
+         "S10h.2: Original card returned unchanged")
+
+    # ── 10i: Cross-topic negative cases — must still FAIL ──
+    print("\n  -- 10i: Cross-topic negative cases --")
+
+    # KMP topic title but content about BFS
+    card_km_bfs = {
+        'id': 'cross-1',
+        'type': '分层练习',
+        'title': 'KMP算法 — 分层练习',
+        'summary': 'KMP字符串匹配',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': '写出图的BFS遍历序列'},
+            {'kind': 'answer', 'content': '最终答案：队列实现BFS\n解题步骤：入队出队\n解析：层次遍历\n易错提醒：标记已访问'},
+            {'kind': 'practice', 'content': 'BFS与DFS的区别'},
+            {'kind': 'answer', 'content': '最终答案：BFS用队列DFS用栈\n解题步骤：数据结构不同\n解析：BFS求最短路径\n易错提醒：空间复杂度不同'},
+            {'kind': 'practice', 'content': 'BFS在图遍历中的应用'},
+            {'kind': 'answer', 'content': '最终答案：求无权图最短路径\n解题步骤：逐层扩展\n解析：O(V+E)\n易错提醒：有环图需标记'},
+            {'kind': 'practice', 'content': '实现BFS算法'},
+            {'kind': 'answer', 'content': '最终答案：queue实现\n解题步骤：初始化→入队→循环\n解析：模板代码\n易错提醒：边界条件'},
+            {'kind': 'practice', 'content': 'BFS时间复杂度分析'},
+            {'kind': 'answer', 'content': '最终答案：O(V+E)\n解题步骤：每个节点和边访问一次\n解析：线性时间\n易错提醒：稠密图O(V²)'},
+        ],
+    }
+    result_km_bfs = validate_final_resource_card(card_km_bfs, 'KMP算法的next数组', '分层练习')
+    check(result_km_bfs.get('_topic_mismatch_warning') is True,
+         "S10i.1: KMP→BFS cross-topic card triggers warning (negative preserved)")
+
+    # 并查集 topic title but content about binary tree
+    card_uf_tree = {
+        'id': 'cross-2',
+        'type': '分层练习',
+        'title': '并查集 — 分层练习',
+        'summary': '并查集路径压缩',
+        'language': 'C++',
+        'sections': [
+            {'kind': 'practice', 'content': '写二叉树前序遍历'},
+            {'kind': 'answer', 'content': '最终答案：ABDEC\n解题步骤：根左右\n解析：递归访问\n易错提醒：空树返回'},
+            {'kind': 'practice', 'content': '二叉树中序遍历'},
+            {'kind': 'answer', 'content': '最终答案：DBEAC\n解题步骤：左根右\n解析：有序输出\n易错提醒：非BST'},
+            {'kind': 'practice', 'content': '求二叉树深度'},
+            {'kind': 'answer', 'content': '最终答案：max(left,right)+1\n解题步骤：递归\n解析：后序遍历变体\n易错提醒：空树深度0'},
+            {'kind': 'practice', 'content': '二叉树层序遍历'},
+            {'kind': 'answer', 'content': '最终答案：BFS\n解题步骤：队列\n解析：逐层访问\n易错提醒：记录层数'},
+            {'kind': 'practice', 'content': '判断平衡二叉树'},
+            {'kind': 'answer', 'content': '最终答案：左右子树高度差≤1\n解题步骤：递归求高度\n解析：AVL基础\n易错提醒：每层都需判断'},
+        ],
+    }
+    result_uf_tree = validate_final_resource_card(card_uf_tree, '并查集路径压缩', '分层练习')
+    check(result_uf_tree.get('_topic_mismatch_warning') is True,
+         "S10i.2: 并查集→二叉树 cross-topic card triggers warning (negative preserved)")
+
+    # 布隆过滤器 topic title but content about knapsack
+    card_bf_knap = {
+        'id': 'cross-3',
+        'type': '分层练习',
+        'title': '布隆过滤器 — 分层练习',
+        'summary': '布隆过滤器原理',
+        'language': 'Python',
+        'sections': [
+            {'kind': 'practice', 'content': '0-1背包状态转移方程'},
+            {'kind': 'answer', 'content': '最终答案：dp[i][w]=max(dp[i-1][w],dp[i-1][w-wi]+vi)\n解题步骤：二维DP\n解析：选或不选\n易错提醒：初始化dp[0][*]=0'},
+            {'kind': 'practice', 'content': '完全背包问题'},
+            {'kind': 'answer', 'content': '最终答案：dp[w]=max(dp[w],dp[w-wi]+vi)\n解题步骤：一维正序\n解析：无限物品\n易错提醒：遍历顺序'},
+            {'kind': 'practice', 'content': '多重背包二进制优化'},
+            {'kind': 'answer', 'content': '最终答案：拆分物品\n解题步骤：二进制分组\n解析：降为0-1\n易错提醒：余数处理'},
+            {'kind': 'practice', 'content': '背包问题变种'},
+            {'kind': 'answer', 'content': '最终答案：分组背包等\n解题步骤：按情况处理\n解析：灵活变通\n易错提醒：容量限制'},
+            {'kind': 'practice', 'content': 'DP背包时间优化'},
+            {'kind': 'answer', 'content': '最终答案：单调队列优化\n解题步骤：滑动窗口\n解析：O(nW)\n易错提醒：下标计算'},
+        ],
+    }
+    result_bf_knap = validate_final_resource_card(card_bf_knap, '布隆过滤器', '分层练习')
+    check(result_bf_knap.get('_topic_mismatch_warning') is True,
+         "S10i.3: 布隆过滤器→背包 cross-topic card triggers warning (negative preserved)")
+
+
+# ══════════════════════════════════════════════════════════════════════════
 #  RUN ALL
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -842,6 +1181,7 @@ if __name__ == '__main__':
         test_scenario_7()
         test_scenario_8()
         test_scenario_9()
+        test_scenario_10()
     except Exception as e:
         print(f"\n  EXCEPTION: {e}")
         traceback.print_exc()

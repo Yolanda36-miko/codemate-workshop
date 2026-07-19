@@ -207,6 +207,7 @@ def build_generation_context(
 
     return {
         'topic': raw_topic,
+        'requested_topic': raw_topic,
         'course_id': course_id,
         'module': module_name,
         'difficulty': difficulty,
@@ -214,6 +215,7 @@ def build_generation_context(
         'normalized_language': normalized_lang,
         'resource_types': effective_types,
         'selected_resource_types': user_requested_types,  # exactly what user asked for (Phase 14B-4)
+        'expected_resource_type': effective_types,
         'foundation_level': foundation,
         'learning_goal': goal,
         'current_difficulties': difficulties,
@@ -7045,6 +7047,221 @@ def finalize_layered_practice_sections(card: dict, gen_context: dict) -> dict:
     return card
 
 
+def _extract_core_topic_terms(topic: str) -> list[str]:
+    """Extract core keywords from a topic string for relevance validation.
+
+    Handles CJK technical terms, English acronyms (KMP, BFS, DFS, DP, DSU),
+    compound terms (next数组), and domain-specific synonym expansion.
+    """
+    if not topic or not topic.strip():
+        return []
+
+    t = topic.strip()
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    def _add(term: str):
+        term = term.strip()
+        if term and len(term) >= 1 and term not in seen:
+            seen.add(term)
+            terms.append(term)
+
+    import re
+
+    # 1. English acronyms (KMP, BFS, DFS, DP, DSU, etc.)
+    for m in re.finditer(r'[A-Z]{2,}', t):
+        _add(m.group())
+
+    # 2. English+CJK compounds (next数组, KMP算法)
+    for m in re.finditer(r'[a-zA-Z]+[一-鿿]+|[一-鿿]+[a-zA-Z]+', t):
+        _add(m.group())
+
+    # 3. CJK words: split by structural particles
+    cjk_parts = re.split(r'[的与和之]', t)
+    for part in cjk_parts:
+        part = part.strip()
+        if len(part) >= 2:
+            _add(part)
+
+    # 4. Domain synonym expansion
+    _SYNONYMS: dict[str, list[str]] = {
+        'KMP': ['字符串匹配', '模式串', '前缀函数', 'next数组', '失配', '部分匹配表', '前缀', '后缀'],
+        'next': ['前缀', '后缀', '失配', '模式串', '部分匹配表'],
+        'BFS': ['广度优先', '队列', '层序遍历', '图遍历'],
+        'DFS': ['深度优先', '栈', '回溯', '图遍历'],
+        'DP': ['动态规划', '状态转移', '最优子结构'],
+        '动态规划': ['状态转移', '最优子结构', '重叠子问题'],
+        'DSU': ['并查集', '路径压缩', '按秩合并', '连通分量'],
+        '并查集': ['路径压缩', '按秩合并', '连通分量', 'Union-Find'],
+        '二叉树': ['树', '节点', '根节点', '左子树', '右子树',
+                   '前序', '中序', '后序', '层序', '遍历', '递归',
+                   '栈', '非递归', '访问顺序', '根左右', '左根右', '左右根'],
+        '前序': ['二叉树', '遍历', '根左右', '前序遍历'],
+        '中序': ['二叉树', '遍历', '左根右', '中序遍历'],
+        '后序': ['二叉树', '遍历', '左右根', '后序遍历'],
+        '快速排序': ['分治', 'pivot', '基准', '分区', 'partition'],
+        '二分': ['折半', '有序数组', '对数时间', 'binary search'],
+        '哈希': ['散列', '哈希冲突', '链地址法', '开放地址法'],
+        '散列': ['哈希', '哈希冲突', '链地址法', '开放地址法'],
+        '背包': ['0-1背包', '动态规划', '状态转移', 'knapsack'],
+        'Dijkstra': ['最短路径', '图', '贪心', '优先队列'],
+        '最短路径': ['Dijkstra', '图', '贪心', '优先队列'],
+    }
+
+    for key, synonyms in _SYNONYMS.items():
+        if key in t:
+            for syn in synonyms:
+                _add(syn)
+
+    # 5. Conditional: '遍历' only expands when tree context is present
+    if '遍历' in t and ('二叉' in t or '树' in t or '前序' in t or '中序' in t or '后序' in t):
+        for syn in ['前序', '中序', '后序', '层序', '二叉树', '树', '节点', '递归', '栈', '访问顺序']:
+            _add(syn)
+
+    return terms
+
+
+def validate_final_resource_card(
+    card: dict,
+    requested_topic: str,
+    expected_resource_type: str,
+) -> dict:
+    """Validate a resource card's topic relevance and structural integrity.
+
+    For layered practice cards, performs strict validation:
+    - Exactly 5 practice + 5 answer sections
+    - Strict practice→answer interleaving
+    - Each practice question mentions core topic terms
+    - No answer_hint sections
+
+    Returns the original card if valid, or a warning card if validation fails.
+    """
+    if not requested_topic:
+        return card
+
+    core_terms = _extract_core_topic_terms(requested_topic)
+    if not core_terms:
+        return card
+
+    rtype = card.get('type', '')
+    title = card.get('title', '') or ''
+    summary = card.get('summary', '') or ''
+    sections = card.get('sections', []) or []
+
+    def _card_text(secs) -> str:
+        parts: list[str] = []
+        for s in secs or []:
+            if isinstance(s, dict):
+                parts.append(s.get('content', '') or '')
+                parts.append(s.get('heading', '') or '')
+                parts.append(' '.join(s.get('steps', []) or []))
+                parts.append(' '.join(s.get('items', []) or []))
+        return ' '.join(parts)
+
+    all_text = title + ' ' + summary + ' ' + _card_text(sections)
+
+    # -- Check 1: title or summary must mention core topic
+    title_summary_text = title + ' ' + summary
+    title_match = any(term in title_summary_text for term in core_terms)
+
+    # -- Check 2: at least 2 core terms in card body
+    body_matches = [term for term in core_terms if term in all_text]
+
+    # -- Layered-practice-specific checks
+    is_layered = (rtype == '分层练习')
+    lp_issues: list[str] = []
+
+    if is_layered:
+        practice_secs = [s for s in sections if s.get('kind') == 'practice']
+        answer_secs = [s for s in sections if s.get('kind') == 'answer']
+        hint_secs = [s for s in sections if s.get('kind') == 'answer_hint']
+
+        if len(practice_secs) != 5:
+            lp_issues.append(f'练习题数量={len(practice_secs)}（期望5）')
+
+        if len(answer_secs) != 5:
+            lp_issues.append(f'答案数量={len(answer_secs)}（期望5）')
+
+        if hint_secs:
+            lp_issues.append(f'包含{len(hint_secs)}个answer_hint（期望0）')
+
+        # Strict interleaving
+        section_kinds = [s.get('kind') for s in sections]
+        p_indices = [i for i, k in enumerate(section_kinds) if k == 'practice']
+        a_indices = [i for i, k in enumerate(section_kinds) if k == 'answer']
+        if len(p_indices) >= 5 and len(a_indices) >= 5:
+            interleave_ok = all(
+                p_indices[j] < a_indices[j]
+                for j in range(5)
+            )
+            if not interleave_ok:
+                lp_issues.append('练习与答案未严格交替排列')
+
+        # Per-practice topic relevance
+        for j, ps in enumerate(practice_secs[:5]):
+            pq_text = (ps.get('content', '') or '') + ' ' + (ps.get('heading', '') or '')
+            pq_matches = [t for t in core_terms if t in pq_text]
+            if not pq_matches:
+                lp_issues.append(f'第{j+1}题与主题"{requested_topic}"无关')
+
+    # -- Decide pass/fail
+    if is_layered:
+        passed = title_match and len(body_matches) >= 2 and len(lp_issues) == 0
+    else:
+        passed = title_match and len(body_matches) >= 1
+
+    if passed:
+        return card
+
+    # -- Build warning card
+    issues_text = '；'.join(lp_issues) if lp_issues else \
+        f'标题未包含核心术语，正文匹配度不足（匹配{len(body_matches)}个术语）'
+    logger.warning(
+        "Topic validation FAILED for '%s' (%s): %s — replacing with warning card",
+        title, rtype, issues_text,
+    )
+
+    lang = card.get('language', 'Python')
+
+    warning_sections: list[dict] = [
+        {
+            'kind': 'highlight',
+            'heading': '⚠️ 主题匹配异常',
+            'content': f'生成的"{rtype}"资源与您输入的主题 **"{requested_topic}"** 匹配度不足，系统未能生成合格的主题相关内容。',
+        },
+        {
+            'kind': 'text',
+            'heading': '诊断信息',
+            'content': f'检测到的问题：{issues_text}。核心术语：{", ".join(core_terms[:8])}。建议尝试更具体的学习主题或更换资源类型后重新生成。',
+        },
+        {
+            'kind': 'next_action',
+            'heading': '建议操作',
+            'content': '1. 确认主题名称拼写正确；2. 尝试更通用的主题描述（如将"KMP算法的next数组"改为"字符串匹配KMP算法"）；3. 选择其他资源类型组合重新生成。',
+        },
+    ]
+
+    return {
+        'id': card.get('id', f'res-warn-{random.randint(1000, 9999)}'),
+        'title': f'⚠️ 主题匹配失败 — {requested_topic}',
+        'type': rtype or '分层练习',
+        'course': card.get('course', '数据结构与算法'),
+        'knowledge_point': requested_topic,
+        'difficulty': card.get('difficulty', '入门'),
+        'language': lang,
+        'summary': f'关于"{requested_topic}"的{rtype}资源生成失败，生成内容与主题不匹配。{issues_text}',
+        'sections': warning_sections,
+        'key_concepts': core_terms[:5],
+        'learning_tips': ['建议重新生成或更换资源类型'],
+        'tags': core_terms[:6],
+        'knowledge_points': core_terms[:6],
+        'match_reason': f'主题"{requested_topic}"匹配验证未通过',
+        'personalized_reason': f'主题"{requested_topic}"匹配验证未通过',
+        '_topic_mismatch_warning': True,
+        '_validation_issues': issues_text,
+    }
+
+
 def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
     """
     Phase 3C-3: Post-process resource cards with validation, enrichment, and sanitization.
@@ -7245,6 +7462,13 @@ def finalize_resource_cards(cards: list[dict], gen_context: dict) -> list[dict]:
 
     # ── Step 10: Cross-topic contamination check ──
     _check_cross_topic_contamination(valid_cards, gen_context)
+
+    # ── Step 11: Final topic relevance validation ──
+    requested_topic = gen_context.get('requested_topic', '') or gen_context.get('topic', '')
+    if requested_topic:
+        for i, card in enumerate(valid_cards):
+            card_type = card.get('type', '')
+            valid_cards[i] = validate_final_resource_card(card, requested_topic, card_type)
 
     if total_issues > 0:
         logger.info(
